@@ -18,17 +18,21 @@ include(FetchContent)
 FetchContent_Declare(
   libassert
   GIT_REPOSITORY https://github.com/jeremy-rifkin/libassert.git
-  GIT_TAG        v2.2.1
+  GIT_TAG v2.2.1
 )
 
 # Google Test suite
 # TODO: Only fetch Google Test if tests enabled
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+  URL
+    https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 
-FetchContent_MakeAvailable(libassert googletest)
+FetchContent_MakeAvailable(
+  libassert
+  googletest
+)
 
 # The source and header files
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -38,39 +42,43 @@ file(GLOB_RECURSE HEADERS "src/*.hpp")
 list(APPEND SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
 # Add executable and link libraries
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
-target_include_directories(${PROJECT_NAME} PUBLIC 
+add_executable(
+  ${PROJECT_NAME}
+  ${SOURCES}
+  ${HEADERS}
+)
+target_include_directories(
+  ${PROJECT_NAME}
+  PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(
-	${PROJECT_NAME}
-	PRIVATE
-	libassert::assert
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE libassert::assert)
 
 # Tests
 if(BUILD_TESTS)
-	enable_testing()
-	
-	# Grab the test files
-	file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
+  enable_testing()
 
-	# Test executable
-	add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
+  # Grab the test files
+  file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
 
-	# Link our sources (except for main.cpp)
-	list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
-    	target_sources(${PROJECT_NAME}_tests PRIVATE ${SOURCES})
-	target_include_directories(${PROJECT_NAME}_tests PUBLIC 
-       		${CMAKE_CURRENT_SOURCE_DIR}/src
-    	) 
-    	target_link_libraries(
-        	${PROJECT_NAME}_tests
-        	PRIVATE
-        	GTest::gtest_main
-        	libassert::assert
-    	)
-    
-    	include(GoogleTest)
-    	gtest_discover_tests(${PROJECT_NAME}_tests)
+  # Test executable
+  add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
+
+  # Link our sources (except for main.cpp)
+  list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
+  target_sources(${PROJECT_NAME}_tests PRIVATE ${SOURCES})
+  target_include_directories(
+    ${PROJECT_NAME}_tests
+    PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/src
+  )
+  target_link_libraries(
+    ${PROJECT_NAME}_tests
+    PRIVATE
+      GTest::gtest_main
+      libassert::assert
+  )
+
+  include(GoogleTest)
+  gtest_discover_tests(${PROJECT_NAME}_tests)
 endif()

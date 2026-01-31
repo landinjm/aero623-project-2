@@ -1,5 +1,8 @@
 # clangd
 **/.cache
 
+# python virtual environments
+**/.venv
+
 # misc
 compile_commands.json
