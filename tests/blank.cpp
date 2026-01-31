@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
-TEST(test_suite, test){
-	EXPECT_TRUE(true);
+TEST(test_suite, test)
+{
+  EXPECT_TRUE(true);
 }
