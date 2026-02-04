@@ -5,6 +5,7 @@ project(${PROJECT_NAME} VERSION 1.0)
 # Config options
 option(BUILD_EXAMPLES "Build example applications" OFF)
 option(BUILD_TESTS "Build tests" ON)
+option(BUILD_SHARED_LIBS "Use shared libraries" ON)
 
 # Global settings
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -21,6 +22,13 @@ FetchContent_Declare(
   GIT_TAG v2.2.1
 )
 
+# Eigen
+FetchContent_Declare(
+  eigen
+  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+  GIT_TAG 5.0.1
+)
+
 # Google Test suite
 # TODO: Only fetch Google Test if tests enabled
 FetchContent_Declare(
@@ -31,6 +39,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(
   libassert
+  eigen
   googletest
 )
 
@@ -52,7 +61,12 @@ target_include_directories(
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE libassert::assert)
+target_link_libraries(
+  ${PROJECT_NAME}
+  PRIVATE
+    libassert::assert
+    Eigen3::Eigen
+)
 
 # Tests
 if(BUILD_TESTS)
@@ -75,8 +89,9 @@ if(BUILD_TESTS)
   target_link_libraries(
     ${PROJECT_NAME}_tests
     PRIVATE
-      GTest::gtest_main
       libassert::assert
+      Eigen3::Eigen
+      GTest::gtest_main
   )
 
   include(GoogleTest)
