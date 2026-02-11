@@ -1,0 +1,1999 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineSystem.cmake:233 (message)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      The system is: Linux - 6.6.87.2-microsoft-standard-WSL2 - x86_64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: /usr/bin/cc 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is GNU, found in:
+        /home/tjmellema/aero623-project-2/build/CMakeFiles/3.28.3/CompilerIdC/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --c++ 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --ec++ 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --target=arm-arm-none-eabi;-mcpu=cortex-m3 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c;-I__does_not_exist__ 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --c++ 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --ec++ 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --target=arm-arm-none-eabi;-mcpu=cortex-m3 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c;-I__does_not_exist__ 
+      
+      The output was:
+      No such file or directory
+      
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4WjD5c"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4WjD5c"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4WjD5c'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_be6e9/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_be6e9.dir/build.make CMakeFiles/cmTC_be6e9.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4WjD5c'
+        Building C object CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -v -o CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.28/Modules/CMakeCCompilerABI.c
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/cc
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c,ada,c++,go,d,fortran,objc,obj-c++,m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr,amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) 
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_be6e9.dir/'
+         /usr/libexec/gcc/x86_64-linux-gnu/13/cc1 -quiet -v -imultiarch x86_64-linux-gnu /usr/share/cmake-3.28/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_be6e9.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -fasynchronous-unwind-tables -fstack-protector-strong -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccem4Jp5.s
+        GNU C17 (Ubuntu 13.3.0-6ubuntu2~24.04) version 13.3.0 (x86_64-linux-gnu)
+        	compiled by GNU C version 13.3.0, GMP version 6.3.0, MPFR version 4.2.1, MPC version 1.3.1, isl version isl-0.26-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed/x86_64-linux-gnu"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/../../../../x86_64-linux-gnu/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/lib/gcc/x86_64-linux-gnu/13/include
+         /usr/local/include
+         /usr/include/x86_64-linux-gnu
+         /usr/include
+        End of search list.
+        Compiler executable checksum: 38987c28e967c64056a6454abdef726e
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_be6e9.dir/'
+         as -v --64 -o CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o /tmp/ccem4Jp5.s
+        GNU assembler version 2.42 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.42
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.'
+        Linking C executable cmTC_be6e9
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_be6e9.dir/link.txt --verbose=1
+        /usr/bin/cc  -v CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o -o cmTC_be6e9 
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/cc
+        COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c,ada,c++,go,d,fortran,objc,obj-c++,m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr,amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) 
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_be6e9' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_be6e9.'
+         /usr/libexec/gcc/x86_64-linux-gnu/13/collect2 -plugin /usr/libexec/gcc/x86_64-linux-gnu/13/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper -plugin-opt=-fresolution=/tmp/ccJwlfnB.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_be6e9 /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/13 -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/13/../../.. CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_be6e9' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_be6e9.'
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4WjD5c'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:127 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/lib/gcc/x86_64-linux-gnu/13/include]
+          add: [/usr/local/include]
+          add: [/usr/include/x86_64-linux-gnu]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/usr/lib/gcc/x86_64-linux-gnu/13/include] ==> [/usr/lib/gcc/x86_64-linux-gnu/13/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/usr/lib/gcc/x86_64-linux-gnu/13/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:159 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        ignore line: [Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4WjD5c']
+        ignore line: []
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_be6e9/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_be6e9.dir/build.make CMakeFiles/cmTC_be6e9.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4WjD5c']
+        ignore line: [Building C object CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.28/Modules/CMakeCCompilerABI.c]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/cc]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c ada c++ go d fortran objc obj-c++ m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_be6e9.dir/']
+        ignore line: [ /usr/libexec/gcc/x86_64-linux-gnu/13/cc1 -quiet -v -imultiarch x86_64-linux-gnu /usr/share/cmake-3.28/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_be6e9.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -fasynchronous-unwind-tables -fstack-protector-strong -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccem4Jp5.s]
+        ignore line: [GNU C17 (Ubuntu 13.3.0-6ubuntu2~24.04) version 13.3.0 (x86_64-linux-gnu)]
+        ignore line: [	compiled by GNU C version 13.3.0  GMP version 6.3.0  MPFR version 4.2.1  MPC version 1.3.1  isl version isl-0.26-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed/x86_64-linux-gnu"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/../../../../x86_64-linux-gnu/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/lib/gcc/x86_64-linux-gnu/13/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include/x86_64-linux-gnu]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Compiler executable checksum: 38987c28e967c64056a6454abdef726e]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_be6e9.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o /tmp/ccem4Jp5.s]
+        ignore line: [GNU assembler version 2.42 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.42]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.']
+        ignore line: [Linking C executable cmTC_be6e9]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_be6e9.dir/link.txt --verbose=1]
+        ignore line: [/usr/bin/cc  -v CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o -o cmTC_be6e9 ]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/cc]
+        ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c ada c++ go d fortran objc obj-c++ m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) ]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_be6e9' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_be6e9.']
+        link line: [ /usr/libexec/gcc/x86_64-linux-gnu/13/collect2 -plugin /usr/libexec/gcc/x86_64-linux-gnu/13/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper -plugin-opt=-fresolution=/tmp/ccJwlfnB.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_be6e9 /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/13 -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/13/../../.. CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o]
+          arg [/usr/libexec/gcc/x86_64-linux-gnu/13/collect2] ==> ignore
+          arg [-plugin] ==> ignore
+          arg [/usr/libexec/gcc/x86_64-linux-gnu/13/liblto_plugin.so] ==> ignore
+          arg [-plugin-opt=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccJwlfnB.res] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-pie] ==> ignore
+          arg [-znow] ==> ignore
+          arg [-zrelro] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_be6e9] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib]
+          arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+          arg [-L/lib/../lib] ==> dir [/lib/../lib]
+          arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+          arg [-L/usr/lib/../lib] ==> dir [/usr/lib/../lib]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13/../../..] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../..]
+          arg [CMakeFiles/cmTC_be6e9.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [-lgcc] ==> lib [gcc]
+          arg [--push-state] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [--pop-state] ==> ignore
+          arg [-lc] ==> lib [c]
+          arg [-lgcc] ==> lib [gcc]
+          arg [--push-state] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [--pop-state] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o] ==> [/usr/lib/x86_64-linux-gnu/Scrt1.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o] ==> [/usr/lib/x86_64-linux-gnu/crti.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o] ==> [/usr/lib/x86_64-linux-gnu/crtn.o]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13] ==> [/usr/lib/gcc/x86_64-linux-gnu/13]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib] ==> [/usr/lib]
+        collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+        collapse library dir [/lib/../lib] ==> [/lib]
+        collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/../lib] ==> [/usr/lib]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../..] ==> [/usr/lib]
+        implicit libs: [gcc;gcc_s;c;gcc;gcc_s]
+        implicit objs: [/usr/lib/x86_64-linux-gnu/Scrt1.o;/usr/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o;/usr/lib/x86_64-linux-gnu/crtn.o]
+        implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/13;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib]
+        implicit fwks: []
+      
+      
+...
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: /usr/bin/c++ 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is GNU, found in:
+        /home/tjmellema/aero623-project-2/build/CMakeFiles/3.28.3/CompilerIdCXX/a.out
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-PwudAA"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-PwudAA"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-PwudAA'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_f1cb2/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_f1cb2.dir/build.make CMakeFiles/cmTC_f1cb2.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-PwudAA'
+        Building CXX object CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -v -o CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.28/Modules/CMakeCXXCompilerABI.cpp
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/c++
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c,ada,c++,go,d,fortran,objc,obj-c++,m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr,amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) 
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f1cb2.dir/'
+         /usr/libexec/gcc/x86_64-linux-gnu/13/cc1plus -quiet -v -imultiarch x86_64-linux-gnu -D_GNU_SOURCE /usr/share/cmake-3.28/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_f1cb2.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -fasynchronous-unwind-tables -fstack-protector-strong -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccd2cbF1.s
+        GNU C++17 (Ubuntu 13.3.0-6ubuntu2~24.04) version 13.3.0 (x86_64-linux-gnu)
+        	compiled by GNU C version 13.3.0, GMP version 6.3.0, MPFR version 4.2.1, MPC version 1.3.1, isl version isl-0.26-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring duplicate directory "/usr/include/x86_64-linux-gnu/c++/13"
+        ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed/x86_64-linux-gnu"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/../../../../x86_64-linux-gnu/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/include/c++/13
+         /usr/include/x86_64-linux-gnu/c++/13
+         /usr/include/c++/13/backward
+         /usr/lib/gcc/x86_64-linux-gnu/13/include
+         /usr/local/include
+         /usr/include/x86_64-linux-gnu
+         /usr/include
+        End of search list.
+        Compiler executable checksum: c81c05345ce537099dafd5580045814a
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f1cb2.dir/'
+         as -v --64 -o CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccd2cbF1.s
+        GNU assembler version 2.42 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.42
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.'
+        Linking CXX executable cmTC_f1cb2
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f1cb2.dir/link.txt --verbose=1
+        /usr/bin/c++  -v CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_f1cb2 
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/c++
+        COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c,ada,c++,go,d,fortran,objc,obj-c++,m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr,amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) 
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f1cb2' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f1cb2.'
+         /usr/libexec/gcc/x86_64-linux-gnu/13/collect2 -plugin /usr/libexec/gcc/x86_64-linux-gnu/13/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper -plugin-opt=-fresolution=/tmp/cc1pkwLc.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_f1cb2 /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/13 -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/13/../../.. CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f1cb2' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f1cb2.'
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-PwudAA'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:127 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/include/c++/13]
+          add: [/usr/include/x86_64-linux-gnu/c++/13]
+          add: [/usr/include/c++/13/backward]
+          add: [/usr/lib/gcc/x86_64-linux-gnu/13/include]
+          add: [/usr/local/include]
+          add: [/usr/include/x86_64-linux-gnu]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/usr/include/c++/13] ==> [/usr/include/c++/13]
+        collapse include dir [/usr/include/x86_64-linux-gnu/c++/13] ==> [/usr/include/x86_64-linux-gnu/c++/13]
+        collapse include dir [/usr/include/c++/13/backward] ==> [/usr/include/c++/13/backward]
+        collapse include dir [/usr/lib/gcc/x86_64-linux-gnu/13/include] ==> [/usr/lib/gcc/x86_64-linux-gnu/13/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/usr/include/c++/13;/usr/include/x86_64-linux-gnu/c++/13;/usr/include/c++/13/backward;/usr/lib/gcc/x86_64-linux-gnu/13/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:159 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        ignore line: [Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-PwudAA']
+        ignore line: []
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_f1cb2/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_f1cb2.dir/build.make CMakeFiles/cmTC_f1cb2.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-PwudAA']
+        ignore line: [Building CXX object CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.28/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/c++]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c ada c++ go d fortran objc obj-c++ m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f1cb2.dir/']
+        ignore line: [ /usr/libexec/gcc/x86_64-linux-gnu/13/cc1plus -quiet -v -imultiarch x86_64-linux-gnu -D_GNU_SOURCE /usr/share/cmake-3.28/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_f1cb2.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -fasynchronous-unwind-tables -fstack-protector-strong -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccd2cbF1.s]
+        ignore line: [GNU C++17 (Ubuntu 13.3.0-6ubuntu2~24.04) version 13.3.0 (x86_64-linux-gnu)]
+        ignore line: [	compiled by GNU C version 13.3.0  GMP version 6.3.0  MPFR version 4.2.1  MPC version 1.3.1  isl version isl-0.26-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring duplicate directory "/usr/include/x86_64-linux-gnu/c++/13"]
+        ignore line: [ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed/x86_64-linux-gnu"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/include-fixed"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/13/../../../../x86_64-linux-gnu/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/include/c++/13]
+        ignore line: [ /usr/include/x86_64-linux-gnu/c++/13]
+        ignore line: [ /usr/include/c++/13/backward]
+        ignore line: [ /usr/lib/gcc/x86_64-linux-gnu/13/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include/x86_64-linux-gnu]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Compiler executable checksum: c81c05345ce537099dafd5580045814a]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f1cb2.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccd2cbF1.s]
+        ignore line: [GNU assembler version 2.42 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.42]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [Linking CXX executable cmTC_f1cb2]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f1cb2.dir/link.txt --verbose=1]
+        ignore line: [/usr/bin/c++  -v CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_f1cb2 ]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/c++]
+        ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 13.3.0-6ubuntu2~24.04' --with-bugurl=file:///usr/share/doc/gcc-13/README.Bugs --enable-languages=c ada c++ go d fortran objc obj-c++ m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-13 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-nvptx/usr amdgcn-amdhsa=/build/gcc-13-fG75Ri/gcc-13-13.3.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04) ]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/13/:/usr/libexec/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/13/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/13/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f1cb2' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f1cb2.']
+        link line: [ /usr/libexec/gcc/x86_64-linux-gnu/13/collect2 -plugin /usr/libexec/gcc/x86_64-linux-gnu/13/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper -plugin-opt=-fresolution=/tmp/cc1pkwLc.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_f1cb2 /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/13 -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/13/../../.. CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o]
+          arg [/usr/libexec/gcc/x86_64-linux-gnu/13/collect2] ==> ignore
+          arg [-plugin] ==> ignore
+          arg [/usr/libexec/gcc/x86_64-linux-gnu/13/liblto_plugin.so] ==> ignore
+          arg [-plugin-opt=/usr/libexec/gcc/x86_64-linux-gnu/13/lto-wrapper] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/cc1pkwLc.res] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-pie] ==> ignore
+          arg [-znow] ==> ignore
+          arg [-zrelro] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_f1cb2] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib]
+          arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+          arg [-L/lib/../lib] ==> dir [/lib/../lib]
+          arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+          arg [-L/usr/lib/../lib] ==> dir [/usr/lib/../lib]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/13/../../..] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../..]
+          arg [CMakeFiles/cmTC_f1cb2.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [-lstdc++] ==> lib [stdc++]
+          arg [-lm] ==> lib [m]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o] ==> [/usr/lib/x86_64-linux-gnu/Scrt1.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o] ==> [/usr/lib/x86_64-linux-gnu/crti.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o] ==> [/usr/lib/x86_64-linux-gnu/crtn.o]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13] ==> [/usr/lib/gcc/x86_64-linux-gnu/13]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../../../lib] ==> [/usr/lib]
+        collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+        collapse library dir [/lib/../lib] ==> [/lib]
+        collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/../lib] ==> [/usr/lib]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/13/../../..] ==> [/usr/lib]
+        implicit libs: [stdc++;m;gcc_s;gcc;c;gcc_s;gcc]
+        implicit objs: [/usr/lib/x86_64-linux-gnu/Scrt1.o;/usr/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o;/usr/lib/x86_64-linux-gnu/crtn.o]
+        implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/13;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:10 (check_cxx_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:15 (check_support)"
+      - "build/_deps/cpptrace-src/CMakeLists.txt:77 (include)"
+    checks:
+      - "Performing Test HAS_CXXABI"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-NzCey2"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-NzCey2"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "HAS_CXXABI"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-NzCey2'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_86b93/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_86b93.dir/build.make CMakeFiles/cmTC_86b93.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-NzCey2'
+        Building CXX object CMakeFiles/cmTC_86b93.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_CXXABI -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/cmake -std=gnu++11 -o CMakeFiles/cmTC_86b93.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-NzCey2/src.cxx
+        Linking CXX executable cmTC_86b93
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_86b93.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_86b93.dir/src.cxx.o -o cmTC_86b93 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-NzCey2'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:10 (check_cxx_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:19 (check_support)"
+      - "build/_deps/cpptrace-src/CMakeLists.txt:77 (include)"
+    checks:
+      - "Performing Test HAS_ATTRIBUTE_PACKED"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-AHmZcH"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-AHmZcH"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "HAS_ATTRIBUTE_PACKED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-AHmZcH'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_b929c/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_b929c.dir/build.make CMakeFiles/cmTC_b929c.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-AHmZcH'
+        Building CXX object CMakeFiles/cmTC_b929c.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_ATTRIBUTE_PACKED -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/cmake -std=gnu++11 -o CMakeFiles/cmTC_b929c.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-AHmZcH/src.cxx
+        Linking CXX executable cmTC_b929c
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b929c.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_b929c.dir/src.cxx.o -o cmTC_b929c 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-AHmZcH'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:10 (check_cxx_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:23 (check_support)"
+      - "build/_deps/cpptrace-src/CMakeLists.txt:77 (include)"
+    checks:
+      - "Performing Test HAS_UNWIND"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-lxiJsY"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-lxiJsY"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "HAS_UNWIND"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-lxiJsY'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_f59fc/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_f59fc.dir/build.make CMakeFiles/cmTC_f59fc.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-lxiJsY'
+        Building CXX object CMakeFiles/cmTC_f59fc.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_UNWIND -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/cmake -std=gnu++11 -o CMakeFiles/cmTC_f59fc.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-lxiJsY/src.cxx
+        Linking CXX executable cmTC_f59fc
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f59fc.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_f59fc.dir/src.cxx.o -o cmTC_f59fc 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-lxiJsY'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:10 (check_cxx_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:24 (check_support)"
+      - "build/_deps/cpptrace-src/CMakeLists.txt:77 (include)"
+    checks:
+      - "Performing Test HAS_EXECINFO"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-aEamjy"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-aEamjy"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "HAS_EXECINFO"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-aEamjy'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_936a3/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_936a3.dir/build.make CMakeFiles/cmTC_936a3.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-aEamjy'
+        Building CXX object CMakeFiles/cmTC_936a3.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_EXECINFO -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/cmake -std=gnu++11 -o CMakeFiles/cmTC_936a3.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-aEamjy/src.cxx
+        Linking CXX executable cmTC_936a3
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_936a3.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_936a3.dir/src.cxx.o -o cmTC_936a3 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-aEamjy'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:10 (check_cxx_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:58 (check_support)"
+      - "build/_deps/cpptrace-src/CMakeLists.txt:77 (include)"
+    checks:
+      - "Performing Test HAS_BACKTRACE"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-zDxDIr"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-zDxDIr"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "HAS_BACKTRACE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-zDxDIr'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_07e9b/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_07e9b.dir/build.make CMakeFiles/cmTC_07e9b.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-zDxDIr'
+        Building CXX object CMakeFiles/cmTC_07e9b.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_BACKTRACE -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/cmake -std=gnu++11 -o CMakeFiles/cmTC_07e9b.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-zDxDIr/src.cxx
+        Linking CXX executable cmTC_07e9b
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_07e9b.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_07e9b.dir/src.cxx.o -o cmTC_07e9b  -lbacktrace 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-zDxDIr'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:10 (check_cxx_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:60 (check_support)"
+      - "build/_deps/cpptrace-src/CMakeLists.txt:77 (include)"
+    checks:
+      - "Performing Test HAS_CXX_EXCEPTION_TYPE"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-CSKrgY"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-CSKrgY"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "HAS_CXX_EXCEPTION_TYPE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-CSKrgY'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_278d4/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_278d4.dir/build.make CMakeFiles/cmTC_278d4.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-CSKrgY'
+        Building CXX object CMakeFiles/cmTC_278d4.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_CXX_EXCEPTION_TYPE -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/cmake -std=gnu++11 -o CMakeFiles/cmTC_278d4.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-CSKrgY/src.cxx
+        Linking CXX executable cmTC_278d4
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_278d4.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_278d4.dir/src.cxx.o -o cmTC_278d4 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-CSKrgY'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:10 (check_cxx_source_compiles)"
+      - "build/_deps/cpptrace-src/cmake/Autoconfig.cmake:64 (check_support)"
+      - "build/_deps/cpptrace-src/CMakeLists.txt:77 (include)"
+    checks:
+      - "Performing Test HAS_DL_FIND_OBJECT"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-GGjMW7"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-GGjMW7"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "HAS_DL_FIND_OBJECT"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-GGjMW7'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_e3b55/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_e3b55.dir/build.make CMakeFiles/cmTC_e3b55.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-GGjMW7'
+        Building CXX object CMakeFiles/cmTC_e3b55.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_DL_FIND_OBJECT -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/cmake -std=gnu++11 -o CMakeFiles/cmTC_e3b55.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-GGjMW7/src.cxx
+        Linking CXX executable cmTC_e3b55
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e3b55.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_e3b55.dir/src.cxx.o -o cmTC_e3b55  -ldl 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-GGjMW7'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:1131 (message)"
+      - "/usr/share/cmake-3.28/Modules/CMakeDetermineASMCompiler.cmake:131 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:36 (project)"
+    message: |
+      Checking whether the ASM compiler is GNU using "--version" matched "(GNU assembler)|(GCC)|(Free Software Foundation)":
+      cc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+      Copyright (C) 2023 Free Software Foundation, Inc.
+      This is free software; see the source for copying conditions.  There is NO
+      warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:68 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WALL"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-koPmXC"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-koPmXC"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WALL"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-koPmXC'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_f59b9/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_f59b9.dir/build.make CMakeFiles/cmTC_f59b9.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-koPmXC'
+        Building C object CMakeFiles/cmTC_f59b9.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WALL  -Wall -o CMakeFiles/cmTC_f59b9.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-koPmXC/src.c
+        Linking C executable cmTC_f59b9
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f59b9.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_f59b9.dir/src.c.o -o cmTC_f59b9 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-koPmXC'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:68 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_WALL"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-YvGDtW"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-YvGDtW"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_WALL"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-YvGDtW'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_5592e/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_5592e.dir/build.make CMakeFiles/cmTC_5592e.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-YvGDtW'
+        Building CXX object CMakeFiles/cmTC_5592e.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_WALL  -std=gnu++20   -Wall -o CMakeFiles/cmTC_5592e.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-YvGDtW/src.cxx
+        Linking CXX executable cmTC_5592e
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5592e.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_5592e.dir/src.cxx.o -o cmTC_5592e 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-YvGDtW'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:70 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WEXTRA"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-QhVQql"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-QhVQql"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WEXTRA"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-QhVQql'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_a0c7b/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_a0c7b.dir/build.make CMakeFiles/cmTC_a0c7b.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-QhVQql'
+        Building C object CMakeFiles/cmTC_a0c7b.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WEXTRA  -Wall    -Wextra -o CMakeFiles/cmTC_a0c7b.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-QhVQql/src.c
+        Linking C executable cmTC_a0c7b
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a0c7b.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall  CMakeFiles/cmTC_a0c7b.dir/src.c.o -o cmTC_a0c7b 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-QhVQql'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:70 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_WEXTRA"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-igeYAB"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-igeYAB"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: " -Wall"
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_WEXTRA"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-igeYAB'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_d9441/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_d9441.dir/build.make CMakeFiles/cmTC_d9441.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-igeYAB'
+        Building CXX object CMakeFiles/cmTC_d9441.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_WEXTRA  -Wall  -std=gnu++20   -Wextra -o CMakeFiles/cmTC_d9441.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-igeYAB/src.cxx
+        Linking CXX executable cmTC_d9441
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d9441.dir/link.txt --verbose=1
+        /usr/bin/c++  -Wall  CMakeFiles/cmTC_d9441.dir/src.cxx.o -o cmTC_d9441 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-igeYAB'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:71 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WUNDEF"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-laKcw1"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-laKcw1"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WUNDEF"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-laKcw1'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_35ad0/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_35ad0.dir/build.make CMakeFiles/cmTC_35ad0.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-laKcw1'
+        Building C object CMakeFiles/cmTC_35ad0.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WUNDEF  -Wall -Wextra    -Wundef -o CMakeFiles/cmTC_35ad0.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-laKcw1/src.c
+        Linking C executable cmTC_35ad0
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_35ad0.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra  CMakeFiles/cmTC_35ad0.dir/src.c.o -o cmTC_35ad0 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-laKcw1'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:71 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_WUNDEF"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-IROlbl"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-IROlbl"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: " -Wall -Wextra"
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_WUNDEF"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-IROlbl'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_c2d27/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_c2d27.dir/build.make CMakeFiles/cmTC_c2d27.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-IROlbl'
+        Building CXX object CMakeFiles/cmTC_c2d27.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_WUNDEF  -Wall -Wextra  -std=gnu++20   -Wundef -o CMakeFiles/cmTC_c2d27.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-IROlbl/src.cxx
+        Linking CXX executable cmTC_c2d27
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c2d27.dir/link.txt --verbose=1
+        /usr/bin/c++  -Wall -Wextra  CMakeFiles/cmTC_c2d27.dir/src.cxx.o -o cmTC_c2d27 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-IROlbl'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:72 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WSHADOW"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-tRwIzl"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-tRwIzl"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WSHADOW"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-tRwIzl'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_d85ae/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_d85ae.dir/build.make CMakeFiles/cmTC_d85ae.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-tRwIzl'
+        Building C object CMakeFiles/cmTC_d85ae.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WSHADOW  -Wall -Wextra -Wundef    -Wshadow -o CMakeFiles/cmTC_d85ae.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-tRwIzl/src.c
+        Linking C executable cmTC_d85ae
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d85ae.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra -Wundef  CMakeFiles/cmTC_d85ae.dir/src.c.o -o cmTC_d85ae 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-tRwIzl'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:72 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_WSHADOW"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-futEQo"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-futEQo"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: " -Wall -Wextra -Wundef"
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_WSHADOW"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-futEQo'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_70533/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_70533.dir/build.make CMakeFiles/cmTC_70533.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-futEQo'
+        Building CXX object CMakeFiles/cmTC_70533.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_WSHADOW  -Wall -Wextra -Wundef  -std=gnu++20   -Wshadow -o CMakeFiles/cmTC_70533.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-futEQo/src.cxx
+        Linking CXX executable cmTC_70533
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_70533.dir/link.txt --verbose=1
+        /usr/bin/c++  -Wall -Wextra -Wundef  CMakeFiles/cmTC_70533.dir/src.cxx.o -o cmTC_70533 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-futEQo'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:73 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WCAST_ALIGN"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-jz0D5Z"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-jz0D5Z"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef -Wshadow"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WCAST_ALIGN"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-jz0D5Z'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_9f2b2/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_9f2b2.dir/build.make CMakeFiles/cmTC_9f2b2.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-jz0D5Z'
+        Building C object CMakeFiles/cmTC_9f2b2.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WCAST_ALIGN  -Wall -Wextra -Wundef -Wshadow    -Wcast-align -o CMakeFiles/cmTC_9f2b2.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-jz0D5Z/src.c
+        Linking C executable cmTC_9f2b2
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9f2b2.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra -Wundef -Wshadow  CMakeFiles/cmTC_9f2b2.dir/src.c.o -o cmTC_9f2b2 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-jz0D5Z'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:73 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_WCAST_ALIGN"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-KPCgyF"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-KPCgyF"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: " -Wall -Wextra -Wundef -Wshadow"
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_WCAST_ALIGN"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-KPCgyF'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_6d4e8/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_6d4e8.dir/build.make CMakeFiles/cmTC_6d4e8.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-KPCgyF'
+        Building CXX object CMakeFiles/cmTC_6d4e8.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_WCAST_ALIGN  -Wall -Wextra -Wundef -Wshadow  -std=gnu++20   -Wcast-align -o CMakeFiles/cmTC_6d4e8.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-KPCgyF/src.cxx
+        Linking CXX executable cmTC_6d4e8
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6d4e8.dir/link.txt --verbose=1
+        /usr/bin/c++  -Wall -Wextra -Wundef -Wshadow  CMakeFiles/cmTC_6d4e8.dir/src.cxx.o -o cmTC_6d4e8 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-KPCgyF'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:74 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WCAST_QUAL"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-Jw5BwZ"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-Jw5BwZ"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WCAST_QUAL"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-Jw5BwZ'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_091e8/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_091e8.dir/build.make CMakeFiles/cmTC_091e8.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-Jw5BwZ'
+        Building C object CMakeFiles/cmTC_091e8.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WCAST_QUAL  -Wall -Wextra -Wundef -Wshadow -Wcast-align    -Wcast-qual -o CMakeFiles/cmTC_091e8.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-Jw5BwZ/src.c
+        Linking C executable cmTC_091e8
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_091e8.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra -Wundef -Wshadow -Wcast-align  CMakeFiles/cmTC_091e8.dir/src.c.o -o cmTC_091e8 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-Jw5BwZ'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:74 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_WCAST_QUAL"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-oOi6Sb"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-oOi6Sb"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align"
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_WCAST_QUAL"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-oOi6Sb'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_83b79/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_83b79.dir/build.make CMakeFiles/cmTC_83b79.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-oOi6Sb'
+        Building CXX object CMakeFiles/cmTC_83b79.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_WCAST_QUAL  -Wall -Wextra -Wundef -Wshadow -Wcast-align  -std=gnu++20   -Wcast-qual -o CMakeFiles/cmTC_83b79.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-oOi6Sb/src.cxx
+        Linking CXX executable cmTC_83b79
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_83b79.dir/link.txt --verbose=1
+        /usr/bin/c++  -Wall -Wextra -Wundef -Wshadow -Wcast-align  CMakeFiles/cmTC_83b79.dir/src.cxx.o -o cmTC_83b79 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-oOi6Sb'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:75 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WSTRICT_PROTOTYPES"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iDFrp7"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iDFrp7"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WSTRICT_PROTOTYPES"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iDFrp7'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_1dc66/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_1dc66.dir/build.make CMakeFiles/cmTC_1dc66.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iDFrp7'
+        Building C object CMakeFiles/cmTC_1dc66.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WSTRICT_PROTOTYPES  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual    -Wstrict-prototypes -o CMakeFiles/cmTC_1dc66.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iDFrp7/src.c
+        Linking C executable cmTC_1dc66
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1dc66.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual  CMakeFiles/cmTC_1dc66.dir/src.c.o -o cmTC_1dc66 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iDFrp7'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckLinkerFlag.cmake:37 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckLinkerFlag.cmake:44 (cmake_check_linker_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:41 (CHECK_LINKER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:82 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test LD_FLAG_WL_Z_NOEXECSTACK"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-UQ4xPv"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-UQ4xPv"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "LD_FLAG_WL_Z_NOEXECSTACK"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-UQ4xPv'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_f84a6/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_f84a6.dir/build.make CMakeFiles/cmTC_f84a6.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-UQ4xPv'
+        Building C object CMakeFiles/cmTC_f84a6.dir/src.c.o
+        /usr/bin/cc -DLD_FLAG_WL_Z_NOEXECSTACK  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes  -o CMakeFiles/cmTC_f84a6.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-UQ4xPv/src.c
+        Linking C executable cmTC_f84a6
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f84a6.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes  -Wl,-z,noexecstack CMakeFiles/cmTC_f84a6.dir/src.c.o -o cmTC_f84a6 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-UQ4xPv'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:84 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_QUNUSED_ARGUMENTS"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-hPPGNM"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-hPPGNM"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: " -Wl,-z,noexecstack"
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_QUNUSED_ARGUMENTS"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-hPPGNM'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_85b90/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_85b90.dir/build.make CMakeFiles/cmTC_85b90.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-hPPGNM'
+        Building C object CMakeFiles/cmTC_85b90.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_QUNUSED_ARGUMENTS  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes    -Qunused-arguments -o CMakeFiles/cmTC_85b90.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-hPPGNM/src.c
+        cc: error: unrecognized command-line option '-Qunused-arguments'
+        gmake[1]: *** [CMakeFiles/cmTC_85b90.dir/build.make:78: CMakeFiles/cmTC_85b90.dir/src.c.o] Error 1
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-hPPGNM'
+        gmake: *** [Makefile:127: cmTC_85b90/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:84 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_QUNUSED_ARGUMENTS"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-TNg1Eq"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-TNg1Eq"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual"
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: " -Wl,-z,noexecstack"
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_QUNUSED_ARGUMENTS"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-TNg1Eq'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_9a1bc/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_9a1bc.dir/build.make CMakeFiles/cmTC_9a1bc.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-TNg1Eq'
+        Building CXX object CMakeFiles/cmTC_9a1bc.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_QUNUSED_ARGUMENTS  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual  -std=gnu++20   -Qunused-arguments -o CMakeFiles/cmTC_9a1bc.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-TNg1Eq/src.cxx
+        c++: error: unrecognized command-line option '-Qunused-arguments'
+        gmake[1]: *** [CMakeFiles/cmTC_9a1bc.dir/build.make:78: CMakeFiles/cmTC_9a1bc.dir/src.cxx.o] Error 1
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-TNg1Eq'
+        gmake: *** [Makefile:127: cmTC_9a1bc/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:19 (CHECK_C_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:85 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test C_FLAG_WA_NOEXECSTACK"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4NTsyh"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4NTsyh"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: " -Wl,-z,noexecstack"
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "C_FLAG_WA_NOEXECSTACK"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4NTsyh'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_c8bbe/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_c8bbe.dir/build.make CMakeFiles/cmTC_c8bbe.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4NTsyh'
+        Building C object CMakeFiles/cmTC_c8bbe.dir/src.c.o
+        /usr/bin/cc -DC_FLAG_WA_NOEXECSTACK  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes    -Wa,--noexecstack -o CMakeFiles/cmTC_c8bbe.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4NTsyh/src.c
+        Linking C executable cmTC_c8bbe
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c8bbe.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes   -Wl,-z,noexecstack  CMakeFiles/cmTC_c8bbe.dir/src.c.o -o cmTC_c8bbe 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-4NTsyh'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/CheckCXXCompilerFlag.cmake:34 (cmake_check_compiler_flag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:25 (CHECK_CXX_COMPILER_FLAG)"
+      - "build/_deps/zstd-src/build/cmake/CMakeModules/AddZstdCompilationFlags.cmake:85 (EnableCompilerFlag)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:61 (ADD_ZSTD_COMPILATION_FLAGS)"
+    checks:
+      - "Performing Test CXX_FLAG_WA_NOEXECSTACK"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-08JRbm"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-08JRbm"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual"
+      CMAKE_CXX_FLAGS_DEBUG: ""
+      CMAKE_EXE_LINKER_FLAGS: " -Wl,-z,noexecstack"
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CXX_FLAG_WA_NOEXECSTACK"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-08JRbm'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_79cce/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_79cce.dir/build.make CMakeFiles/cmTC_79cce.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-08JRbm'
+        Building CXX object CMakeFiles/cmTC_79cce.dir/src.cxx.o
+        /usr/bin/c++ -DCXX_FLAG_WA_NOEXECSTACK  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual  -std=gnu++20   -Wa,--noexecstack -o CMakeFiles/cmTC_79cce.dir/src.cxx.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-08JRbm/src.cxx
+        Linking CXX executable cmTC_79cce
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_79cce.dir/link.txt --verbose=1
+        /usr/bin/c++  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual   -Wl,-z,noexecstack  CMakeFiles/cmTC_79cce.dir/src.cxx.o -o cmTC_79cce 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-08JRbm'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.28/Modules/FindThreads.cmake:97 (CHECK_C_SOURCE_COMPILES)"
+      - "/usr/share/cmake-3.28/Modules/FindThreads.cmake:163 (_threads_check_libc)"
+      - "build/_deps/zstd-src/build/cmake/CMakeLists.txt:146 (find_package)"
+    checks:
+      - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-3jUIjW"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-3jUIjW"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes -Wa,--noexecstack"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: " -Wl,-z,noexecstack"
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/zstd-src/build/cmake/CMakeModules"
+    buildResult:
+      variable: "CMAKE_HAVE_LIBC_PTHREAD"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-3jUIjW'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_3a9da/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_3a9da.dir/build.make CMakeFiles/cmTC_3a9da.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-3jUIjW'
+        Building C object CMakeFiles/cmTC_3a9da.dir/src.c.o
+        /usr/bin/cc -DCMAKE_HAVE_LIBC_PTHREAD  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes -Wa,--noexecstack  -o CMakeFiles/cmTC_3a9da.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-3jUIjW/src.c
+        Linking C executable cmTC_3a9da
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3a9da.dir/link.txt --verbose=1
+        /usr/bin/cc  -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wcast-qual -Wstrict-prototypes -Wa,--noexecstack   -Wl,-z,noexecstack  CMakeFiles/cmTC_3a9da.dir/src.c.o -o cmTC_3a9da 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-3jUIjW'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:133 (check_include_file)"
+    checks:
+      - "Looking for sys/types.h"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iknPmU"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iknPmU"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_SYS_TYPES_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iknPmU'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_9452e/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_9452e.dir/build.make CMakeFiles/cmTC_9452e.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iknPmU'
+        Building C object CMakeFiles/cmTC_9452e.dir/CheckIncludeFile.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_9452e.dir/CheckIncludeFile.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iknPmU/CheckIncludeFile.c
+        Linking C executable cmTC_9452e
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9452e.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_9452e.dir/CheckIncludeFile.c.o -o cmTC_9452e 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-iknPmU'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:135 (check_include_file)"
+    checks:
+      - "Looking for sys/mman.h"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-XZVn4T"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-XZVn4T"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_SYS_MMAN_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-XZVn4T'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_e006f/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_e006f.dir/build.make CMakeFiles/cmTC_e006f.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-XZVn4T'
+        Building C object CMakeFiles/cmTC_e006f.dir/CheckIncludeFile.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_e006f.dir/CheckIncludeFile.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-XZVn4T/CheckIncludeFile.c
+        Linking C executable cmTC_e006f
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e006f.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_e006f.dir/CheckIncludeFile.c.o -o cmTC_e006f 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-XZVn4T'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:137 (check_include_file)"
+    checks:
+      - "Looking for sys/stat.h"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-ILMLOH"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-ILMLOH"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_SYS_STAT_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-ILMLOH'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_2b923/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_2b923.dir/build.make CMakeFiles/cmTC_2b923.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-ILMLOH'
+        Building C object CMakeFiles/cmTC_2b923.dir/CheckIncludeFile.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_2b923.dir/CheckIncludeFile.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-ILMLOH/CheckIncludeFile.c
+        Linking C executable cmTC_2b923
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2b923.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_2b923.dir/CheckIncludeFile.c.o -o cmTC_2b923 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-ILMLOH'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:138 (check_include_file)"
+    checks:
+      - "Looking for stdint.h"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-11MPJa"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-11MPJa"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_STDINT_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-11MPJa'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_53060/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_53060.dir/build.make CMakeFiles/cmTC_53060.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-11MPJa'
+        Building C object CMakeFiles/cmTC_53060.dir/CheckIncludeFile.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_53060.dir/CheckIncludeFile.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-11MPJa/CheckIncludeFile.c
+        Linking C executable cmTC_53060
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_53060.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_53060.dir/CheckIncludeFile.c.o -o cmTC_53060 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-11MPJa'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:139 (check_include_file)"
+    checks:
+      - "Looking for unistd.h"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-SVnVox"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-SVnVox"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_UNISTD_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-SVnVox'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_a2013/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_a2013.dir/build.make CMakeFiles/cmTC_a2013.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-SVnVox'
+        Building C object CMakeFiles/cmTC_a2013.dir/CheckIncludeFile.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_a2013.dir/CheckIncludeFile.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-SVnVox/CheckIncludeFile.c
+        Linking C executable cmTC_a2013
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a2013.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_a2013.dir/CheckIncludeFile.c.o -o cmTC_a2013 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-SVnVox'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:140 (check_include_file)"
+    checks:
+      - "Looking for stdafx.h"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-afzdLM"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-afzdLM"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_STDAFX_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-afzdLM'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_edd3e/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_edd3e.dir/build.make CMakeFiles/cmTC_edd3e.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-afzdLM'
+        Building C object CMakeFiles/cmTC_edd3e.dir/CheckIncludeFile.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_edd3e.dir/CheckIncludeFile.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-afzdLM/CheckIncludeFile.c
+        /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-afzdLM/CheckIncludeFile.c:1:10: fatal error: stdafx.h: No such file or directory
+            1 | #include <stdafx.h>
+              |          ^~~~~~~~~~
+        compilation terminated.
+        gmake[1]: *** [CMakeFiles/cmTC_edd3e.dir/build.make:78: CMakeFiles/cmTC_edd3e.dir/CheckIncludeFile.c.o] Error 1
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-afzdLM'
+        gmake: *** [Makefile:127: cmTC_edd3e/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:141 (check_include_file)"
+    checks:
+      - "Looking for fcntl.h"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-a3agr3"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-a3agr3"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_FCNTL_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-a3agr3'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_e792c/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_e792c.dir/build.make CMakeFiles/cmTC_e792c.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-a3agr3'
+        Building C object CMakeFiles/cmTC_e792c.dir/CheckIncludeFile.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_e792c.dir/CheckIncludeFile.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-a3agr3/CheckIncludeFile.c
+        Linking C executable cmTC_e792c
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e792c.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_e792c.dir/CheckIncludeFile.c.o -o cmTC_e792c 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-a3agr3'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:146 (check_c_source_compiles)"
+    checks:
+      - "Performing Test HAVE_UINTPTR_T"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-0iYoLR"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-0iYoLR"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_UINTPTR_T"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-0iYoLR'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_abc2f/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_abc2f.dir/build.make CMakeFiles/cmTC_abc2f.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-0iYoLR'
+        Building C object CMakeFiles/cmTC_abc2f.dir/src.c.o
+        /usr/bin/cc -DHAVE_UINTPTR_T   -o CMakeFiles/cmTC_abc2f.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-0iYoLR/src.c
+        Linking C executable cmTC_abc2f
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_abc2f.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_abc2f.dir/src.c.o -o cmTC_abc2f 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-0iYoLR'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:153 (check_c_source_compiles)"
+    checks:
+      - "Performing Test HAVE_INTPTR_T"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-EnHbw5"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-EnHbw5"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_INTPTR_T"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-EnHbw5'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_7fc17/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_7fc17.dir/build.make CMakeFiles/cmTC_7fc17.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-EnHbw5'
+        Building C object CMakeFiles/cmTC_7fc17.dir/src.c.o
+        /usr/bin/cc -DHAVE_INTPTR_T   -o CMakeFiles/cmTC_7fc17.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-EnHbw5/src.c
+        Linking C executable cmTC_7fc17
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7fc17.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_7fc17.dir/src.c.o -o cmTC_7fc17 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-EnHbw5'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "build/_deps/libdwarf-src/CMakeLists.txt:163 (check_c_source_compiles)"
+    checks:
+      - "Performing Test HAVE_FULL_MMAP"
+    directories:
+      source: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-x57G1R"
+      binary: "/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-x57G1R"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/cmake"
+    buildResult:
+      variable: "HAVE_FULL_MMAP"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-x57G1R'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_8bf79/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_8bf79.dir/build.make CMakeFiles/cmTC_8bf79.dir/build
+        gmake[1]: Entering directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-x57G1R'
+        Building C object CMakeFiles/cmTC_8bf79.dir/src.c.o
+        /usr/bin/cc -DHAVE_FULL_MMAP   -o CMakeFiles/cmTC_8bf79.dir/src.c.o -c /home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-x57G1R/src.c
+        Linking C executable cmTC_8bf79
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8bf79.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_8bf79.dir/src.c.o -o cmTC_8bf79 
+        gmake[1]: Leaving directory '/home/tjmellema/aero623-project-2/build/CMakeFiles/CMakeScratch/TryCompile-x57G1R'
+        
+      exitCode: 0
+...
