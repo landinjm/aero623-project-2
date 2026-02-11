@@ -6,3 +6,6 @@
 
 # misc
 compile_commands.json
+
+# builds
+**/build
