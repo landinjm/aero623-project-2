@@ -1,0 +1,28 @@
+6 4 2
+0 0
+1 0
+2 0
+0 1
+1 1
+2 1
+4
+2 2 Bottom
+1 2
+2 3
+1 2 Right
+3 6
+2 2 Top
+4 5
+5 6
+1 2 Left
+1 4
+4 1 TriLagrange
+1 2 5
+1 5 4
+2 3 5
+3 6 5
+1 PeriodicGroup
+3 Translational
+4 1
+5 2
+6 3
