@@ -1,5 +1,6 @@
 #include <Eigen/Dense>
 #include <iostream>
+#include <read_gri.hpp>
 
 int
 main(int argc, char** argv)
@@ -11,6 +12,8 @@ main(int argc, char** argv)
   m(0, 1) = -1;
   m(1, 1) = m(1, 0) + m(0, 1);
   std::cout << m << std::endl;
+
+  Mesh<2> mesh;
 
   return 0;
 }
