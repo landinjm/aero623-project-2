@@ -112,6 +112,12 @@ flux_roe(const std::vector<double>& uL,
            0.5 * (FL[3] + FR[3] - diss[3]) };
 }
 
-} // namespace SWE
+std::vector<double>
+flux_roe(const std::vector<double>& uL,
+         const std::vector<double>& uR,
+         double nx,
+         double ny,
+         double gamma = 1.4);
+}
 
 #endif
