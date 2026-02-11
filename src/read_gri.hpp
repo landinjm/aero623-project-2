@@ -1,4 +1,5 @@
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <libassert/assert.hpp>
@@ -55,7 +56,6 @@ struct BoundaryFaceData
 
 struct ElementData
 {
-
   std::vector<double> area;
   std::vector<double> inv_area;
 
@@ -76,6 +76,50 @@ struct ElementData
     energy.reserve(n);
   }
 };
+
+/**
+ * @brief For mesh verification, we simply take the sum of the normal vectors
+ * mutliplied with boundary area at each element. The l2-norm of this error is
+ * returned at the end.
+ */
+template<unsigned int dim>
+double
+mesh_verification(const InteriorFaceData& interior_face_scratch,
+                  const std::vector<BoundaryFaceData>& boundary_face_scratches,
+                  const ElementData& element_scratch)
+{
+  std::vector<std::array<double, dim>> elem_sum(element_scratch.size());
+
+  for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
+    const auto elem_l = interior_face_scratch.elem_l[i];
+    const auto elem_r = interior_face_scratch.elem_r[i];
+
+    elem_sum[elem_l][0] +=
+      interior_face_scratch.normal_x[i] * interior_face_scratch.face_area[i];
+    elem_sum[elem_l][1] +=
+      interior_face_scratch.normal_y[i] * interior_face_scratch.face_area[i];
+    elem_sum[elem_r][0] -=
+      interior_face_scratch.normal_x[i] * interior_face_scratch.face_area[i];
+    elem_sum[elem_r][1] -=
+      interior_face_scratch.normal_y[i] * interior_face_scratch.face_area[i];
+  }
+
+  for (const auto boundary_face_scratch : boundary_face_scratches) {
+    for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
+      const auto elem = boundary_face_scratch.elem[i];
+      elem_sum[elem][0] +=
+        boundary_face_scratch.normal_x[i] * boundary_face_scratch.face_area[i];
+      elem_sum[elem][1] +=
+        boundary_face_scratch.normal_y[i] * boundary_face_scratch.face_area[i];
+    }
+  }
+
+  double error = 0.0;
+  for (unsigned int i = 0; i < elem_sum.size(); ++i) {
+    error += elem_sum[i][0] * elem_sum[i][0] + elem_sum[i][1] * elem_sum[i][1];
+  }
+  return std::sqrt(error);
+}
 
 /**
  * @brief Mesh class.
@@ -262,7 +306,3 @@ Mesh<dim>::print() const
   }
   std::cout << std::endl;
 }
-
-/**
- *  @brief Run a mesh verification check
- */
