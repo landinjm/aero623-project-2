@@ -1,5 +1,6 @@
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <libassert/assert.hpp>
@@ -77,6 +78,59 @@ struct ElementData
   }
 };
 
+struct MeshData
+{
+  unsigned int n_nodes;
+  unsigned int n_elements;
+  unsigned int n_boundary_groups;
+  unsigned int n_periodic_groups;
+
+  std::vector<double> x;
+  std::vector<double> y;
+
+  std::vector<unsigned int> node_1;
+  std::vector<unsigned int> node_2;
+  std::vector<unsigned int> node_3;
+
+  std::vector<unsigned int> boundary_group_n_faces;
+  std::vector<std::string> boundary_group_names;
+
+  std::vector<unsigned int> boundary_node_1;
+  std::vector<unsigned int> boundary_node_2;
+
+  std::vector<unsigned int> periodic_group_n_nodes;
+
+  std::vector<unsigned int> periodic_node_1;
+  std::vector<unsigned int> periodic_node_2;
+
+  void set_n_nodes(std::size_t n)
+  {
+    n_nodes = n;
+    x.resize(n);
+    y.resize(n);
+  }
+  void set_n_elements(std::size_t n)
+  {
+    n_elements = n;
+    node_1.resize(n);
+    node_2.resize(n);
+    node_3.resize(n);
+  }
+
+  void set_n_boundary_groups(std::size_t n)
+  {
+    n_boundary_groups = n;
+    boundary_group_n_faces.resize(n);
+    boundary_group_names.resize(n);
+  }
+
+  void set_n_periodic_groups(std::size_t n)
+  {
+    n_periodic_groups = n;
+    periodic_group_n_nodes.resize(n);
+  }
+};
+
 /**
  * @brief For mesh verification, we simply take the sum of the normal vectors
  * mutliplied with boundary area at each element. The l2-norm of this error is
@@ -128,11 +182,12 @@ template<unsigned int dim>
 class Mesh
 {
 public:
-  static_assert(dim == 2 || dim == 3, "Only 2D and 3D meshes are supported");
+  static_assert(dim == 2, "Only 2D meshes are supported");
 
   Mesh()
   {
     read_gri("../tests/test.gri");
+    print();
     reinit();
   }
 
@@ -143,18 +198,7 @@ public:
   void print() const;
 
 private:
-  unsigned int n_nodes;
-  unsigned int n_elements;
-  unsigned int n_boundary_groups;
-  unsigned int n_periodic_groups;
-
-  std::vector<std::array<unsigned int, dim + 1>> elements;
-  std::vector<std::pair<unsigned int, unsigned int>> periodic_node_pairs;
-  std::vector<std::array<double, dim>> node_positions;
-  std::vector<unsigned int> boundary_group_n_faces;
-  std::vector<std::string> boundary_group_names;
-  std::vector<unsigned int> boundary_faces;
-  std::vector<unsigned int> periodic_group_n_nodes;
+  MeshData data;
 };
 
 template<unsigned int dim>
@@ -163,43 +207,50 @@ Mesh<dim>::read_gri(const std::string& filename)
 {
   // Filestream
   std::ifstream in(filename);
+
   ASSERT(in, "Unable to open file " + filename);
 
   // Grab global information
   int dummy;
-  in >> n_nodes >> n_elements >> dummy;
-  ASSERT(n_nodes > 0, "Number of nodes must be greater than zero.");
-  ASSERT(n_elements > 0, "Number of elements must be greater than zero.");
-  ASSERT(n_nodes > n_elements,
+  in >> dummy;
+  data.set_n_nodes(dummy);
+  in >> dummy;
+  data.set_n_elements(dummy);
+  in >> dummy;
+
+  ASSERT(data.n_nodes > 0, "Number of nodes must be greater than zero.");
+  ASSERT(data.n_elements > 0, "Number of elements must be greater than zero.");
+  ASSERT(data.n_nodes > data.n_elements,
          "Number of elements must be greater than number of nodes");
+  ASSERT(dummy == dim, "File has different dimension than mesh.");
 
   // Grab nodes
-  node_positions.resize(n_nodes);
-  for (unsigned int i = 0; i < n_nodes; ++i) {
-    std::array<double, dim> pos;
-    in >> pos[0] >> pos[1];
-    if constexpr (dim == 3) {
-      in >> pos[2];
-    }
-    node_positions[i] = pos;
+  for (unsigned int i = 0; i < data.n_nodes; ++i) {
+    in >> data.x[i] >> data.y[i];
   }
 
   // Grab boundaries
-  in >> n_boundary_groups;
-  boundary_group_n_faces.resize(n_boundary_groups);
-  boundary_group_names.resize(n_boundary_groups);
-  for (unsigned int i = 0; i < n_boundary_groups; ++i) {
-    in >> boundary_group_n_faces[i] >> dummy;
-    ASSERT(boundary_group_n_faces[i] > 0,
+  in >> dummy;
+  data.set_n_boundary_groups(dummy);
+
+  for (unsigned int i = 0; i < data.n_boundary_groups; ++i) {
+    in >> data.boundary_group_n_faces[i];
+
+    ASSERT(data.boundary_group_n_faces[i] > 0,
            "Boundary groups must have at least one face");
+
+    in >> dummy;
+
     ASSERT(dummy == dim,
            "Boundary groups nodes must be equal to the dimension");
-    std::getline(in >> std::ws, boundary_group_names[i]);
-    for (unsigned int j = 0; j < boundary_group_n_faces[i]; ++j) {
-      for (unsigned int k = 0; k < dim; ++k) {
-        in >> dummy;
-        boundary_faces.emplace_back(dummy);
-      }
+
+    std::getline(in >> std::ws, data.boundary_group_names[i]);
+
+    for (unsigned int j = 0; j < data.boundary_group_n_faces[i]; ++j) {
+      in >> dummy;
+      data.boundary_node_1.emplace_back(dummy);
+      in >> dummy;
+      data.boundary_node_2.emplace_back(dummy);
     }
   }
 
@@ -210,38 +261,40 @@ Mesh<dim>::read_gri(const std::string& filename)
   std::string element_basis;
   in >> n_element_in_group >> element_group_order;
   std::getline(in >> std::ws, element_basis);
-  ASSERT(n_element_in_group == n_elements,
+
+  ASSERT(n_element_in_group == data.n_elements,
          "Multiple element groups are unsupported");
   ASSERT(element_group_order == 1, "Only first order elements are supported");
 
-  elements.resize(n_elements);
-  for (unsigned int i = 0; i < n_elements; ++i) {
-    std::array<unsigned int, dim + 1> nodes;
-    in >> nodes[0] >> nodes[1] >> nodes[2];
-    if constexpr (dim == 3) {
-      in >> nodes[3];
-    }
-    elements[i] = nodes;
+  for (unsigned int i = 0; i < data.n_elements; ++i) {
+    in >> data.node_1[i] >> data.node_2[i] >> data.node_3[i];
   }
 
   // Periodic groups
+  in >> dummy;
+  data.set_n_periodic_groups(dummy);
+
   std::string periodic_group;
-  in >> n_periodic_groups;
   std::getline(in >> std::ws, periodic_group);
+
   ASSERT(periodic_group == "PeriodicGroup",
          "Invalid .gri file. Periodic groups must contain PeriodicGroup "
          "after the number of periodic groups.");
-  periodic_group_n_nodes.resize(n_periodic_groups);
-  for (unsigned int i = 0; i < n_periodic_groups; ++i) {
+
+  for (unsigned int i = 0; i < data.n_periodic_groups; ++i) {
+    in >> data.periodic_group_n_nodes[i];
+
     std::string periodic_group_type;
-    in >> periodic_group_n_nodes[i];
     std::getline(in >> std::ws, periodic_group_type);
+
     ASSERT(periodic_group_type == "Translational",
            "Invalid periodicity type " + periodic_group_type);
-    for (unsigned int j = 0; j < periodic_group_n_nodes[i]; ++j) {
-      std::pair<unsigned int, unsigned int> periodic_pair;
-      in >> periodic_pair.first >> periodic_pair.second;
-      periodic_node_pairs.emplace_back(periodic_pair);
+
+    for (unsigned int j = 0; j < data.periodic_group_n_nodes[i]; ++j) {
+      in >> dummy;
+      data.periodic_node_1.emplace_back(dummy);
+      in >> dummy;
+      data.periodic_node_2.emplace_back(dummy);
     }
   }
 }
@@ -250,59 +303,4 @@ template<unsigned int dim>
 void
 Mesh<dim>::print() const
 {
-  std::cout << "Number of nodes: " << n_nodes << "\n"
-            << "Number of elements: " << n_elements << "\n"
-            << "Number of boundary groups: " << n_boundary_groups << "\n"
-            << std::endl;
-
-  std::cout << "Node ids - positions" << std::endl;
-  for (unsigned int i = 0; i < n_nodes; ++i) {
-    std::cout << i << " - " << node_positions[i][0] << " "
-              << node_positions[i][1];
-    if constexpr (dim == 3) {
-      std::cout << " " << node_positions[i][2];
-    }
-    std::cout << "\n";
-  }
-  std::cout << std::endl;
-
-  std::cout << "Elements ids - nodes" << std::endl;
-  for (unsigned int i = 0; i < n_elements; ++i) {
-    std::cout << i << " - " << elements[i][0] << " " << elements[i][1] << " "
-              << elements[i][2];
-    if constexpr (dim == 3) {
-      std::cout << " " << node_positions[i][3];
-    }
-    std::cout << "\n";
-  }
-  std::cout << std::endl;
-
-  std::cout << "Boundary group id - faces, nodes, and title" << std::endl;
-  unsigned int linear_index = 0;
-  for (unsigned int i = 0; i < n_boundary_groups; ++i) {
-    std::cout << i << " - " << boundary_group_n_faces[i] << " " << dim << " "
-              << boundary_group_names[i] << "\n";
-    for (unsigned int j = 0; j < boundary_group_n_faces[i]; ++j) {
-      std::cout << "    ";
-      for (unsigned int k = 0; k < dim; ++k) {
-        std::cout << boundary_faces[linear_index] << " ";
-        linear_index++;
-      }
-      std::cout << "\n";
-    }
-  }
-  std::cout << std::endl;
-
-  std::cout << "Periodic group id - nodes and type" << std::endl;
-  linear_index = 0;
-  for (unsigned int i = 0; i < n_periodic_groups; ++i) {
-    std::cout << i << " - " << periodic_group_n_nodes[i] << " "
-              << "Translational" << "\n";
-    for (unsigned int j = 0; j < periodic_group_n_nodes[i]; ++j) {
-      std::cout << "    " << periodic_node_pairs[linear_index].first << " "
-                << periodic_node_pairs[linear_index].second << "\n";
-      linear_index++;
-    }
-  }
-  std::cout << std::endl;
 }
