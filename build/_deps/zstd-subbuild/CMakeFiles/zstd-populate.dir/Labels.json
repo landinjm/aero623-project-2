@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/CMakeFiles/zstd-populate"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/CMakeFiles/zstd-populate.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/CMakeFiles/zstd-populate-complete.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-build.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-configure.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-download.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-install.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-mkdir.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-patch.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-test.rule"
+		},
+		{
+			"file" : "/home/tjmellema/aero623-project-2/build/_deps/zstd-subbuild/zstd-populate-prefix/src/zstd-populate-stamp/zstd-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"zstd-populate"
+		],
+		"name" : "zstd-populate"
+	}
+}
