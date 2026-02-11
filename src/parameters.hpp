@@ -1,3 +1,5 @@
+#pragma once
+
 /**
  * @brief Simple structure for the parameters in the simulation.
  */
