@@ -6,5 +6,5 @@ CXX_DEFINES = -Dlibassert_lib_EXPORTS
 
 CXX_INCLUDES = -isystem /home/tjmellema/aero623-project-2/build/_deps/libassert-build/include -isystem /home/tjmellema/aero623-project-2/build/_deps/libassert-src/include -isystem /home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/include -isystem /home/tjmellema/aero623-project-2/build/_deps/cpptrace-build/include
 
-CXX_FLAGS = -std=gnu++20 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -Werror=return-type -Wundef -Wuseless-cast -Wmaybe-uninitialized
+CXX_FLAGS = -O3 -DNDEBUG -std=gnu++20 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -Werror=return-type -Wundef -Wuseless-cast -Wmaybe-uninitialized
 

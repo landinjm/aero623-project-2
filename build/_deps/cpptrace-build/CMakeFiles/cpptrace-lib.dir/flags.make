@@ -6,5 +6,5 @@ CXX_DEFINES = -DCPPTRACE_DEMANGLE_WITH_CXXABI -DCPPTRACE_GET_SYMBOLS_WITH_LIBDWA
 
 CXX_INCLUDES = -I/home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/src -I/home/tjmellema/aero623-project-2/build/_deps/libdwarf-src/src/lib/libdwarf -isystem /home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/include -isystem /home/tjmellema/aero623-project-2/build/_deps/cpptrace-build/include
 
-CXX_FLAGS = -std=gnu++20 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -Werror=return-type -Wundef -Wuseless-cast -Wmaybe-uninitialized
+CXX_FLAGS = -O3 -DNDEBUG -std=gnu++20 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -Werror=return-type -Wundef -Wuseless-cast -Wmaybe-uninitialized
 

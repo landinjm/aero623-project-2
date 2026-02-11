@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/tjmellema/aero623-project-2/build/_deps/zstd-src/lib/common/portability_macros.h
+cet.h
+-
+
+/home/tjmellema/aero623-project-2/build/_deps/zstd-src/lib/decompress/huf_decompress_amd64.S
+../common/portability_macros.h
+/home/tjmellema/aero623-project-2/build/_deps/zstd-src/lib/common/portability_macros.h
+

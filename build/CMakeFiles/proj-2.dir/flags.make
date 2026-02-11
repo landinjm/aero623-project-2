@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/tjmellema/aero623-project-2/src -I/home/tjmellema/aero623-project-2/build/_deps/eigen-src -isystem /home/tjmellema/aero623-project-2/build/_deps/libassert-build/include -isystem /home/tjmellema/aero623-project-2/build/_deps/libassert-src/include -isystem /home/tjmellema/aero623-project-2/build/_deps/cpptrace-src/include -isystem /home/tjmellema/aero623-project-2/build/_deps/cpptrace-build/include
 
-CXX_FLAGS = -std=gnu++20
+CXX_FLAGS = -O3 -DNDEBUG -std=gnu++20
 
