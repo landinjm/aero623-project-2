@@ -1,25 +1,81 @@
 #include <array>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <libassert/assert.hpp>
-#include <span>
 #include <string>
 #include <vector>
 
-/**
- * @brief Types of periodicity
- */
-enum PeriodicityType
+struct InteriorFaceData
 {
-  Translational,
-  Rotational
+  std::vector<unsigned int> elem_l;
+  std::vector<unsigned int> face_l;
+  std::vector<unsigned int> elem_r;
+  std::vector<unsigned int> face_r;
+
+  std::vector<double> normal_x;
+  std::vector<double> normal_y;
+
+  std::vector<double> face_area;
+
+  std::size_t size() const { return elem_l.size(); }
+
+  void reserve(std::size_t n)
+  {
+    elem_l.reserve(n);
+    face_l.reserve(n);
+    elem_r.reserve(n);
+    face_r.reserve(n);
+    normal_x.reserve(n);
+    normal_y.reserve(n);
+    face_area.reserve(n);
+  }
 };
 
-/**
- * @brief Invalid id
- */
-static constexpr unsigned int invalid_id = static_cast<unsigned int>(-1);
+struct BoundaryFaceData
+{
+  std::vector<unsigned int> elem;
+  std::vector<unsigned int> face;
+
+  std::vector<double> normal_x;
+  std::vector<double> normal_y;
+
+  std::vector<double> face_area;
+
+  std::size_t size() const { return elem.size(); }
+
+  void reserve(std::size_t n)
+  {
+    elem.reserve(n);
+    face.reserve(n);
+    normal_x.reserve(n);
+    normal_y.reserve(n);
+    face_area.reserve(n);
+  }
+};
+
+struct ElementData
+{
+
+  std::vector<double> area;
+  std::vector<double> inv_area;
+
+  std::vector<double> density;
+  std::vector<double> momentum_x;
+  std::vector<double> momentum_y;
+  std::vector<double> energy;
+
+  std::size_t size() const { return area.size(); }
+
+  void reserve(std::size_t n)
+  {
+    area.reserve(n);
+    inv_area.reserve(n);
+    density.reserve(n);
+    momentum_x.reserve(n);
+    momentum_y.reserve(n);
+    energy.reserve(n);
+  }
+};
 
 /**
  * @brief Mesh class.
@@ -36,57 +92,25 @@ public:
     reinit();
   }
 
-  /**
-   * @brief Get the span of the elements. Used for range-based loops
-   */
-  std::span<const std::array<unsigned int, dim + 1>> get_elements() const
-  {
-    return std::span(elements);
-  }
-
-  /**
-   * @brief Get the span of the nodes. Used for range-based loops
-   */
-  std::span<const std::array<double, dim>> get_nodes() const
-  {
-    return std::span(node_positions);
-  }
-
-  void reinit() { n_interior_faces = n_elements * (dim + 1); }
+  void reinit() {}
 
   void read_gri(const std::string& filename);
 
   void print() const;
 
 private:
-  unsigned int n_nodes = invalid_id;
-  unsigned int n_elements = invalid_id;
-  unsigned int n_boundary_groups = invalid_id;
-  unsigned int n_element_groups = invalid_id;
-  unsigned int n_periodic_groups = invalid_id;
-
-  std::vector<std::array<double, dim>> node_positions;
+  unsigned int n_nodes;
+  unsigned int n_elements;
+  unsigned int n_boundary_groups;
+  unsigned int n_periodic_groups;
 
   std::vector<std::array<unsigned int, dim + 1>> elements;
-
-  std::vector<unsigned int> boundary_group_n_faces;
-  std::vector<unsigned int> boundary_group_n_nodes;
-  std::vector<std::string> boundary_group_names;
-
-  std::vector<unsigned int> boundary_faces;
-
-  std::vector<unsigned int> periodic_group_n_nodes;
-  std::vector<PeriodicityType> periodic_group_type;
-
   std::vector<std::pair<unsigned int, unsigned int>> periodic_node_pairs;
-
-  unsigned int n_interior_faces;
-
-  std::vector<std::array<unsigned int, 4>> I2E;
-  std::vector<std::array<unsigned int, 3>> B2E;
-  std::vector<std::array<double, dim>> In;
-  std::vector<std::array<double, dim>> Bn;
-  std::vector<double> Area;
+  std::vector<std::array<double, dim>> node_positions;
+  std::vector<unsigned int> boundary_group_n_faces;
+  std::vector<std::string> boundary_group_names;
+  std::vector<unsigned int> boundary_faces;
+  std::vector<unsigned int> periodic_group_n_nodes;
 };
 
 template<unsigned int dim>
@@ -119,17 +143,16 @@ Mesh<dim>::read_gri(const std::string& filename)
   // Grab boundaries
   in >> n_boundary_groups;
   boundary_group_n_faces.resize(n_boundary_groups);
-  boundary_group_n_nodes.resize(n_boundary_groups);
   boundary_group_names.resize(n_boundary_groups);
   for (unsigned int i = 0; i < n_boundary_groups; ++i) {
-    in >> boundary_group_n_faces[i] >> boundary_group_n_nodes[i];
+    in >> boundary_group_n_faces[i] >> dummy;
     ASSERT(boundary_group_n_faces[i] > 0,
            "Boundary groups must have at least one face");
-    ASSERT(boundary_group_n_nodes[i] > 1,
-           "Boundary groups must have at least two nodes");
+    ASSERT(dummy == dim,
+           "Boundary groups nodes must be equal to the dimension");
     std::getline(in >> std::ws, boundary_group_names[i]);
     for (unsigned int j = 0; j < boundary_group_n_faces[i]; ++j) {
-      for (unsigned int k = 0; k < boundary_group_n_nodes[i]; ++k) {
+      for (unsigned int k = 0; k < dim; ++k) {
         in >> dummy;
         boundary_faces.emplace_back(dummy);
       }
@@ -165,18 +188,12 @@ Mesh<dim>::read_gri(const std::string& filename)
          "Invalid .gri file. Periodic groups must contain PeriodicGroup "
          "after the number of periodic groups.");
   periodic_group_n_nodes.resize(n_periodic_groups);
-  periodic_group_type.resize(n_periodic_groups);
   for (unsigned int i = 0; i < n_periodic_groups; ++i) {
     std::string periodic_group_type;
     in >> periodic_group_n_nodes[i];
     std::getline(in >> std::ws, periodic_group_type);
-    if (periodic_group_type == "Translational") {
-      periodic_group_type[i] = PeriodicityType::Translational;
-    } else if (periodic_group_type == "Rotational") {
-      periodic_group_type[i] = PeriodicityType::Rotational;
-    } else {
-      ASSERT(false, "Unknown periodicity type " + periodic_group_type);
-    }
+    ASSERT(periodic_group_type == "Translational",
+           "Invalid periodicity type " + periodic_group_type);
     for (unsigned int j = 0; j < periodic_group_n_nodes[i]; ++j) {
       std::pair<unsigned int, unsigned int> periodic_pair;
       in >> periodic_pair.first >> periodic_pair.second;
@@ -219,12 +236,11 @@ Mesh<dim>::print() const
   std::cout << "Boundary group id - faces, nodes, and title" << std::endl;
   unsigned int linear_index = 0;
   for (unsigned int i = 0; i < n_boundary_groups; ++i) {
-    std::cout << i << " - " << boundary_group_n_faces[i] << " "
-              << boundary_group_n_nodes[i] << " " << boundary_group_names[i]
-              << "\n";
+    std::cout << i << " - " << boundary_group_n_faces[i] << " " << dim << " "
+              << boundary_group_names[i] << "\n";
     for (unsigned int j = 0; j < boundary_group_n_faces[i]; ++j) {
       std::cout << "    ";
-      for (unsigned int k = 0; k < boundary_group_n_nodes[i]; ++k) {
+      for (unsigned int k = 0; k < dim; ++k) {
         std::cout << boundary_faces[linear_index] << " ";
         linear_index++;
       }
@@ -237,7 +253,7 @@ Mesh<dim>::print() const
   linear_index = 0;
   for (unsigned int i = 0; i < n_periodic_groups; ++i) {
     std::cout << i << " - " << periodic_group_n_nodes[i] << " "
-              << periodic_group_type[i] << "\n";
+              << "Translational" << "\n";
     for (unsigned int j = 0; j < periodic_group_n_nodes[i]; ++j) {
       std::cout << "    " << periodic_node_pairs[linear_index].first << " "
                 << periodic_node_pairs[linear_index].second << "\n";
