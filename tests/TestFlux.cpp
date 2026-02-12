@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <cmath>
 #include "flux.hpp"
 
 TEST(CellFlux, CorrectOutput) {
@@ -14,6 +15,7 @@ TEST(CellFlux, CorrectOutput) {
   fluxCell = Cell_Flux(U, n);
   fluxActual = {7, 23, 30, 136.5};
   EXPECT_TRUE(fluxCell == fluxActual);
+  
 }
 
 //F_hat(u,u,n) = F(u)
@@ -45,27 +47,24 @@ TEST(HLLETest, Conservation)
 //smag > a
 TEST(HLLETest, SupersonicUpwinding)
 {
-  //TODO
-  EXPECT_TRUE(true);
-}
+  Tensor<1,4,double> UL = {1.225,735.0,0.0,473812.5};
+  Tensor<1,4,double> UR = {0.9,450.0,0.0,237500.0};
+  Tensor<1,2,double> n = {1,0};
 
-//
-TEST(HLLETest, 1DEquality)
-{
-  //TODO
-  EXPECT_TRUE(true);
+  std::pair<Tensor<1,4,double>, double> fluxHLLE_1 = Flux_HLLE(UL, UR, n);
+  Tensor<1,4,double> upwindFlux = Cell_Flux(UL, n);
+  EXPECT_TRUE(fluxHLLE_1.first == upwindFlux);
 }
 
 //
 TEST(HLLETest, CorrectOutput)
 {
-  //TODO
-  EXPECT_TRUE(true);
-}
+  Tensor<1,4,double> UL = {1, 0, 0, 12.5};
+  Tensor<1,4,double> UR = {2, 0, 0, 12.5};
+  Tensor<1,4,double> F_expected = {-1.322875656, 3, 4, 0};
+  Tensor<1,2,double> n = {.6,.8};
 
-//
-TEST(RoeTest, CorrectOutput)
-{
-  //TODO
-  EXPECT_TRUE(true);
+  std::pair<Tensor<1,4,double>, double> fluxHLLE_1 = Flux_HLLE(UL, UR, n);
+  Tensor<1,4,double> upwindFlux = Cell_Flux(UL, n);
+  EXPECT_TRUE(fluxHLLE_1.first.isApprox(F_expected, 1e-6));
 }

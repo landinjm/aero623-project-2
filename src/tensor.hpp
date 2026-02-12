@@ -111,6 +111,21 @@ public:
         return !(*this == other);
     }
 
+    constexpr bool isApprox(const Tensor& other, RealType tol) const
+    {
+    for(unsigned int i = 0; i < size; ++i)
+    {
+        RealType scale = std::max({RealType{1},
+                                   std::abs(data[i]),
+                                   std::abs(other.data[i])});
+
+        if(std::abs(data[i] - other.data[i]) > tol * scale)
+            return false;
+    }
+
+    return true;
+    }
+
 private:
     std::array<RealType, size> data{};
 };
