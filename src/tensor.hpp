@@ -1,119 +1,118 @@
 #pragma once
 
-#include <algorithm>
 #include <array>
-#include <cassert>
+#include <algorithm>
 #include <initializer_list>
+#include <cassert>
 
-static constexpr unsigned int
-ipow(unsigned int base, unsigned int exp)
+static constexpr unsigned int ipow(unsigned int base, unsigned int exp)
 {
-  unsigned int result = 1;
-  for (unsigned int i = 0; i < exp; ++i)
-    result *= base;
-  return result;
+    unsigned int result = 1;
+    for(unsigned int i = 0; i < exp; ++i)
+        result *= base;
+    return result;
 }
 
 template<unsigned int rank, unsigned int dim, typename RealType>
-  requires std::floating_point<RealType>
+requires std::floating_point<RealType>
 class Tensor
 {
 public:
-  static constexpr unsigned int size = ipow(dim, rank);
 
-  constexpr Tensor() = default;
+    static constexpr unsigned int size = ipow(dim, rank);
 
-  // Variadic constructor (works for ANY rank)
-  template<typename... Args>
-  constexpr Tensor(Args... args)
-    requires(sizeof...(Args) == size)
-    : data{ static_cast<RealType>(args)... }
-  {
-  }
+    constexpr Tensor() = default;
 
-  Tensor(std::initializer_list<RealType> init)
-  {
-    assert(init.size() == size);
-    std::copy(init.begin(), init.end(), data.begin());
-  }
+    // Variadic constructor (works for ANY rank)
+    template<typename... Args>
+    constexpr Tensor(Args... args)
+    requires (sizeof...(Args) == size)
+        : data{ static_cast<RealType>(args)... }
+    {}
 
-  // Element access
-  constexpr RealType& operator[](unsigned int i)
-  {
-    assert(i < size);
-    return data[i];
-  }
+    Tensor(std::initializer_list<RealType> init)
+    {
+        assert(init.size() == size);
+        std::copy(init.begin(), init.end(), data.begin());
+    }
 
-  constexpr const RealType& operator[](unsigned int i) const
-  {
-    assert(i < size);
-    return data[i];
-  }
+    // Element access
+    constexpr RealType& operator[](unsigned int i)
+    {
+        assert(i < size);
+        return data[i];
+    }
 
-  // Addition
-  constexpr Tensor operator+(const Tensor& other) const
-  {
-    Tensor result;
+    constexpr const RealType& operator[](unsigned int i) const
+    {
+        assert(i < size);
+        return data[i];
+    }
 
-    for (unsigned int i = 0; i < size; ++i)
-      result.data[i] = data[i] + other.data[i];
+    // Addition
+    constexpr Tensor operator+(const Tensor& other) const
+    {
+        Tensor result;
 
-    return result;
-  }
+        for(unsigned int i = 0; i < size; ++i)
+            result.data[i] = data[i] + other.data[i];
 
-  // Subtraction
-  constexpr Tensor operator-(const Tensor& other) const
-  {
-    Tensor result;
+        return result;
+    }
 
-    for (unsigned int i = 0; i < size; ++i)
-      result.data[i] = data[i] - other.data[i];
+    // Subtraction
+    constexpr Tensor operator-(const Tensor& other) const
+    {
+        Tensor result;
 
-    return result;
-  }
+        for(unsigned int i = 0; i < size; ++i)
+            result.data[i] = data[i] - other.data[i];
 
-  // Scalar multiplication
-  constexpr Tensor operator*(RealType scalar) const
-  {
-    Tensor result;
+        return result;
+    }
 
-    for (unsigned int i = 0; i < size; ++i)
-      result.data[i] = data[i] * scalar;
+    // Scalar multiplication
+    constexpr Tensor operator*(RealType scalar) const
+    {
+        Tensor result;
 
-    return result;
-  }
+        for(unsigned int i = 0; i < size; ++i)
+            result.data[i] = data[i] * scalar;
 
-  friend constexpr Tensor operator*(RealType scalar, const Tensor& T)
-  {
-    return T * scalar;
-  }
+        return result;
+    }
 
-  // Scalar division
-  constexpr Tensor operator/(RealType scalar) const
-  {
-    Tensor result;
+    friend constexpr Tensor operator*(RealType scalar, const Tensor& T)
+    {
+        return T * scalar;
+    }
 
-    for (unsigned int i = 0; i < size; ++i)
-      result.data[i] = data[i] / scalar;
+    // Scalar division
+    constexpr Tensor operator/(RealType scalar) const
+    {
+        Tensor result;
 
-    return result;
-  }
+        for(unsigned int i = 0; i < size; ++i)
+            result.data[i] = data[i] / scalar;
 
-  // Exact equality
-  constexpr bool operator==(const Tensor& other) const
-  {
-    for (unsigned int i = 0; i < size; ++i)
-      if (data[i] != other.data[i])
-        return false;
+        return result;
+    }
 
-    return true;
-  }
+    // Exact equality
+    constexpr bool operator==(const Tensor& other) const
+    {
+        for(unsigned int i = 0; i < size; ++i)
+            if(data[i] != other.data[i])       
+                return false;
 
-  constexpr bool operator!=(const Tensor& other) const
-  {
-    return !(*this == other);
-  }
+        return true;
+    }
+
+    constexpr bool operator!=(const Tensor& other) const
+    {
+        return !(*this == other);
+    }
 
 private:
-  std::array<RealType, size> data{};
+    std::array<RealType, size> data{};
 };

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <cmath>
 #include "flux_roe.hpp"
 #include "tensor.hpp"
 
