@@ -1,3 +1,0 @@
-/home/tjmellema/aero623-project-2/build/_deps/libdwarf-subbuild/CMakeFiles/libdwarf-populate.dir
-/home/tjmellema/aero623-project-2/build/_deps/libdwarf-subbuild/CMakeFiles/edit_cache.dir
-/home/tjmellema/aero623-project-2/build/_deps/libdwarf-subbuild/CMakeFiles/rebuild_cache.dir
