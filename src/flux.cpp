@@ -74,19 +74,25 @@ Flux_HLLE(Tensor<1,4,double> UL,
           Tensor<1,4,double> UR,
           Tensor<1,2,double> n) {
     double gamma = Parameters<double>::gamma;
-    
+
     //unpack the state
     double rhoL = UL[0];
     double uL = UL[1] / rhoL;
     double vL = UL[2] / rhoL;
     double unL = uL * n[0] + vL*n[1];
-    double cL = std::sqrt(gamma * ((gamma - 1) * (UL[3] - 1/2/rhoL * std::pow(std::sqrt(std::pow(UL[1],2) + std::pow(UL[2],2)), 2)))/ rhoL);
+    double qL = std::sqrt(std::pow(UL[1],2) + std::pow(UL[2],2)) / rhoL;
+    double pL = (gamma - 1) * (UL[3] - 0.5*rhoL*std::pow(qL,2));
+    assert(pL >= 0 && rhoL >= 0);
+    double cL = std::sqrt(gamma*pL/rhoL);
 
     double rhoR = UR[0];
     double uR = UR[1] / rhoR;
     double vR = UR[2] / rhoR;
     double unR = uR * n[0] + vR*n[1];
-    double cR = std::sqrt(gamma * ((gamma - 1) * (UR[3] - 1/2/rhoR * std::pow(std::sqrt(std::pow(UR[1],2) + std::pow(UR[2],2)), 2)))/ rhoR);
+    double qR = std::sqrt(std::pow(UR[1],2) + std::pow(UR[2],2)) / rhoR;
+    double pR = (gamma - 1) * (UR[3] - 0.5*rhoR*std::pow(qR,2));
+    assert(pR >= 0 && rhoR >= 0);
+    double cR = std::sqrt(gamma*pR/rhoR);
 
     //calculate wave speeds
     double sLmin = std::min(0.0, unL - cL);
@@ -139,4 +145,5 @@ Tensor<1,4,double> Cell_Flux(Tensor<1,4,double> U, Tensor<1,2,double> n) {
     F[3] = rH*un;
 
     return F;
+
 }//end Cell_Flux

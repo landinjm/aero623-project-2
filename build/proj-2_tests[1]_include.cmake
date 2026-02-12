@@ -1,0 +1,5 @@
+if(EXISTS "/home/tjmellema/aero623-project-2/build/proj-2_tests[1]_tests.cmake")
+  include("/home/tjmellema/aero623-project-2/build/proj-2_tests[1]_tests.cmake")
+else()
+  add_test(proj-2_tests_NOT_BUILT proj-2_tests_NOT_BUILT)
+endif()
