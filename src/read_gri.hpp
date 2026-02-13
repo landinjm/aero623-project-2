@@ -256,6 +256,65 @@ struct MeshData
   }
 };
 
+/**
+ * @brief For mesh verification, we simply take the sum of the normal vectors
+ * mutliplied with boundary area at each element. The l2-norm of this error is
+ * returned at the end.
+ */
+template<unsigned int dim, typename RealType>
+RealType
+mesh_verification(const InteriorFaceData<dim, RealType>& interior_face_scratch,
+                  const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
+                  const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
+                  const ElementData<dim, RealType>& element_scratch)
+{
+  std::vector<std::array<RealType, dim>> elem_sum(element_scratch.size());
+
+  for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
+    const auto elem_l = interior_face_scratch.elem_l[i];
+    const auto elem_r = interior_face_scratch.elem_r[i];
+
+    elem_sum[elem_l][0] +=
+      interior_face_scratch.normal_x[i] * interior_face_scratch.face_area[i];
+    elem_sum[elem_l][1] +=
+      interior_face_scratch.normal_y[i] * interior_face_scratch.face_area[i];
+    elem_sum[elem_r][0] -=
+      interior_face_scratch.normal_x[i] * interior_face_scratch.face_area[i];
+    elem_sum[elem_r][1] -=
+      interior_face_scratch.normal_y[i] * interior_face_scratch.face_area[i];
+  }
+
+  for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
+    const auto elem = boundary_face_scratch.elem[i];
+    elem_sum[elem][0] +=
+      boundary_face_scratch.normal_x[i] * boundary_face_scratch.face_area[i];
+    elem_sum[elem][1] +=
+      boundary_face_scratch.normal_y[i] * boundary_face_scratch.face_area[i];
+  }
+
+  for (unsigned int i = 0; i < periodic_face_scratch.size(); ++i) {
+    const auto elem_l = periodic_face_scratch.elem_l[i];
+    const auto elem_r = periodic_face_scratch.elem_r[i];
+
+    elem_sum[elem_l][0] +=
+      periodic_face_scratch.normal_x[i] * periodic_face_scratch.face_area[i];
+    elem_sum[elem_l][1] +=
+      periodic_face_scratch.normal_y[i] * periodic_face_scratch.face_area[i];
+    elem_sum[elem_r][0] -=
+      periodic_face_scratch.normal_x[i] * periodic_face_scratch.face_area[i];
+    elem_sum[elem_r][1] -=
+      periodic_face_scratch.normal_y[i] * periodic_face_scratch.face_area[i];
+  }
+
+  RealType error = 0.0;
+  for (unsigned int i = 0; i < elem_sum.size(); ++i) {
+    for (unsigned int d = 0; d < dim; ++d) {
+      error += elem_sum[i][d] * elem_sum[i][d];
+    }
+  }
+  return std::sqrt(error);
+}
+
 template<unsigned int dim, typename RealType>
 class Mesh
 {
@@ -295,6 +354,12 @@ public:
 
       // Compute the periodic face data
       compute_periodic_face_data(data);
+
+      std::cout << mesh_verification(interior_face_data,
+                                     boundary_face_data,
+                                     periodic_face_data,
+                                     element_data)
+                << std::endl;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
