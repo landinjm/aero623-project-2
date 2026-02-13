@@ -872,3 +872,4 @@ private:
   BoundaryFaceData<dim, RealType> boundary_face_data;
   PeriodicFaceData<dim, RealType> periodic_face_data;
 };
+
