@@ -47,19 +47,60 @@ flux_roe(Tensor<1, 4, double> UL,
   // 3. Eigenvalues and Entropy Fix
   double lambda[4] = { vn_roe - c_roe, vn_roe, vn_roe, vn_roe + c_roe };
   double eps = 0.1 * c_roe;
+  
   for (int i = 0; i < 4; ++i) {
-    if (std::abs(lambda[i]) < eps)
-      lambda[i] = 0.5 * (lambda[i] * lambda[i] / eps + eps);
-    else
+    // Only apply the Harten fix to the non-linear acoustic waves (0 and 3)
+    if (i == 0 || i == 3) {
+      if (std::abs(lambda[i]) < eps)
+        lambda[i] = 0.5 * (lambda[i] * lambda[i] / eps + eps);
+      else
+        lambda[i] = std::abs(lambda[i]);
+    } else {
+      // Linear waves (entropy and shear) usually don't need the expansion shock fix
       lambda[i] = std::abs(lambda[i]);
+    }
   }
 
-  // 4. Dissipation Placeholder
-  // Initialize to zero so the code runs without garbage values
-  Tensor<1, 4, double> diss; 
-  for(int i=0; i<4; ++i) diss[i] = 0.0; 
+  // 4. Dissipation
+  Tensor<1, 4, double> diss;
+  double rho_roe = std::sqrt(rhoL * rhoR);
+  
+  double drho = UR[0] - UL[0];
+  double du   = uR - uL;
+  double dv   = vR - vL;
+  double dp   = pR - pL;
+  double d_un = du * nx + dv * ny;
+  double d_ut = du * (-ny) + dv * nx;
 
-  // TODO: Insert a1, a2, a3, a4 wave strength logic here to populate 'diss'
+  // Wave strengths
+  double a1 = 0.5 * (dp - rho_roe * c_roe * d_un) / (c_roe * c_roe);
+  double a4 = 0.5 * (dp + rho_roe * c_roe * d_un) / (c_roe * c_roe);
+  double a2 = drho - dp / (c_roe * c_roe);
+  double a3 = rho_roe * d_ut;
+
+  // Mass flux dissipation: diss[0] = |L1|*a1 + |L2|*a2 + |L4|*a4
+  // If u=0, then a1 = a4. 
+  // Then diss[0] = |vn-c|*a1 + |vn|*a2 + |vn+c|*a1
+  // Without the entropy fix on lambda[1], |vn| is 0, and diss[0] becomes 2*|c|*a1.
+  // Since a1 = 0.5 * dp/c^2, diss[0] = dp/c. 
+  // In your test, dp=0, so diss[0] should be 0.
+  
+  diss[0] = lambda[0] * a1 + lambda[1] * a2 + lambda[3] * a4;
+  
+  diss[1] = lambda[0] * a1 * (u_roe - c_roe * nx) +
+            lambda[1] * a2 * u_roe +
+            lambda[2] * a3 * (-ny) +
+            lambda[3] * a4 * (u_roe + c_roe * nx);
+
+  diss[2] = lambda[0] * a1 * (v_roe - c_roe * ny) +
+            lambda[1] * a2 * v_roe +
+            lambda[2] * a3 * nx +
+            lambda[3] * a4 * (v_roe + c_roe * ny);
+
+  diss[3] = lambda[0] * a1 * (H_roe - c_roe * vn_roe) +
+            lambda[1] * a2 * 0.5 * V2 +
+            lambda[2] * a3 * (u_roe * (-ny) + v_roe * nx) +
+            lambda[3] * a4 * (H_roe + c_roe * vn_roe);
 
   // 5. Final Flux
   Tensor<1, 4, double> FL = Cell_Flux(UL, n);
@@ -134,7 +175,6 @@ Tensor<1,4,double> Cell_Flux(Tensor<1,4,double> U, Tensor<1,2,double> n) {
     double q = std::sqrt(std::pow(U[1],2) + std::pow(U[2],2)) / rho;
     double p = (gamma - 1) * (U[3] - 0.5*rho*std::pow(q,2));
     double rH = U[3] + p;
-    double c = std::sqrt(gamma*p/rho);
 
     assert(p >= 0 && rho >= 0);
 
@@ -142,7 +182,7 @@ Tensor<1,4,double> Cell_Flux(Tensor<1,4,double> U, Tensor<1,2,double> n) {
     F[0] = rho * un;
     F[1] = U[1] * un + p * n[0];
     F[2] = U[2] * un + p * n[1];
-    F[3] = rH*un;
+    F[3] = rH * un;
 
     return F;
 
