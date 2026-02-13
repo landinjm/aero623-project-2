@@ -3,7 +3,7 @@
 
 Tensor<1,2,double> Gradient() {
     //Gradient = Sum(edge-state * normal * length) / Area of Cell
-}
+}//end Gradient
 
 double Limiter_BJ() {
     //get adjacent states
@@ -33,4 +33,4 @@ double Limiter_BJ() {
     //set scalar limiter to the minimum of the adjacent nodes
 
     //return the limited gradient
-}
+}//end Limiter_BJ
