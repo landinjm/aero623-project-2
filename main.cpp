@@ -13,9 +13,5 @@ main(int argc, char** argv)
   m(1, 1) = m(1, 0) + m(0, 1);
   std::cout << m << std::endl;
 
-  GriReader<2> reader;
-  Mesh<2, double> mesh(reader.get_data());
-  std::cout << mesh.n_elements() << std::endl;
-
   return 0;
 }
