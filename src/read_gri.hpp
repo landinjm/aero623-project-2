@@ -1,3 +1,5 @@
+#pragma once
+
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -10,6 +12,17 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+template<typename RealType>
+RealType
+l2_norm(const std::vector<RealType>& vec)
+{
+  RealType error = RealType(0.0);
+  for (const auto& val : vec) {
+    error += val * val;
+  }
+  return std::sqrt(error);
+};
 
 template<unsigned int dim, typename RealType>
 struct ElementData
@@ -351,6 +364,8 @@ public:
     // Compute the periodic face data
     compute_periodic_face_data(data);
   }
+
+  ElementData<dim, RealType>& get_elements() { return element_data; }
 
   const ElementData<dim, RealType>& get_elements() const
   {
