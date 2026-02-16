@@ -943,7 +943,7 @@ class GriReader
 public:
   static_assert(dim == 2, "Only 2D meshes are supported");
 
-  GriReader() { read_gri("../tests/test_2.gri"); }
+  GriReader() = default;
 
   void read_gri(const std::string& filename);
 
