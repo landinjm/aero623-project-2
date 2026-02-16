@@ -258,7 +258,7 @@ struct MeshData
 
 /**
  * @brief For mesh verification, we simply take the sum of the normal vectors
- * mutliplied with boundary area at each element. The l2-norm of this error is
+ * multiplied with boundary area at each element. The l2-norm of this error is
  * returned at the end.
  */
 template<unsigned int dim, typename RealType>
@@ -706,7 +706,7 @@ private:
         unsigned int v0 = temp_v0[i];
         unsigned int v1 = temp_v1[i];
 
-        // Get vertex coodinates
+        // Get vertex coordinates
         RealType x0 = data.x[v0];
         RealType y0 = data.y[v0];
         RealType x1 = data.x[v1];
@@ -928,7 +928,7 @@ private:
 
 /**
  * @brief For mesh verification, we simply take the sum of the normal vectors
- * mutliplied with boundary area at each element. The l2-norm of this error is
+ * multiplied with boundary area at each element. The l2-norm of this error is
  * returned at the end.
  */
 template<unsigned int dim, typename RealType>

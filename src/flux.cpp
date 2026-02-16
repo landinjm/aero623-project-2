@@ -1,9 +1,11 @@
+#include "flux.hpp"
+
+#include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <algorithm>
 #include <iostream>
 #include <utility>
-#include "flux.hpp"
+
 #include "parameters.hpp"
 
 std::pair<Tensor<1, 4, double>, double>
@@ -47,7 +49,7 @@ flux_roe(Tensor<1, 4, double> UL,
   // 3. Eigenvalues and Entropy Fix
   double lambda[4] = { vn_roe - c_roe, vn_roe, vn_roe, vn_roe + c_roe };
   double eps = 0.1 * c_roe;
-  
+
   for (int i = 0; i < 4; ++i) {
     // Only apply the Harten fix to the non-linear acoustic waves (0 and 3)
     if (i == 0 || i == 3) {
@@ -56,7 +58,8 @@ flux_roe(Tensor<1, 4, double> UL,
       else
         lambda[i] = std::abs(lambda[i]);
     } else {
-      // Linear waves (entropy and shear) usually don't need the expansion shock fix
+      // Linear waves (entropy and shear) usually don't need the expansion shock
+      // fix
       lambda[i] = std::abs(lambda[i]);
     }
   }
@@ -64,11 +67,11 @@ flux_roe(Tensor<1, 4, double> UL,
   // 4. Dissipation
   Tensor<1, 4, double> diss;
   double rho_roe = std::sqrt(rhoL * rhoR);
-  
+
   double drho = UR[0] - UL[0];
-  double du   = uR - uL;
-  double dv   = vR - vL;
-  double dp   = pR - pL;
+  double du = uR - uL;
+  double dv = vR - vL;
+  double dp = pR - pL;
   double d_un = du * nx + dv * ny;
   double d_ut = du * (-ny) + dv * nx;
 
@@ -79,23 +82,19 @@ flux_roe(Tensor<1, 4, double> UL,
   double a3 = rho_roe * d_ut;
 
   // Mass flux dissipation: diss[0] = |L1|*a1 + |L2|*a2 + |L4|*a4
-  // If u=0, then a1 = a4. 
+  // If u=0, then a1 = a4.
   // Then diss[0] = |vn-c|*a1 + |vn|*a2 + |vn+c|*a1
-  // Without the entropy fix on lambda[1], |vn| is 0, and diss[0] becomes 2*|c|*a1.
-  // Since a1 = 0.5 * dp/c^2, diss[0] = dp/c. 
-  // In your test, dp=0, so diss[0] should be 0.
-  
-  diss[0] = lambda[0] * a1 + lambda[1] * a2 + lambda[3] * a4;
-  
-  diss[1] = lambda[0] * a1 * (u_roe - c_roe * nx) +
-            lambda[1] * a2 * u_roe +
-            lambda[2] * a3 * (-ny) +
-            lambda[3] * a4 * (u_roe + c_roe * nx);
+  // Without the entropy fix on lambda[1], |vn| is 0, and diss[0] becomes
+  // 2*|c|*a1. Since a1 = 0.5 * dp/c^2, diss[0] = dp/c. In your test, dp=0, so
+  // diss[0] should be 0.
 
-  diss[2] = lambda[0] * a1 * (v_roe - c_roe * ny) +
-            lambda[1] * a2 * v_roe +
-            lambda[2] * a3 * nx +
-            lambda[3] * a4 * (v_roe + c_roe * ny);
+  diss[0] = lambda[0] * a1 + lambda[1] * a2 + lambda[3] * a4;
+
+  diss[1] = lambda[0] * a1 * (u_roe - c_roe * nx) + lambda[1] * a2 * u_roe +
+            lambda[2] * a3 * (-ny) + lambda[3] * a4 * (u_roe + c_roe * nx);
+
+  diss[2] = lambda[0] * a1 * (v_roe - c_roe * ny) + lambda[1] * a2 * v_roe +
+            lambda[2] * a3 * nx + lambda[3] * a4 * (v_roe + c_roe * ny);
 
   diss[3] = lambda[0] * a1 * (H_roe - c_roe * vn_roe) +
             lambda[1] * a2 * 0.5 * V2 +
@@ -110,80 +109,86 @@ flux_roe(Tensor<1, 4, double> UL,
   return { F, smag };
 }
 
-std::pair<Tensor<1,4,double>, double>
-Flux_HLLE(Tensor<1,4,double> UL,
-          Tensor<1,4,double> UR,
-          Tensor<1,2,double> n) {
-    double gamma = Parameters<double>::gamma;
+std::pair<Tensor<1, 4, double>, double>
+Flux_HLLE(Tensor<1, 4, double> UL,
+          Tensor<1, 4, double> UR,
+          Tensor<1, 2, double> n)
+{
+  double gamma = Parameters<double>::gamma;
 
-    //unpack the state
-    double rhoL = UL[0];
-    double uL = UL[1] / rhoL;
-    double vL = UL[2] / rhoL;
-    double unL = uL * n[0] + vL*n[1];
-    double qL = std::sqrt(std::pow(UL[1],2) + std::pow(UL[2],2)) / rhoL;
-    double pL = (gamma - 1) * (UL[3] - 0.5*rhoL*std::pow(qL,2));
-    assert(pL >= 0 && rhoL >= 0);
-    double cL = std::sqrt(gamma*pL/rhoL);
+  // unpack the state
+  double rhoL = UL[0];
+  double uL = UL[1] / rhoL;
+  double vL = UL[2] / rhoL;
+  double unL = uL * n[0] + vL * n[1];
+  double qL = std::sqrt(std::pow(UL[1], 2) + std::pow(UL[2], 2)) / rhoL;
+  double pL = (gamma - 1) * (UL[3] - 0.5 * rhoL * std::pow(qL, 2));
+  assert(pL >= 0 && rhoL >= 0);
+  double cL = std::sqrt(gamma * pL / rhoL);
 
-    double rhoR = UR[0];
-    double uR = UR[1] / rhoR;
-    double vR = UR[2] / rhoR;
-    double unR = uR * n[0] + vR*n[1];
-    double qR = std::sqrt(std::pow(UR[1],2) + std::pow(UR[2],2)) / rhoR;
-    double pR = (gamma - 1) * (UR[3] - 0.5*rhoR*std::pow(qR,2));
-    assert(pR >= 0 && rhoR >= 0);
-    double cR = std::sqrt(gamma*pR/rhoR);
+  double rhoR = UR[0];
+  double uR = UR[1] / rhoR;
+  double vR = UR[2] / rhoR;
+  double unR = uR * n[0] + vR * n[1];
+  double qR = std::sqrt(std::pow(UR[1], 2) + std::pow(UR[2], 2)) / rhoR;
+  double pR = (gamma - 1) * (UR[3] - 0.5 * rhoR * std::pow(qR, 2));
+  assert(pR >= 0 && rhoR >= 0);
+  double cR = std::sqrt(gamma * pR / rhoR);
 
-    //calculate wave speeds
-    double sLmin = std::min(0.0, unL - cL);
-    double sRmin = std::min(0.0, unR - cR);
-    double sLmax = std::max(0.0, unL + cL);
-    double sRmax = std::max(0.0, unR + cR);
+  // calculate wave speeds
+  double sLmin = std::min(0.0, unL - cL);
+  double sRmin = std::min(0.0, unR - cR);
+  double sLmax = std::max(0.0, unL + cL);
+  double sRmax = std::max(0.0, unR + cR);
 
-    double sLmag = std::abs(unL) + cL;
-    double sRmag = std::abs(unR) + cR;
+  double sLmag = std::abs(unL) + cL;
+  double sRmag = std::abs(unR) + cR;
 
-    double smag = std::max(sLmag, sRmag);
-    double sLRmin = std::min(sLmin, sRmin);
-    double sLRmax = std::max(sLmax, sRmax);
+  double smag = std::max(sLmag, sRmag);
+  double sLRmin = std::min(sLmin, sRmin);
+  double sLRmax = std::max(sLmax, sRmax);
 
-    //calculate he left and right fluxes
-    Tensor<1,4,double> FL = Cell_Flux(UL, n);
-    Tensor<1,4,double> FR = Cell_Flux(UR, n);;
-    Tensor<1,4,double> F;
+  // calculate he left and right fluxes
+  Tensor<1, 4, double> FL = Cell_Flux(UL, n);
+  Tensor<1, 4, double> FR = Cell_Flux(UR, n);
+  ;
+  Tensor<1, 4, double> F;
 
-    F = 0.5 * (FL + FR) - 0.5 * (sLRmax + sLRmin)/(sLRmax - sLRmin)*(FR - FL) + sLRmax*sLRmin/(sLRmax - sLRmin)*(UR-UL);
+  F = 0.5 * (FL + FR) -
+      0.5 * (sLRmax + sLRmin) / (sLRmax - sLRmin) * (FR - FL) +
+      sLRmax * sLRmin / (sLRmax - sLRmin) * (UR - UL);
 
-    //return the numerical flux and wave speed
-    std::pair<Tensor<1,4,double>, double> exports = {F, smag};
-    return exports;
-    
-}//end Flux_HLLE
+  // return the numerical flux and wave speed
+  std::pair<Tensor<1, 4, double>, double> exports = { F, smag };
+  return exports;
 
-Tensor<1,4,double> Cell_Flux(Tensor<1,4,double> U, Tensor<1,2,double> n) {
-    Tensor<1,4,double> F;
-    double gamma = Parameters<double>::gamma;
+} // end Flux_HLLE
 
-    //unwrap the state
-    double rho = U[0];
-    double u = U[1] / rho;
-    double v = U[2] / rho;
+Tensor<1, 4, double>
+Cell_Flux(Tensor<1, 4, double> U, Tensor<1, 2, double> n)
+{
+  Tensor<1, 4, double> F;
+  double gamma = Parameters<double>::gamma;
 
-    //define un, q, p, rH, c
-    double un = u * n[0] + v*n[1];
-    double q = std::sqrt(std::pow(U[1],2) + std::pow(U[2],2)) / rho;
-    double p = (gamma - 1) * (U[3] - 0.5*rho*std::pow(q,2));
-    double rH = U[3] + p;
+  // unwrap the state
+  double rho = U[0];
+  double u = U[1] / rho;
+  double v = U[2] / rho;
 
-    assert(p >= 0 && rho >= 0);
+  // define un, q, p, rH, c
+  double un = u * n[0] + v * n[1];
+  double q = std::sqrt(std::pow(U[1], 2) + std::pow(U[2], 2)) / rho;
+  double p = (gamma - 1) * (U[3] - 0.5 * rho * std::pow(q, 2));
+  double rH = U[3] + p;
 
-    //compute the flux
-    F[0] = rho * un;
-    F[1] = U[1] * un + p * n[0];
-    F[2] = U[2] * un + p * n[1];
-    F[3] = rH * un;
+  assert(p >= 0 && rho >= 0);
 
-    return F;
+  // compute the flux
+  F[0] = rho * un;
+  F[1] = U[1] * un + p * n[0];
+  F[2] = U[2] * un + p * n[1];
+  F[3] = rH * un;
 
-}//end Cell_Flux
+  return F;
+
+} // end Cell_Flux

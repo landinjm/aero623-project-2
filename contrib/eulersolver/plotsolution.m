@@ -22,7 +22,7 @@ end
 % Plot final solution
 patch('Vertices',Mesh.Node,'Faces',Mesh.Elem,'FaceVertexCData',S,'FaceColor', 'flat','EdgeColor','none');
 colorbar; colormap('jet');
-xlabel('$x$', 'interpreter', 'latex'); 
-ylabel('$y$', 'interpreter', 'latex'); 
+xlabel('$x$', 'interpreter', 'latex');
+ylabel('$y$', 'interpreter', 'latex');
 title(sname, 'interpreter', 'latex');
 axis equal;
