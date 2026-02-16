@@ -13,5 +13,11 @@ main(int argc, char** argv)
   m(1, 1) = m(1, 0) + m(0, 1);
   std::cout << m << std::endl;
 
+  GriReader<2> reader;
+  reader.read_gri("../grids/coarse_local_refinement_1.gri");
+  auto data = reader.get_data();
+
+  Mesh<2, double> mesh(reader.get_data());
+
   return 0;
 }
