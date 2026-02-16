@@ -4,7 +4,7 @@ function Mesh = readgri(grifile)
 % This function reads a text .gri file into a data structure called
 % Mesh.
 %
-% INPUTS: 
+% INPUTS:
 %   grifile = name of .gri file
 %
 % OUTPUTS:
@@ -65,7 +65,7 @@ for ibfgrp = 1:B.nbfgrp,
 end
 Mesh.B = B;
 
-% Read in elements 
+% Read in elements
 fgets(fid);
 sline = fgets(fid);
 [nelem, p, sbasis] = strread(sline, '%d %d %s');
@@ -82,7 +82,7 @@ switch sbasis{1}
 end
 
 E = zeros(nelem, nnode);
-  
+
 for elem = 1:nelem,
   E(elem,:) = fscanf(fid, '%d', nnode);
 end
@@ -100,7 +100,7 @@ nelem = size(E,1);            % number of elements
 nnode = max(max(E));          % number of nodes
 H = sparse(nnode,nnode);        % Create a hash list to identify edges
 IE = zeros(ceil(nelem*4/2), 4); % (over) allocate interior edge array
-niedge = 0; 
+niedge = 0;
 
 
 % Loop over elements and identify all edges
@@ -125,7 +125,7 @@ Mesh.IE = IE(1:niedge,:);  % clip IE
 
 % find boundary edges
 if isempty(B.nodes)
-  [I,J] = find(triu(H)>0);  
+  [I,J] = find(triu(H)>0);
   BE = [I, J, zeros(size(I)), zeros(size(I))];
   for b = 1:size(I,1), BE(b, 3) = H(I(b),J(b)); end;
 else
