@@ -339,36 +339,17 @@ public:
     std::cout << "Number of boundary faces: " << _n_boundary_faces << std::endl;
     std::cout << "Number of periodic faces: " << _n_periodic_faces << std::endl;
 
-    auto start = std::chrono::high_resolution_clock::now();
-    const int n_runs = 1;
-    for (unsigned int i = 0; i < n_runs; ++i) {
+    // Compute element data
+    compute_element_data(data);
 
-      // Compute element data
-      compute_element_data(data);
+    // Compute the true interior face data (excluding periodic)
+    compute_interior_face_data(data);
 
-      // Compute the true interior face data (excluding periodic)
-      compute_interior_face_data(data);
+    // Compute the boundary face data
+    compute_boundary_face_data(data);
 
-      // Compute the boundary face data
-      compute_boundary_face_data(data);
-
-      // Compute the periodic face data
-      compute_periodic_face_data(data);
-
-      std::cout << mesh_verification(interior_face_data,
-                                     boundary_face_data,
-                                     periodic_face_data,
-                                     element_data)
-                << std::endl;
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-
-    auto duration =
-      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-    std::cout << "Average time: " << duration.count() / n_runs
-              << " microseconds\n";
+    // Compute the periodic face data
+    compute_periodic_face_data(data);
   }
 
   const ElementData<dim, RealType>& get_elements() const
@@ -814,6 +795,7 @@ private:
 
         // Skip if already processed
         if (visited_edges.count(edge)) {
+          linear_index++;
           continue;
         }
 
