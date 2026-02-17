@@ -114,16 +114,28 @@ def plotsolution(grifile,solutionfile,sname):
     plt.show()
 
 #-----------------------------------------------------------
-def plothist(errorfile):
+def ploterror(errorfile):
     # read error
     error = np.loadtxt(errorfile)
 
     # plot error
     plt.plot(error)
     plt.xlabel('Number of Iterations')
-    plt.ylabel('Residual Norm')
+    plt.ylabel('$L_1$')
     plt.yscale('log')
-    plt.title('Convergence of Residual Norm')
+    plt.title('Convergence of $L_1$')
+    plt.show()
+
+#-----------------------------------------------------------#-----------------------------------------------------------
+def plotcoefficients(coefficientsfile,direction):
+    # read coefficients
+    coefficients = np.loadtxt(coefficientsfile)
+
+    # plot coefficients
+    plt.plot(coefficients)
+    plt.xlabel('Number of Iterations')
+    plt.ylabel('$C_'+direction+'$')
+    plt.title('Convergence of $C_'+direction+'$')
     plt.show()
 
 #-----------------------------------------------------------
