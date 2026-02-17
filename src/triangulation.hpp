@@ -6,6 +6,7 @@
 #include <read_gri.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <utilities.hpp>
 #include <vector>
 
 template<unsigned int dim, typename RealType>
@@ -62,6 +63,14 @@ struct ElementData
     residual_energy.resize(n);
 
     optimal_timestep.resize(n);
+  }
+
+  RealType max_residual() const
+  {
+    return std::max({ max(residual_density),
+                      max(residual_momentum_x),
+                      max(residual_momentum_y),
+                      max(residual_energy) });
   }
 };
 
