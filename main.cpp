@@ -20,22 +20,47 @@ main(int argc, char** argv)
   Timer::instance().end_section("create triangulation");
 
   // Free stream test
-  Timer::instance().begin_section("freestream");
+  unsigned int n_iterations = 100;
+  std::vector<double> residual_history(n_iterations, 0);
   Solver<2, 1, double> solver;
+
+  Timer::instance().begin_section("freestream - roe flux");
+  std::cout << "\nFreestream Test - Roe Flux" << std::endl;
   solver.set_free_stream_initial_state(tria.get_elements());
-  for (unsigned int i = 0; i < 100; ++i) {
+  for (unsigned int i = 0; i < n_iterations; ++i) {
     solver.compute_free_stream_residual(tria.get_interior_faces(),
                                         tria.get_boundary_faces(),
                                         tria.get_periodic_faces(),
-                                        tria.get_elements());
-    solver.compute_update_with_local_timestepping(tria.get_elements());
-    std::cout << l2_norm(tria.get_elements().residual_density) << std::endl;
-    std::cout << l2_norm(tria.get_elements().residual_momentum_x) << std::endl;
-    std::cout << l2_norm(tria.get_elements().residual_momentum_y) << std::endl;
-    std::cout << l2_norm(tria.get_elements().residual_energy) << std::endl;
-  }
+                                        tria.get_elements(),
+                                        &flux_roe);
 
-  Timer::instance().end_section("freestream");
+    solver.compute_update_with_local_timestepping(tria.get_elements());
+
+    residual_history[i] = tria.get_elements().max_residual();
+  }
+  std::cout << "  Min/Max Residual " << min(residual_history) << "/"
+            << max(residual_history) << std::endl;
+  zero(residual_history);
+  Timer::instance().end_section("freestream - roe flux");
+
+  Timer::instance().begin_section("freestream - HLLE flux");
+  std::cout << "\nFreestream Test - HLLE Flux" << std::endl;
+  solver.set_free_stream_initial_state(tria.get_elements());
+  for (unsigned int i = 0; i < n_iterations; ++i) {
+    solver.compute_free_stream_residual(tria.get_interior_faces(),
+                                        tria.get_boundary_faces(),
+                                        tria.get_periodic_faces(),
+                                        tria.get_elements(),
+                                        &Flux_HLLE);
+
+    solver.compute_update_with_local_timestepping(tria.get_elements());
+
+    residual_history[i] = tria.get_elements().max_residual();
+  }
+  std::cout << "  Min/Max Residual " << min(residual_history) << "/"
+            << max(residual_history) << std::endl;
+  zero(residual_history);
+  Timer::instance().end_section("freestream - HLLE flux");
 
   Timer::instance().summary();
 

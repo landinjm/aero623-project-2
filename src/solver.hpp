@@ -1,6 +1,7 @@
 #pragma once
 
 #include <flux.hpp>
+#include <functional>
 #include <libassert/assert.hpp>
 #include <parameters.hpp>
 #include <tensor.hpp>
@@ -100,6 +101,15 @@ template<unsigned int dim, unsigned int degree, typename RealType>
 class Solver
 {
 public:
+  /**
+   * @brief Flux function.
+   */
+  using FluxFunction =
+    std::function<std::pair<Tensor<1, 4, RealType>, RealType>(
+      const Tensor<1, 4, RealType>&,
+      const Tensor<1, 4, RealType>&,
+      const Tensor<1, 2, RealType>&)>;
+
   Solver() = default;
 
   void set_free_stream_initial_state(
@@ -118,7 +128,8 @@ public:
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
-    ElementData<dim, RealType>& element_scratch) const
+    ElementData<dim, RealType>& element_scratch,
+    const FluxFunction& flux_func = &flux_roe) const
   {
     // Zero out the residuals and optimal timestep
     zero(element_scratch.residual_density);
@@ -146,7 +157,7 @@ public:
                                            element_scratch.energy[e_r] };
       const Tensor<1, 2, RealType> n = { n_x, n_y };
 
-      const auto result = flux_roe(u_l, u_r, n);
+      const auto result = flux_func(u_l, u_r, n);
       const auto flux = result.first;
       const auto max_wavespeed = result.second;
 
@@ -182,7 +193,7 @@ public:
                                          element_scratch.energy[e] };
       const Tensor<1, 2, RealType> n = { n_x, n_y };
 
-      const auto result = flux_roe(u, u, n);
+      const auto result = flux_func(u, u, n);
       const auto flux = result.first;
       const auto max_wavespeed = result.second;
 
@@ -216,7 +227,7 @@ public:
                                            element_scratch.energy[e_r] };
       const Tensor<1, 2, RealType> n = { n_x, n_y };
 
-      const auto result = flux_roe(u_l, u_r, n);
+      const auto result = flux_func(u_l, u_r, n);
       const auto flux = result.first;
       const auto max_wavespeed = result.second;
 
