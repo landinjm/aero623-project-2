@@ -1,10 +1,7 @@
-// flux.hpp
-#ifndef FLUX_HPP
-#define FLUX_HPP
+#pragma once
 
-#include <utility> // For std::pair
-
-#include "tensor.hpp"
+#include <tensor.hpp>
+#include <utility>
 
 /**
  * @brief Roe Flux for 2D Euler Equations
@@ -33,5 +30,3 @@ Flux_HLLE(Tensor<1, 4, double> UL,
 // Effects: computes the cell flux for a given cell state
 Tensor<1, 4, double>
 Cell_Flux(Tensor<1, 4, double> U, Tensor<1, 2, double> n);
-
-#endif // flux.hpp

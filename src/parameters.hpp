@@ -52,4 +52,9 @@ struct Parameters
    * @brief Outflow static pressure.
    */
   static constexpr RealType p_out = RealType{ 0.7 } * p_0;
+
+  /**
+   * @brief Maximum CFL number to use when calculating optimal timestep.
+   */
+  static constexpr RealType cfl_max = 0.8;
 };

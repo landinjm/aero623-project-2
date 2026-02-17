@@ -2,34 +2,42 @@
 #include <iostream>
 #include <read_gri.hpp>
 #include <solver.hpp>
+#include <timer.hpp>
 
 int
 main(int argc, char** argv)
 {
-  // Create a matrix and print it
-  Eigen::MatrixXd m(2, 2);
-  m(0, 0) = 3;
-  m(1, 0) = 2.5;
-  m(0, 1) = -1;
-  m(1, 1) = m(1, 0) + m(0, 1);
-  std::cout << m << std::endl;
-
+  // Read the grid
+  Timer::instance().begin_section("read grid");
   GriReader<2> reader;
   reader.read_gri("../grids/coarse_local_refinement_1.gri");
   auto data = reader.get_data();
+  Timer::instance().end_section("read grid");
 
-  Mesh<2, double> mesh(reader.get_data());
+  // Generate triangulation data structurs
+  Timer::instance().begin_section("create triangulation");
+  Triangulation<2, double> tria(reader.get_data());
+  Timer::instance().end_section("create triangulation");
 
+  // Free stream test
+  Timer::instance().begin_section("freestream");
   Solver<2, 1, double> solver;
-  solver.set_free_stream_initial_state(mesh.get_elements());
-  solver.compute_free_stream_residual(mesh.get_interior_faces(),
-                                      mesh.get_boundary_faces(),
-                                      mesh.get_periodic_faces(),
-                                      mesh.get_elements());
-  std::cout << l2_norm(mesh.get_elements().residual_density) << std::endl;
-  std::cout << l2_norm(mesh.get_elements().residual_momentum_x) << std::endl;
-  std::cout << l2_norm(mesh.get_elements().residual_momentum_y) << std::endl;
-  std::cout << l2_norm(mesh.get_elements().residual_energy) << std::endl;
+  solver.set_free_stream_initial_state(tria.get_elements());
+  for (unsigned int i = 0; i < 100; ++i) {
+    solver.compute_free_stream_residual(tria.get_interior_faces(),
+                                        tria.get_boundary_faces(),
+                                        tria.get_periodic_faces(),
+                                        tria.get_elements());
+    solver.compute_update_with_local_timestepping(tria.get_elements());
+    std::cout << l2_norm(tria.get_elements().residual_density) << std::endl;
+    std::cout << l2_norm(tria.get_elements().residual_momentum_x) << std::endl;
+    std::cout << l2_norm(tria.get_elements().residual_momentum_y) << std::endl;
+    std::cout << l2_norm(tria.get_elements().residual_energy) << std::endl;
+  }
+
+  Timer::instance().end_section("freestream");
+
+  Timer::instance().summary();
 
   return 0;
 }
