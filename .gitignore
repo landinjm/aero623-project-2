@@ -3,6 +3,10 @@
 
 # python virtual environments
 **/.venv
+**/venv
 
 # misc
 compile_commands.json
+
+# builds
+**/build

@@ -49,7 +49,7 @@ def plotmesh(Mesh, fname):
     if (dosave): plt.savefig(fname)
     else: plt.show(block=True);
     plt.close(f)
-    
+
 #-----------------------------------------------------------
 def plotstate(Mesh, U, p, field, frange, fname):
     V = Mesh['V']; E = Mesh['E']; BE = Mesh['BE']
@@ -74,7 +74,7 @@ def plotstate(Mesh, U, p, field, frange, fname):
     if (dosave): plt.savefig(fname, bbox_inches='tight',pad_inches=-.2)
     else: plt.show(block=True);
     plt.close(f)
-    
+
 #-----------------------------------------------------------
 def main():
     if (len(sys.argv) < 2):
@@ -93,7 +93,6 @@ def main():
             plotstate(Mesh, U, p, field, frange, fname)
         else:
             plotmesh(Mesh, 'mesh.pdf')
-    
+
 if __name__ == "__main__":
     main()
-

@@ -1,3 +1,7 @@
+#pragma once
+
+#include <cmath>
+
 /**
  * @brief Simple structure for the parameters in the simulation.
  */
@@ -25,13 +29,32 @@ struct Parameters
   static constexpr RealType p_0 = rho_0 * a_0 * a_0 / gamma;
 
   /**
+   * @brief Inlet stagnation temperature multiplied by the gas contant.
+   */
+  static constexpr RealType T_0_and_R = p_0 / rho_0;
+
+  /**
    * @brief Inlet angle of attack (degrees).
    */
   static constexpr RealType alpha = RealType{ 50.0 };
 
   /**
-   * @brief Outflow static pressure.
-   * TODO: What is the value for this?
+   * @brief x-component of inlet flow normal.
    */
-  RealType p_out = RealType{ 0.0 };
+  static constexpr RealType n_x_0 = std::cos(alpha / 180.0 * M_PI);
+
+  /**
+   * @brief y-component of inlet flow normal.
+   */
+  static constexpr RealType n_y_0 = std::sin(alpha / 180.0 * M_PI);
+
+  /**
+   * @brief Outflow static pressure.
+   */
+  static constexpr RealType p_out = RealType{ 0.7 } * p_0;
+
+  /**
+   * @brief Maximum CFL number to use when calculating optimal timestep.
+   */
+  static constexpr RealType cfl_max = 0.8;
 };

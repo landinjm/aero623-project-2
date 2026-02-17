@@ -15,21 +15,21 @@ U = U0; if isempty(U), U = repmat(getUinf(1.1, aoa), Mesh.nElem, 1); end
 % time step loop
 CFL = 0.5; Rtol = 1e-6; Rhist = [];
 for iiter = 1:niter
-  
+
   % calculate residual
   [R, dtA] = calcRes(Mesh, Normals, Uinf, U);
-  
+
   % check convergence
   if (mod(iiter,10) == 0)
     Rnorm = norm(R); Rhist = [Rhist, Rnorm];
     fprintf(1, 'iiter = %5d, Rnorm = %10.4e\n', iiter, Rnorm);
     if (Rnorm < Rtol), break; end;
   end
-  
+
   % update the state
   dtA = 2*CFL./dtA;
   for k = 1:4, U(:,k) = U(:,k) - dtA.*R(:,k); end;
-  
+
 end
 
 
@@ -49,7 +49,7 @@ Normals.blength = blength;
 
 %-------------------------------------
 function [gamma] = getParam()
-gamma = 1.4; 
+gamma = 1.4;
 
 %-------------------------------------
 function Uinf = getUinf(Minf,a)
