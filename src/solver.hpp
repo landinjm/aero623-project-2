@@ -95,10 +95,13 @@ subsonic_inflow(const Tensor<1, 2 + dim, RealType>& interior_state,
 
   // Select the correct Mach number root. We to select a positive if one is
   // negative and the smaller positive if both are positive.
-  const auto M_b = (mach_root_1 >= 0 && mach_root_2 >= 0)
-                     ? std::min(mach_root_1, mach_root_2)
-                     : std::max(mach_root_1, mach_root_2);
-  DEBUG_ASSERT(M_b >= 0.0);
+  auto M_b = (mach_root_1 >= 0 && mach_root_2 >= 0)
+               ? std::min(mach_root_1, mach_root_2)
+               : std::max(mach_root_1, mach_root_2);
+  DEBUG_ASSERT(M_b >= 0.0,
+               "With the following a = " + std::to_string(a) +
+                 " , b = " + std::to_string(b) + " , c = " + std::to_string(c) +
+                 " b^2-4ac = " + std::to_string(discriminant));
 
   // Compute the boundary speed of sound
   const auto denom =
@@ -225,13 +228,17 @@ public:
   void set_free_stream_initial_state(
     ElementData<dim, RealType>& element_scratch) const
   {
-    set(element_scratch.density,
-        Parameters<RealType>::p_0 / Parameters<RealType>::T_0_and_R);
-    set(element_scratch.momentum_x, 1.0);
-    set(element_scratch.momentum_y, 1.0);
-    set(element_scratch.energy,
-        Parameters<RealType>::p_0 /
-          (Parameters<RealType>::gamma - RealType(1.0)));
+    constexpr double rho = 1.0;
+    constexpr double u = 0.5;
+    constexpr double v = 0.0;
+    constexpr double p = 1.0 / Parameters<double>::gamma;
+    constexpr double E =
+      p / (Parameters<double>::gamma - 1.0) + 0.5 * rho * (u * u + v * v);
+
+    set(element_scratch.density, rho);
+    set(element_scratch.momentum_x, rho * u);
+    set(element_scratch.momentum_y, rho * v);
+    set(element_scratch.energy, E);
   }
 
   void compute_free_stream_residual(
@@ -457,9 +464,9 @@ public:
           boundary_flux_func = &inviscid_wall<dim, RealType>;
           break;
         default:
-          ASSERT(false, "How did we get here? Probably hardcoding");
+          DEBUG_ASSERT(false, "How did we get here? Probably hardcoding");
       }
-      ASSERT(boundary_flux_func != nullptr);
+      DEBUG_ASSERT(boundary_flux_func != nullptr);
 
       const auto result = boundary_flux_func(u, n);
       const auto flux = result.first;
@@ -520,9 +527,9 @@ public:
 
     // Compute the optimal timestep
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      element_scratch.optimal_timestep[i] =
-        Parameters<RealType>::cfl_max * RealType(2.0) *
-        element_scratch.area[i] / element_scratch.optimal_timestep[i];
+      element_scratch.optimal_timestep[i] = Parameters<RealType>::cfl_max *
+                                            RealType(2.0) /
+                                            element_scratch.optimal_timestep[i];
       DEBUG_ASSERT(element_scratch.optimal_timestep[i] >= 0.0);
     }
   };
@@ -531,18 +538,14 @@ public:
     ElementData<dim, RealType>& element_scratch) const
   {
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      const auto dt = 1e-4; // element_scratch.optimal_timestep[i];
+      const auto dt = element_scratch.optimal_timestep[i];
       const auto inv_area = element_scratch.inv_area[i];
-      element_scratch.density[i] -=
-        element_scratch.residual_density[i] * dt * inv_area;
+      element_scratch.density[i] -= element_scratch.residual_density[i] * dt;
       element_scratch.momentum_x[i] -=
-        element_scratch.residual_momentum_x[i] * dt * inv_area;
+        element_scratch.residual_momentum_x[i] * dt;
       element_scratch.momentum_y[i] -=
-        element_scratch.residual_momentum_y[i] * dt * inv_area;
-      element_scratch.energy[i] -=
-        element_scratch.residual_energy[i] * dt * inv_area;
-
-      ASSERT(element_scratch.density[i] > 0.0, "Density must be positive");
+        element_scratch.residual_momentum_y[i] * dt;
+      element_scratch.energy[i] -= element_scratch.residual_energy[i] * dt;
     }
   }
 };

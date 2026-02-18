@@ -20,7 +20,7 @@ main(int argc, char** argv)
   Timer::instance().end_section("create triangulation");
 
   // Free stream test
-  unsigned int n_iterations = 100;
+  unsigned int n_iterations = 1000;
   std::vector<double> residual_history(n_iterations, 0);
   Solver<2, 1, double> solver;
 
@@ -64,7 +64,7 @@ main(int argc, char** argv)
 
   // Steady state
   solver.set_free_stream_initial_state(tria.get_elements());
-  for (unsigned int i = 0; i < 2000; ++i) {
+  for (unsigned int i = 0; i < 1000; ++i) {
     solver.compute_residual(tria.get_interior_faces(),
                             tria.get_boundary_faces(),
                             tria.get_periodic_faces(),
