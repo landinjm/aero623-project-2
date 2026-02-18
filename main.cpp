@@ -64,7 +64,7 @@ main(int argc, char** argv)
 
   // Steady state
   solver.set_free_stream_initial_state(tria.get_elements());
-  for (unsigned int i = 0; i < 1000; ++i) {
+  for (unsigned int i = 0; i < 10000; ++i) {
     solver.compute_residual(tria.get_interior_faces(),
                             tria.get_boundary_faces(),
                             tria.get_periodic_faces(),
