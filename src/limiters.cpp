@@ -80,26 +80,26 @@ void ComputeGradients(const Triangulation<2,RealType>& tri,
         grad_rho[i] = grad_rho[i] * elem.inv_area[i];
 }
 
-Tensor<1,4,Tensor<1,2,double>> 
-Limiter_BJ(const Tensor<1,4,Tensor<1,2,double>>& L0,
-           const Tensor<1,4,double>& u0,
-           const std::array<Tensor<1,2,double>,3>& r) {
+Tensor<2,4,double> 
+Limiter_BJ(Tensor<2,4, double>& L0,
+           Tensor<1,4,double>& u0,
+           std::array<Tensor<1,2,double>,3>& r) {
 
     //define the tensor product between the gradient and the vector to the cell nodes
-    Tensor<1,4,double> Lr1 = {r[0][0] * L0[0][0] + r[0][1] * L0[1][0], 
-                              r[0][0] * L0[0][1] + r[0][1] * L0[1][1], 
-                              r[0][0] * L0[0][2] + r[0][1] * L0[1][2], 
-                              r[0][0] * L0[0][3] + r[0][1] * L0[1][3]};
+    Tensor<1,4,double> Lr1 = {r[0][0] * L0(0,0) + r[0][1] * L0(1,0), 
+                              r[0][0] * L0(0,1), + r[0][1] * L0(1,1), 
+                              r[0][0] * L0(0,2) + r[0][1] * L0(1,2), 
+                              r[0][0] * L0(0,3) + r[0][1] * L0(1,3)};
 
-    Tensor<1,4,double> Lr2 = {r[1][0] * L0[0][0] + r[1][1] * L0[1][0],
-                              r[1][0] * L0[0][1] + r[1][1] * L0[1][1], 
-                              r[1][0] * L0[0][2] + r[1][1] * L0[1][2],
-                              r[1][0] * L0[0][3] + r[1][1] * L0[1][3]};
+    Tensor<1,4,double> Lr2 = {r[1][0] * L0(0,0) + r[1][1] * L0(1,0),
+                              r[1][0] * L0(0,1) + r[1][1] * L0(1,1), 
+                              r[1][0] * L0(0,2) + r[1][1] * L0(1,2),
+                              r[1][0] * L0(0,3) + r[1][1] * L0(1,3)};
 
-    Tensor<1,4,double> Lr3 = {r[2][0] * L0[0][0] + r[2][1] * L0[1][0],
-                              r[2][0] * L0[0][1] + r[2][1] * L0[1][1], 
-                              r[2][0] * L0[0][2] + r[2][1] * L0[1][2], 
-                              r[2][0] * L0[0][3] + r[2][1] * L0[1][3]};
+    Tensor<1,4,double> Lr3 = {r[2][0] * L0(0,0) + r[2][1] * L0(1,0),
+                              r[2][0] * L0(0,1) + r[2][1] * L0(1,1), 
+                              r[2][0] * L0(0,2) + r[2][1] * L0(1,2), 
+                              r[2][0] * L0(0,3) + r[2][1] * L0(1,3)};
 
     //get adjacent states
     Tensor<1,4,double> u1 = u0 + Lr1;
@@ -112,8 +112,8 @@ Limiter_BJ(const Tensor<1,4,Tensor<1,2,double>>& L0,
     Tensor<1,4,double> umax;
     //loop through the state
     for (int j = 0; j < 4; j++) {
-        umin[j] = std::min(u0[j], u1[j], u2[j], u3[j]);
-        umax[j] = std::max(u0[j], u1[j], u2[j], u3[j]);
+        umin[j] = std::min({u0[j], u1[j], u2[j], u3[j]});
+        umax[j] = std::max({u0[j], u1[j], u2[j], u3[j]});
     }
 
     //find the scalar limiter
@@ -127,12 +127,12 @@ Limiter_BJ(const Tensor<1,4,Tensor<1,2,double>>& L0,
         for (int j = 0; j < 4; j++) {
 
             //compute the required scalar limiter for each node
-            if (uiN - u0 > 0) {
-                alpha_cmp = std::min(1, (umax - u0)/(uiN - u0));
-            } else if (uiN - u0 < 0) {
-                alpha_cmp = std::min(1, (umin - u0)/(uiN - u0));
+            if (uiN[j] - u0[j] > 0.0) {
+                alpha_cmp = std::min(1.0, (umax[j] - u0[j])/(uiN[j] - u0[j]));
+            } else if (uiN[j] - u0[j] < 0.0) {
+                alpha_cmp = std::min(1.0, (umin[j] - u0[j])/(uiN[j] - u0[j]));
             } else {
-                alpha_cmp = 1;
+                alpha_cmp = 1.0;
             }//end if
 
             //set scalar limiter to the minimum of the adjacent nodes
@@ -142,9 +142,11 @@ Limiter_BJ(const Tensor<1,4,Tensor<1,2,double>>& L0,
 
 
     //return the limited gradient
-    Tensor<1,4,Tensor<1,2,double>> limited = L0;
+    Tensor<2,4, double> limited = L0;
     for (int j = 0; j < 4; j++) {
-        limited[j] = alpha[j] * L0[j];
+        for (int i = 0; i < 4; i++) {
+            limited(j,i) = alpha[j] * L0(j,i);
+        }
     }
     return limited;
 }//end Limiter_BJ
