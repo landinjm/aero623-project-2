@@ -6,6 +6,7 @@
 #include <vector>
 #include <tensor.hpp>
 
+template<unsigned int dim, typename RealType>
 class Recorder
 {
 public:
