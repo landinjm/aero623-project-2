@@ -8,29 +8,31 @@ class Recorder
 {
 public:
     void recordHist(double data, std::string grid, std::string order, std::string type, std::string value){
-            // Open and append a text file
-            std::ofstream file((grid+"."+order+"."+type+"."+value+".txt"), std::ios::app);
+        // Open and append a text file
+        std::ofstream file((grid+"."+order+"."+type+"."+value+".txt"), std::ios::app);
 
-            // Write to the file
-            file << data << std::endl;
+        // Write to the file
+        file << data << std::endl;
 
-            // Close the file
-            file.close();
+        // Close the file
+        file.close();
     }
     void cleanFile(std::string grid, std::string order, std::string type, std::string value){
         // Create/clear and open a text file
         std::ofstream file((grid+"."+order+"."+type+"."+value+".txt"));
+
         // Close the file
         file.close();
     }
-    void recordData(double data, std::string grid, std::string order, std::string type, std::string value){
+    void recordData(double density, double momentum_x, double momentum_y, double energy,
+            std::string grid, std::string order, std::string type, std::string value){
         // Open and append a text file
         std::ofstream file((grid+"."+order+"."+type+"."+value+".txt"), std::ios::app);
-        double density = data;
-        double momentum_x = data;
-        double momentum_y = data;
-        double energy = data;
+
+        // Write to the file
         file << density << " " << momentum_x << " " << momentum_y << " " << energy << std::endl;
+
+        // Close the file
         file.close();
     }
 };
