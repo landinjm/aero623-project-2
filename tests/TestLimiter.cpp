@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "limiter.hpp"
+#include "limiters.hpp"
 
 //test to ensure a zero gradient returns the constant state
 TEST(Gradient, ZeroGradient)
@@ -26,7 +26,13 @@ TEST(Gradient, WallBoundary)
 }
 
 //Test to ensure the gradient computes a correct gradient on a inflow boundary
-TEST(Gradient, WallBoundary)
+TEST(Gradient, InflowBoundary)
+{
+  EXPECT_TRUE(true);
+}
+
+//Test to ensure the gradient computes a correct gradient on a outflow boundary
+TEST(Gradient, OutflowBoundary)
 {
   EXPECT_TRUE(true);
 }

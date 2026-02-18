@@ -17,9 +17,10 @@ void ComputeGradients(const Triangulation<2,RealType>& tri,
 //          r = vectors to the cell corners --> computed by ComputeVertexVectors
 //Modifies:
 //Effects: Computes the scalar limiter gradient via Barth Jespenen
-Limiter_BJ(const Tensor<1,4,Tensor<1,2,double>>& L0,
-           const Tensor<1,4,double>& u0,
-           const std::array<Tensor<1,2,double>,3>& r);
+Tensor<2,4,double> 
+Limiter_BJ(Tensor<2,4,double>& L0,
+           Tensor<1,4,double>& u0,
+           std::array<Tensor<1,2,double>,3>& r);
 
 //Requires:
 //Modifies:
