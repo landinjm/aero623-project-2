@@ -14,13 +14,13 @@ public:
         double gamma = 1.4;
 
         // Grab values
-        const auto rho = interior_state[0];
-        const auto momentum_x = interior_state[1];
-        const auto momentum_y = interior_state[2];
-        const auto energy = interior_state[3];
+        const auto rho = interior_state.rho;
+        const auto momentum_x = interior_state.momentum_x;
+        const auto momentum_y = interior_state.momentum_y;
+        const auto energy = interior_state.energy;
 
-        const auto n_x = normal[0];
-        const auto n_y = normal[1];
+        const auto n_x = normal.x;
+        const auto n_y = normal.y;
 
         // Calculate useful variables
         double p0 = 1 / gamma; // rho0*a0^2/gamma but rho0 and a0 are 1 b/c nondimensional
