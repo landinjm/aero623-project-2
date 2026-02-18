@@ -62,6 +62,18 @@ main(int argc, char** argv)
   zero(residual_history);
   Timer::instance().end_section("freestream - HLLE flux");
 
+  // Steady state
+  solver.set_free_stream_initial_state(tria.get_elements());
+  for (unsigned int i = 0; i < 2000; ++i) {
+    solver.compute_residual(tria.get_interior_faces(),
+                            tria.get_boundary_faces(),
+                            tria.get_periodic_faces(),
+                            tria.get_elements(),
+                            &Flux_HLLE);
+    solver.compute_update_with_local_timestepping(tria.get_elements());
+    std::cout << "Residual: " << tria.get_elements().max_residual()
+              << std::endl;
+  }
   Timer::instance().summary();
 
   return 0;
