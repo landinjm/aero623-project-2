@@ -6,7 +6,7 @@
 //Requires:
 //Modifies:
 //Effects: Computes the gradient (no limiter) between a cell and its adjacent cells
-Tensor<1,2,double> Gradient();
+Tensor<1,2,double> Gradient(double l[], double A, Tensor<1,2,double> n[]);
 
 //Requires:
 //Modifies:
