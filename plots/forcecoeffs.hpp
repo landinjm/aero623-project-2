@@ -25,7 +25,7 @@ public:
         return cp;
     }
     std::vector<double> calcForceCoeffs(double density, double momentum_x, double momentum_y, double energy,
-        double nx, double ny){
+        double n_x, double n_y){
         // Define useful variables
         double c = 18.804; // should be in mm, but I think x & y are also in mm
 
@@ -33,8 +33,8 @@ public:
         double cp = calcCp(density, momentum_x, momentum_y, energy);
 
         // Calculate force coefficients
-        double cx = cp*nx/c; // normal x component
-        double cy = cp*ny/c; // normal y component
+        double cx = cp*n_x/c; // normal x component
+        double cy = cp*n_y/c; // normal y component
 
         // Return force coefficients
         return {cx, cy};
