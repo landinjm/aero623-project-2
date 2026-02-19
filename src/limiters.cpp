@@ -2,20 +2,30 @@
 #include <array>
 #include <algorithm>
 
-Tensor<2,4,double> ComputeGradients(const Triangulation<2,double>& tri,
-                           ElementData<2,double>& elem)
+void ComputeGradients(const Triangulation<2,double>& tri,
+                            ElementData<2,double>& elem,
+                            int elem_id,
+                            std::array<Tensor<1,2,double>,4>& L0)
 {
     const auto& interior = tri.get_interior_faces();
     const auto& boundary = tri.get_boundary_faces();
     const auto& periodic = tri.get_periodic_faces();
-    Tensor<2,4,double> grad_U = {0,0,0,0,0,0,0,0};
+
+    //zero out the input gradient
+    for (int i =0; i < 4; i++)
+        L0[i] = L0[i] * 0.0;
 
     // ---------- Interior Faces ----------
-    for (int f = 0; f < interior.size(); ++f)
+    for (int f = 0; f < interior.size(); ++f)  //TODO: This is a big time sink potentially
     {
+        
         int L = interior.elem_l[f];
         int R = interior.elem_r[f];
 
+        if (elem_id != L && elem_id != R)
+            continue;   //ignore unrelated faces
+
+        //normal points from left to right element
         Tensor<1,2,double> n = {
             interior.normal_x[f],
             interior.normal_y[f]
@@ -31,20 +41,24 @@ Tensor<2,4,double> ComputeGradients(const Triangulation<2,double>& tri,
             0.5 * (elem.energy[L]  + elem.energy[R])
         };
 
+        //loop over each conserved variable [rho, rho*u, rho*v, rho*E]
         for (int eq = 0; eq < 4; ++eq)
         {
             Tensor<1,2,double> contrib = U_hat[eq] * n * length;
+            
+            if (elem_id == L) {
+                L0[eq][0] += contrib[0];
+                L0[eq][1] += contrib[1];
+            } else {
+                L0[eq][0] -= contrib[0];
+                L0[eq][1] -= contrib[1];
+            }
 
-            grad_U(L,eq*2 + 0) += contrib[0];
-            grad_U(L,eq*2 + 1) += contrib[1];
-
-            grad_U(R,eq*2 + 0) -= contrib[0];
-            grad_U(R,eq*2 + 1) -= contrib[1];
         }
     }
 
     // ---------- Boundary Faces ----------
-    for (int f = 0; f < boundary.size(); ++f)
+    for (int f = 0; f < boundary.size(); ++f)  //TODO: This is a big time sink potentially
     {
         int e = boundary.elem[f];
 
@@ -67,16 +81,20 @@ Tensor<2,4,double> ComputeGradients(const Triangulation<2,double>& tri,
         {
             Tensor<1,2,double> contrib = U_hat[eq] * n * length;
 
-            grad_U(e,eq*2 + 0) += contrib[0];
-            grad_U(e,eq*2 + 1) += contrib[1];
+            L0[eq][0] += contrib[0];
+            L0[eq][1] += contrib[1];
+
         }
     }
 
     // ---------- Periodic Faces ----------
-    for (int f = 0; f < periodic.size(); ++f)
+    for (int f = 0; f < periodic.size(); ++f) //TODO: This is a big time sink potentially
     {
         int L = periodic.elem_l[f];
         int R = periodic.elem_r[f];
+
+        if (elem_id != L && elem_id != R)
+            continue;   //ignore unrelated faces
 
         Tensor<1,2,double> n = {
             periodic.normal_x[f],
@@ -96,47 +114,49 @@ Tensor<2,4,double> ComputeGradients(const Triangulation<2,double>& tri,
         {
             Tensor<1,2,double> contrib = U_hat[eq] * n * length;
 
-            grad_U(L,eq*2 + 0) += contrib[0];
-            grad_U(L,eq*2 + 1) += contrib[1];
+            if (elem_id == L) {
+                L0[eq][0] += contrib[0];
+                L0[eq][1] += contrib[1];
+            } else {
+                L0[eq][0] -= contrib[0];
+                L0[eq][1] -= contrib[1];
+            }
 
-            grad_U(R,eq*2 + 0) -= contrib[0];
-            grad_U(R,eq*2 + 1) -= contrib[1];
         }
     }
 
     // ---------- Divide by Area ----------
-    for (int i = 0; i < elem.size(); ++i)
-        grad_U[i] = grad_U[i] * elem.inv_area[i];
-
-    return grad_U;
+    double invA = elem.inv_area[elem_id];
+    for (int i = 0; i < 4; ++i)
+        L0[i] = L0[i] * invA;
 }
 
-Tensor<2,4,double> 
-Limiter_BJ(Tensor<2,4, double>& L0,
+void 
+Limiter_BJ(std::array<Tensor<1,2,double>,4>& L0,
            Tensor<1,4,double>& u0,
            std::array<Tensor<1,2,double>,3>& r) {
 
     //define the tensor product between the gradient and the vector to the cell nodes
-    Tensor<1,4,double> Lr1 = {r[0][0] * L0(0,0) + r[0][1] * L0(1,0), 
-                              r[0][0] * L0(0,1), + r[0][1] * L0(1,1), 
-                              r[0][0] * L0(0,2) + r[0][1] * L0(1,2), 
-                              r[0][0] * L0(0,3) + r[0][1] * L0(1,3)};
+    Tensor<1,4,double> Lr1 = {r[0][0] * L0[0][0] + r[0][1] * L0[0][1], 
+                              r[0][0] * L0[1][0] + r[0][1] * L0[1][1], 
+                              r[0][0] * L0[2][0] + r[0][1] * L0[2][1], 
+                              r[0][0] * L0[3][0] + r[0][1] * L0[3][1]};
 
-    Tensor<1,4,double> Lr2 = {r[1][0] * L0(0,0) + r[1][1] * L0(1,0),
-                              r[1][0] * L0(0,1) + r[1][1] * L0(1,1), 
-                              r[1][0] * L0(0,2) + r[1][1] * L0(1,2),
-                              r[1][0] * L0(0,3) + r[1][1] * L0(1,3)};
+    Tensor<1,4,double> Lr2 = {r[1][0] * L0[0][0] + r[1][1] * L0[0][1],
+                              r[1][0] * L0[1][0] + r[1][1] * L0[1][1], 
+                              r[1][0] * L0[2][0] + r[1][1] * L0[2][1],
+                              r[1][0] * L0[3][0] + r[1][1] * L0[3][1]};
 
-    Tensor<1,4,double> Lr3 = {r[2][0] * L0(0,0) + r[2][1] * L0(1,0),
-                              r[2][0] * L0(0,1) + r[2][1] * L0(1,1), 
-                              r[2][0] * L0(0,2) + r[2][1] * L0(1,2), 
-                              r[2][0] * L0(0,3) + r[2][1] * L0(1,3)};
+    Tensor<1,4,double> Lr3 = {r[2][0] * L0[0][0] + r[2][1] * L0[0][1],
+                              r[2][0] * L0[1][0] + r[2][1] * L0[1][1], 
+                              r[2][0] * L0[2][0] + r[2][1] * L0[2][1], 
+                              r[2][0] * L0[3][0] + r[2][1] * L0[3][1]};
 
     //get adjacent states
     Tensor<1,4,double> u1 = u0 + Lr1;
     Tensor<1,4,double> u2 = u0 + Lr2;
     Tensor<1,4,double> u3 = u0 + Lr3;
-    std::vector<Tensor<1,4,double>> ui = {u1, u2, u3};
+    std::array<Tensor<1,4,double>, 3> ui = {u1, u2, u3};
 
     //find umin and umax based on adjacent states
     Tensor<1,4,double> umin;
@@ -152,7 +172,7 @@ Limiter_BJ(Tensor<2,4, double>& L0,
     //loop through the nodes of an element
     for (int i = 0; i < 3; i++) {
         double alpha_cmp;
-        Tensor<1,4,double> uiN = ui[i];
+        const auto& uiN = ui[i];
         
         //loop through the states
         for (int j = 0; j < 4; j++) {
@@ -173,13 +193,12 @@ Limiter_BJ(Tensor<2,4, double>& L0,
 
 
     //return the limited gradient
-    Tensor<2,4, double> limited = L0;
+    //loop through the states
     for (int j = 0; j < 4; j++) {
-        for (int i = 0; i < 4; i++) {
-            limited(j,i) = alpha[j] * L0(j,i);
-        }
+        //loop through the gradients
+        L0[j][0] = alpha[j] * L0[j][0];
+        L0[j][1] = alpha[j] * L0[j][1];
     }
-    return limited;
 }//end Limiter_BJ
 
 std::array<Tensor<1,2,double>,3>
