@@ -2,82 +2,113 @@
 #include <array>
 #include <algorithm>
 
-template<typename RealType>
-void ComputeGradients(const Triangulation<2,RealType>& tri,
-                      ElementData<2,RealType>& elem,
-                      std::vector<Tensor<1,2,RealType>>& grad_rho)
+Tensor<2,4,double> ComputeGradients(const Triangulation<2,double>& tri,
+                           ElementData<2,double>& elem)
 {
     const auto& interior = tri.get_interior_faces();
     const auto& boundary = tri.get_boundary_faces();
     const auto& periodic = tri.get_periodic_faces();
-
-    grad_rho.assign(elem.size(), Tensor<1,2,RealType>{0,0});
+    Tensor<2,4,double> grad_U = {0,0,0,0,0,0,0,0};
 
     // ---------- Interior Faces ----------
-    for (unsigned int f = 0; f < interior.size(); ++f)
+    for (int f = 0; f < interior.size(); ++f)
     {
-        unsigned int L = interior.elem_l[f];
-        unsigned int R = interior.elem_r[f];
+        int L = interior.elem_l[f];
+        int R = interior.elem_r[f];
 
-        Tensor<1,2,RealType> n = {
+        Tensor<1,2,double> n = {
             interior.normal_x[f],
             interior.normal_y[f]
         };
 
-        RealType length = interior.face_area[f];
+        double length = interior.face_area[f];
 
-        RealType u_hat =
-            0.5 * (elem.density[L] + elem.density[R]);
+        // Face state (average)
+        Tensor<1,4,double> U_hat = {
+            0.5 * (elem.density[L] + elem.density[R]),
+            0.5 * (elem.momentum_x[L]   + elem.momentum_x[R]),
+            0.5 * (elem.momentum_y[L]   + elem.momentum_y[R]),
+            0.5 * (elem.energy[L]  + elem.energy[R])
+        };
 
-        Tensor<1,2,RealType> contrib = u_hat * n * length;
+        for (int eq = 0; eq < 4; ++eq)
+        {
+            Tensor<1,2,double> contrib = U_hat[eq] * n * length;
 
-        grad_rho[L] = grad_rho[L] + contrib;
-        grad_rho[R] = grad_rho[R] - contrib;
+            grad_U(L,eq*2 + 0) += contrib[0];
+            grad_U(L,eq*2 + 1) += contrib[1];
+
+            grad_U(R,eq*2 + 0) -= contrib[0];
+            grad_U(R,eq*2 + 1) -= contrib[1];
+        }
     }
 
     // ---------- Boundary Faces ----------
-    for (unsigned int f = 0; f < boundary.size(); ++f)
+    for (int f = 0; f < boundary.size(); ++f)
     {
-        unsigned int e = boundary.elem[f];
+        int e = boundary.elem[f];
 
-        Tensor<1,2,RealType> n = {
+        Tensor<1,2,double> n = {
             boundary.normal_x[f],
             boundary.normal_y[f]
         };
 
-        RealType length = boundary.face_area[f];
+        double length = boundary.face_area[f];
 
-        // Use interior state or BC state
-        RealType u_hat = elem.density[e];
+        // Replace with BC state if needed
+        Tensor<1,4,double> U_hat = {
+            (elem.density[e]),
+            (elem.momentum_x[e]),
+            (elem.momentum_y[e]),
+            (elem.energy[e])
+        };
 
-        grad_rho[e] = grad_rho[e] + u_hat * n * length;
+        for (int eq = 0; eq < 4; ++eq)
+        {
+            Tensor<1,2,double> contrib = U_hat[eq] * n * length;
+
+            grad_U(e,eq*2 + 0) += contrib[0];
+            grad_U(e,eq*2 + 1) += contrib[1];
+        }
     }
 
     // ---------- Periodic Faces ----------
-    for (unsigned int f = 0; f < periodic.size(); ++f)
+    for (int f = 0; f < periodic.size(); ++f)
     {
-        unsigned int L = periodic.elem_l[f];
-        unsigned int R = periodic.elem_r[f];
+        int L = periodic.elem_l[f];
+        int R = periodic.elem_r[f];
 
-        Tensor<1,2,RealType> n = {
+        Tensor<1,2,double> n = {
             periodic.normal_x[f],
             periodic.normal_y[f]
         };
 
-        RealType length = periodic.face_area[f];
+        double length = periodic.face_area[f];
 
-        RealType u_hat =
-            0.5 * (elem.density[L] + elem.density[R]);
+        Tensor<1,4,double> U_hat = {
+            0.5 * (elem.density[L] + elem.density[R]),
+            0.5 * (elem.momentum_x[L]   + elem.momentum_x[R]),
+            0.5 * (elem.momentum_y[L]   + elem.momentum_y[R]),
+            0.5 * (elem.energy[L]  + elem.energy[R])
+        };
 
-        Tensor<1,2,RealType> contrib = u_hat * n * length;
+        for (int eq = 0; eq < 4; ++eq)
+        {
+            Tensor<1,2,double> contrib = U_hat[eq] * n * length;
 
-        grad_rho[L] = grad_rho[L] + contrib;
-        grad_rho[R] = grad_rho[R] - contrib;
+            grad_U(L,eq*2 + 0) += contrib[0];
+            grad_U(L,eq*2 + 1) += contrib[1];
+
+            grad_U(R,eq*2 + 0) -= contrib[0];
+            grad_U(R,eq*2 + 1) -= contrib[1];
+        }
     }
 
     // ---------- Divide by Area ----------
-    for (unsigned int i = 0; i < elem.size(); ++i)
-        grad_rho[i] = grad_rho[i] * elem.inv_area[i];
+    for (int i = 0; i < elem.size(); ++i)
+        grad_U[i] = grad_U[i] * elem.inv_area[i];
+
+    return grad_U;
 }
 
 Tensor<2,4,double> 
@@ -151,26 +182,25 @@ Limiter_BJ(Tensor<2,4, double>& L0,
     return limited;
 }//end Limiter_BJ
 
-template<typename RealType>
-std::array<Tensor<1,2,RealType>,3>
-ComputeVertexVectors(unsigned int elem_id,
+std::array<Tensor<1,2,double>,3>
+ComputeVertexVectors(int elem_id,
                      const MeshData& data,
-                     const ElementData<2,RealType>& elem)
+                     const ElementData<2,double>& elem)
 {
-    unsigned int v0 = data.node_1[elem_id];
-    unsigned int v1 = data.node_2[elem_id];
-    unsigned int v2 = data.node_3[elem_id];
+    int v0 = data.node_1[elem_id];
+    int v1 = data.node_2[elem_id];
+    int v2 = data.node_3[elem_id];
 
-    RealType cx = elem.centroid_x[elem_id];
-    RealType cy = elem.centroid_y[elem_id];
+    double cx = elem.centroid_x[elem_id];
+    double cy = elem.centroid_y[elem_id];
 
-    Tensor<1,2,RealType> r0 = { data.x[v0] - cx,
+    Tensor<1,2,double> r0 = { data.x[v0] - cx,
                                 data.y[v0] - cy };
 
-    Tensor<1,2,RealType> r1 = { data.x[v1] - cx,
+    Tensor<1,2,double> r1 = { data.x[v1] - cx,
                                 data.y[v1] - cy };
 
-    Tensor<1,2,RealType> r2 = { data.x[v2] - cx,
+    Tensor<1,2,double> r2 = { data.x[v2] - cx,
                                 data.y[v2] - cy };
 
     return { r0, r1, r2 };
