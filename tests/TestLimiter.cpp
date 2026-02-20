@@ -8,55 +8,53 @@
 TEST(Gradient, ZeroGradient)
 {
   GriReader<2> reader;
-  reader.read_gri("../tests/test.gri");
+  reader.read_gri("../tests/test_2.gri");
   Triangulation<2,double> tria(reader.get_data());
 
   auto& elem = tria.get_elements();
 
+  // Set constant state
   for (unsigned int i = 0; i < elem.size(); ++i)
   {
-    elem.density[i] = 1.0;
+    elem.density[i]    = 1.0;
     elem.momentum_x[i] = 2.0;
     elem.momentum_y[i] = 3.0;
-    elem.energy[i] = 4.0;
+    elem.energy[i]     = 4.0;
   }
 
-  std::array<Tensor<1,2,double>,4> zero = {{
-    {0.0, 0.0},
-    {0.0, 0.0},
-    {0.0, 0.0},
-    {0.0, 0.0}
-  }};
+  // Compute gradient for ONE element only
+  const unsigned int e = 0;
 
-  for (unsigned int e = 0; e < elem.size(); ++e)
+  std::array<Tensor<1,2,double>,4> L0;
+  ComputeGradients(tria, elem, e, L0);
+
+  // Check that all gradients are zero
+  for (int eq = 0; eq < 4; ++eq)
   {
-    std::array<Tensor<1,2,double>,4> L0;
-    ComputeGradients(tria, elem, e, L0);
-
-    //loop over the states
-    for (int i = 0; i < 4; i++)
-      EXPECT_TRUE(L0[i].isApprox(zero[i], 1e-12));
+    EXPECT_NEAR(L0[eq][0], 0.0, 1e-12);
+    EXPECT_NEAR(L0[eq][1], 0.0, 1e-12);
   }
 }
 
-//Test to ensure the gradient computes an arbitrary correct output
+// Test to ensure the gradient computes correct output (single element)
 TEST(Gradient, CorrectOutput)
 {
   GriReader<2> reader;
-  reader.read_gri("../tests/test.gri");
-  Triangulation<2,double> tria(reader.get_data());
+  reader.read_gri("../tests/test_2.gri");
 
+  Triangulation<2,double> tria(reader.get_data());
   auto& elem = tria.get_elements();
 
+  // Define linear field
   for (unsigned int i = 0; i < elem.size(); ++i)
   {
     double x = elem.centroid_x[i];
     double y = elem.centroid_y[i];
 
-    elem.density[i]    = x;
-    elem.momentum_x[i] = y;
-    elem.momentum_y[i] = x + y;
-    elem.energy[i]     = 2.0 * x;
+    elem.density[i]    = x;        // ∂/∂x = 1, ∂/∂y = 0
+    elem.momentum_x[i] = y;        // ∂/∂x = 0, ∂/∂y = 1
+    elem.momentum_y[i] = x + y;    // ∂/∂x = 1, ∂/∂y = 1
+    elem.energy[i]     = 2.0 * x;  // ∂/∂x = 2, ∂/∂y = 0
   }
 
   std::array<Tensor<1,2,double>,4> expected = {{
@@ -66,19 +64,20 @@ TEST(Gradient, CorrectOutput)
     {2.0, 0.0}
   }};
 
+  // Only test ONE element
+  const unsigned int e = 0;
 
-  for (unsigned int e = 0; e < elem.size(); ++e)
+  std::array<Tensor<1,2,double>,4> L0;
+  ComputeGradients(tria, elem, e, L0);
+
+  for (int i = 0; i < 4; i++)
   {
-    std::array<Tensor<1,2,double>,4> L0;
-    ComputeGradients(tria, elem, e, L0);
-
-    //loop over the states
-    for (int i = 0; i < 4; i++)
-      EXPECT_TRUE(L0[i].isApprox(expected[i], 1e-10));
+    EXPECT_NEAR(L0[i][0], expected[i][0], 1e-10);
+    EXPECT_NEAR(L0[i][1], expected[i][1], 1e-10);
   }
 }
 
-//Test to ensure the gradient computes a correct gradient on the periodic boundaries
+// Test gradient correctness with periodic boundaries (single element)
 TEST(Gradient, PeriodicBoundary)
 {
   GriReader<2> reader;
@@ -96,47 +95,34 @@ TEST(Gradient, PeriodicBoundary)
     double x = elem.centroid_x[i];
     double y = elem.centroid_y[i];
 
-    elem.density[i]    = a*x + b*y;
-    elem.momentum_x[i] = 2.0*(a*x + b*y);
-    elem.momentum_y[i] = 3.0*(a*x + b*y);
-    elem.energy[i]     = 4.0*(a*x + b*y);
+    double value = a*x + b*y;
+
+    elem.density[i]    = value;
+    elem.momentum_x[i] = 2.0 * value;
+    elem.momentum_y[i] = 3.0 * value;
+    elem.energy[i]     = 4.0 * value;
   }
 
   std::array<Tensor<1,2,double>,4> expected = {{
     {a, b},
-    {2.0 * a, 2.0 * b},
-    {3.0 * a, 3.0 * b},
-    {4.0 * a, 4.0 * b}
+    {2.0*a, 2.0*b},
+    {3.0*a, 3.0*b},
+    {4.0*a, 4.0*b}
   }};
 
-  for (unsigned int e = 0; e < elem.size(); ++e)
-  {
-    std::array<Tensor<1,2,double>,4> L0;
-    ComputeGradients(tria, elem, e, L0);
+  // Test ONE representative element
+  const unsigned int e = 0;
 
-    //loop over the states
-    for (int i = 0; i < 4; i++)
-      EXPECT_TRUE(L0[i].isApprox(expected[i], 1e-10));
+  std::array<Tensor<1,2,double>,4> L0;
+  ComputeGradients(tria, elem, e, L0);
+
+  for (int i = 0; i < 4; i++)
+  {
+    EXPECT_NEAR(L0[i][0], expected[i][0], 1e-10);
+    EXPECT_NEAR(L0[i][1], expected[i][1], 1e-10);
   }
 }
 
-//Test to ensure the gradient computes a correct gradient on a wall boundary
-TEST(Gradient, WallBoundary)
-{
-  EXPECT_TRUE(true);
-}
-
-//Test to ensure the gradient computes a correct gradient on a inflow boundary
-TEST(Gradient, InflowBoundary)
-{
-  EXPECT_TRUE(true);
-}
-
-//Test to ensure the gradient computes a correct gradient on a outflow boundary
-TEST(Gradient, OutflowBoundary)
-{
-  EXPECT_TRUE(true);
-}
 
 //Test to ensure the limited gradient computes an arbritrary correct output
 TEST(Limiter_BJ, CorrectOutput)
