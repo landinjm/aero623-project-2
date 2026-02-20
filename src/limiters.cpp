@@ -62,6 +62,9 @@ void ComputeGradients(const Triangulation<2,double>& tri,
     {
         int e = boundary.elem[f];
 
+        if (e != elem_id)
+            continue;
+
         Tensor<1,2,double> n = {
             boundary.normal_x[f],
             boundary.normal_y[f]
