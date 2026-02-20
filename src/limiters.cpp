@@ -134,6 +134,8 @@ void ComputeGradients(const Triangulation<2,double>& tri,
 void 
 Limiter_BJ(std::array<Tensor<1,2,double>,4>& L0,
            Tensor<1,4,double>& u0,
+           Tensor<1,4,double>& umin,
+           Tensor<1,4,double>& umax,
            std::array<Tensor<1,2,double>,3>& r) {
 
     //define the tensor product between the gradient and the vector to the cell nodes
@@ -157,15 +159,6 @@ Limiter_BJ(std::array<Tensor<1,2,double>,4>& L0,
     Tensor<1,4,double> u2 = u0 + Lr2;
     Tensor<1,4,double> u3 = u0 + Lr3;
     std::array<Tensor<1,4,double>, 3> ui = {u1, u2, u3};
-
-    //find umin and umax based on adjacent states
-    Tensor<1,4,double> umin;
-    Tensor<1,4,double> umax;
-    //loop through the state
-    for (int j = 0; j < 4; j++) {
-        umin[j] = std::min({u0[j], u1[j], u2[j], u3[j]});
-        umax[j] = std::max({u0[j], u1[j], u2[j], u3[j]});
-    }
 
     //find the scalar limiter
     Tensor<1,4,double> alpha = {1,1,1,1};
@@ -200,6 +193,137 @@ Limiter_BJ(std::array<Tensor<1,2,double>,4>& L0,
         L0[j][1] = alpha[j] * L0[j][1];
     }
 }//end Limiter_BJ
+
+Tensor<1,4,double>
+neighbormin(int elem_id,
+            const ElementData<2,double>& elem,
+            const Triangulation<2,double>& tri)
+{
+    const auto& interior = tri.get_interior_faces();
+    const auto& periodic = tri.get_periodic_faces();
+
+    // Initialize min with this cell's state
+    Tensor<1,4,double> umin = {
+        elem.density[elem_id],
+        elem.momentum_x[elem_id],
+        elem.momentum_y[elem_id],
+        elem.energy[elem_id]
+    };
+
+    // -------- Interior Faces --------
+    for (int f = 0; f < interior.size(); ++f)
+    {
+        int L = interior.elem_l[f];
+        int R = interior.elem_r[f];
+
+        int neighbor = -1;
+
+        if (elem_id == L)      neighbor = R;
+        else if (elem_id == R) neighbor = L;
+        else continue;
+
+        Tensor<1,4,double> uN = {
+            elem.density[neighbor],
+            elem.momentum_x[neighbor],
+            elem.momentum_y[neighbor],
+            elem.energy[neighbor]
+        };
+
+        for (int eq = 0; eq < 4; ++eq)
+            umin[eq] = std::min(umin[eq], uN[eq]);
+    }
+
+    // -------- Periodic Faces --------
+    for (int f = 0; f < periodic.size(); ++f)
+    {
+        int L = periodic.elem_l[f];
+        int R = periodic.elem_r[f];
+
+        int neighbor = -1;
+
+        if (elem_id == L)      neighbor = R;
+        else if (elem_id == R) neighbor = L;
+        else continue;
+
+        Tensor<1,4,double> uN = {
+            elem.density[neighbor],
+            elem.momentum_x[neighbor],
+            elem.momentum_y[neighbor],
+            elem.energy[neighbor]
+        };
+
+        for (int eq = 0; eq < 4; ++eq)
+            umin[eq] = std::min(umin[eq], uN[eq]);
+    }
+
+    return umin;
+}
+
+Tensor<1,4,double>
+neighbormax(int elem_id,
+            const ElementData<2,double>& elem,
+            const Triangulation<2,double>& tri)
+{
+    const auto& interior = tri.get_interior_faces();
+    const auto& periodic = tri.get_periodic_faces();
+
+    // Initialize max with this cell's state
+    Tensor<1,4,double> umax = {
+        elem.density[elem_id],
+        elem.momentum_x[elem_id],
+        elem.momentum_y[elem_id],
+        elem.energy[elem_id]
+    };
+
+    // -------- Interior Faces --------
+    for (int f = 0; f < interior.size(); ++f)
+    {
+        int L = interior.elem_l[f];
+        int R = interior.elem_r[f];
+
+        int neighbor = -1;
+
+        if (elem_id == L)      neighbor = R;
+        else if (elem_id == R) neighbor = L;
+        else continue;
+
+        Tensor<1,4,double> uN = {
+            elem.density[neighbor],
+            elem.momentum_x[neighbor],
+            elem.momentum_y[neighbor],
+            elem.energy[neighbor]
+        };
+
+        for (int eq = 0; eq < 4; ++eq)
+            umax[eq] = std::max(umax[eq], uN[eq]);
+    }
+
+    // -------- Periodic Faces --------
+    for (int f = 0; f < periodic.size(); ++f)
+    {
+        int L = periodic.elem_l[f];
+        int R = periodic.elem_r[f];
+
+        int neighbor = -1;
+
+        if (elem_id == L)      neighbor = R;
+        else if (elem_id == R) neighbor = L;
+        else continue;
+
+        Tensor<1,4,double> uN = {
+            elem.density[neighbor],
+            elem.momentum_x[neighbor],
+            elem.momentum_y[neighbor],
+            elem.energy[neighbor]
+        };
+
+        for (int eq = 0; eq < 4; ++eq)
+            umax[eq] = std::max(umax[eq], uN[eq]);
+    }
+
+    return umax;
+}
+
 
 std::array<Tensor<1,2,double>,3>
 ComputeVertexVectors(int elem_id,

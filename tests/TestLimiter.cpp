@@ -141,7 +141,6 @@ TEST(Gradient, OutflowBoundary)
 //Test to ensure the limited gradient computes an arbritrary correct output
 TEST(Limiter_BJ, CorrectOutput)
 {
-
   std::array<Tensor<1,2,double>,4> L_in = {{
     {5.0, 2.0},
     {1.0, 3.0},
@@ -149,29 +148,40 @@ TEST(Limiter_BJ, CorrectOutput)
     {2.0, 6.0}
   }};
 
-
   Tensor<1,4,double> u_in = {3,1,4,2};
 
-  std::array<Tensor<1,2,double>,3> r_in =
-  {{
+  std::array<Tensor<1,2,double>,3> r_in = {{
       {0,1},
       {-0.5*std::sqrt(3),-0.5},
       { 0.5*std::sqrt(3),-0.5}
   }};
 
+  // Reasonable bounds around u_in
+  Tensor<1,4,double> umin = {2, 0, 3, 1};
+  Tensor<1,4,double> umax = {5, 4, 6, 5};
+
   std::array<Tensor<1,2,double>,4> L0 = L_in;
 
-  Limiter_BJ(L0, u_in, r_in);
+  Limiter_BJ(L0, u_in, umin, umax, r_in);
 
-  // for (unsigned int i = 0; i < 8; ++i) //TODO
-  //   EXPECT_TRUE(std::isfinite(L0[i]));
-  EXPECT_TRUE(true);
+  // Ensure values are finite
+  for (int eq = 0; eq < 4; ++eq)
+  {
+      EXPECT_TRUE(std::isfinite(L0[eq][0]));
+      EXPECT_TRUE(std::isfinite(L0[eq][1]));
+  }
+
+  // Ensure limited slopes are not larger than original
+  for (int eq = 0; eq < 4; ++eq)
+  {
+      EXPECT_LE(std::abs(L0[eq][0]), std::abs(L_in[eq][0]));
+      EXPECT_LE(std::abs(L0[eq][1]), std::abs(L_in[eq][1]));
+  }
 }
 
 //Test to ensure the limited gradient equates the 1st order when alpha = {0,0,0,0}
 TEST(Limiter_BJ, ZeroGradient)
 {
-
   std::array<Tensor<1,2,double>,4> L0 = {{
     {1.0, 0.0},
     {1.0, 0.0},
@@ -188,34 +198,38 @@ TEST(Limiter_BJ, ZeroGradient)
 
   Tensor<1,4,double> u_in = {2,2,2,2};
 
-  std::array<Tensor<1,2,double>,3> r_in =
-  {{
+  std::array<Tensor<1,2,double>,3> r_in = {{
       {0,1},
       {-0.5*std::sqrt(3),-0.5},
       { 0.5*std::sqrt(3),-0.5}
   }};
 
-  Limiter_BJ(L0, u_in, r_in);
+  // Force alpha = 0
+  Tensor<1,4,double> umin = u_in;
+  Tensor<1,4,double> umax = u_in;
 
-  EXPECT_TRUE(L0 == L0_expected);
+  Limiter_BJ(L0, u_in, umin, umax, r_in);
+
+  for (int eq = 0; eq < 4; ++eq)
+  {
+      EXPECT_DOUBLE_EQ(L0[eq][0], L0_expected[eq][0]);
+      EXPECT_DOUBLE_EQ(L0[eq][1], L0_expected[eq][1]);
+  }
 }
 
 //Test to ensure the limited gradient equates the inputed gradient when alpha = {1,1,1,1}
 TEST(Limiter_BJ, NoLimiting)
 {
-
   std::array<Tensor<1,2,double>,4> L_in = {{
-    {1.0, 0.0},
+    {500.0, 0.0},
     {1.0, 0.0},
     {1.0, 0.0},
     {1.0, 0.0}
   }};
 
-
   Tensor<1,4,double> u_in = {1,2,3,4};
 
-  std::array<Tensor<1,2,double>,3> r_in =
-  {{
+  std::array<Tensor<1,2,double>,3> r_in = {{
       {0,1},
       {-0.5*std::sqrt(3),-0.5},
       { 0.5*std::sqrt(3),-0.5}
@@ -223,7 +237,15 @@ TEST(Limiter_BJ, NoLimiting)
 
   std::array<Tensor<1,2,double>,4> L0 = L_in;
 
-  Limiter_BJ(L0, u_in, r_in);
+  // Very wide bounds → alpha = 1
+  Tensor<1,4,double> umin = {-1e12,-1e12,-1e12,-1e12};
+  Tensor<1,4,double> umax = { 1e12, 1e12, 1e12, 1e12};
 
-  EXPECT_TRUE(L0 == L_in);
+  Limiter_BJ(L0, u_in, umin, umax, r_in);
+
+  for (int eq = 0; eq < 4; ++eq)
+  {
+      EXPECT_DOUBLE_EQ(L0[eq][0], L_in[eq][0]);
+      EXPECT_DOUBLE_EQ(L0[eq][1], L_in[eq][1]);
+  }
 }
