@@ -206,9 +206,9 @@ def plotcp(grifile,solutionfile):
         q2 = u_b**2 + u_v**2
         p = (gamma-1)*(U[3][elem] - U[0][elem]/2*q2)
         bot[i][2] = (p-pout)/qout
-    top[top[:,0].argsort()]
+    top = sorted(top, key=lambda x: x[0])
     xtop, dstop, cptop = zip(*top)
-    bot[bot[:,0].argsort()]
+    bot = sorted(bot, key=lambda x: x[0])
     xbot, dsbot, cpbot = zip(*bot)
     # calc distances along surface
     stop[0] = dstop[0]/2
@@ -220,9 +220,9 @@ def plotcp(grifile,solutionfile):
 
     # Plot final solution
     plt.figure()
-    plt.plot(stop,cptop)
-    plt.plot(sbot,cpbot)
-    plt.xlabel('s')
+    plt.plot(stop/stop[-1],cptop)
+    plt.plot(sbot/sbot[-1],cpbot)
+    plt.xlabel('s/c')
     plt.ylabel('Pressure Coefficient')
     plt.title('Pressure Coefficient Along Blade Surface')
     plt.legend(['Top Surface','Bottom Surface'])
