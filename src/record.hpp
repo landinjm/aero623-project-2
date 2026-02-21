@@ -36,10 +36,10 @@ public:
     void recordData(ElementData<dim, RealType>& element_state,
                 std::string grid, std::string order, std::string type){
         // Grab values
-        const auto rho = element_state[0];
-        const auto momentum_x = element_state[1];
-        const auto momentum_y = element_state[2];
-        const auto energy = element_state[3];
+        const auto rho = element_state.density;
+        const auto momentum_x = element_state.momentum_x;
+        const auto momentum_y = element_state.momentum_y;
+        const auto energy = element_state.energy;
         
         // Open and append a text file
         std::ofstream file((grid+"."+order+"."+type+".data.txt"), std::ios::app);

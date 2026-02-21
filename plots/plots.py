@@ -231,7 +231,7 @@ def plotcp(grifile,solutionfile):
 def main():
     grid = 'steadystate'
     order = '1st'
-    type = 'HLLE'
+    type = 'roe'
     grifile = 'grids/coarse_local_refinement_1.gri'
     solutionfile = 'build/' + grid + '.' + order + '.' + type + '.data.txt'
     errorfile = 'build/' + grid + '.' + order + '.' + type + '.residual.txt'
