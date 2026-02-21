@@ -8,6 +8,8 @@
 #include <triangulation.hpp>
 #include <utilities.hpp>
 
+#include "limiters.hpp"
+
 template<typename RealType>
 inline RealType
 unsteady_inlet_density(RealType t, RealType y)
@@ -344,8 +346,8 @@ public:
   Solver() = default;
 
   /**
-   * @brief Set the initial condition according the inflow condition and a given
-   * mach number.
+   * @brief Set the initial condition according the inflow condition and a
+   * given mach number.
    */
   void set_initial_state(ElementData<dim, RealType>& element_scratch,
                          RealType M = 0.1) const
@@ -429,8 +431,8 @@ public:
       element_scratch.residual_momentum_y[e_r] -= flux[2] * area;
       element_scratch.residual_energy[e_r] -= flux[3] * area;
 
-      // Add the edge-weighted wave speed to the optimal timestep. We'll compute
-      // the actual timestep later.
+      // Add the edge-weighted wave speed to the optimal timestep. We'll
+      // compute the actual timestep later.
       element_scratch.optimal_timestep[e_r] += max_wavespeed * area;
       element_scratch.optimal_timestep[e_l] += max_wavespeed * area;
     }
@@ -460,8 +462,8 @@ public:
       element_scratch.residual_momentum_y[e] += flux[2] * area;
       element_scratch.residual_energy[e] += flux[3] * area;
 
-      // Add the edge-weighted wave speed to the optimal timestep. We'll compute
-      // the actual timestep later.
+      // Add the edge-weighted wave speed to the optimal timestep. We'll
+      // compute the actual timestep later.
       element_scratch.optimal_timestep[e] += max_wavespeed * area;
     }
 
@@ -499,8 +501,8 @@ public:
       element_scratch.residual_momentum_y[e_r] -= flux[2] * area;
       element_scratch.residual_energy[e_r] -= flux[3] * area;
 
-      // Add the edge-weighted wave speed to the optimal timestep. We'll compute
-      // the actual timestep later.
+      // Add the edge-weighted wave speed to the optimal timestep. We'll
+      // compute the actual timestep later.
       element_scratch.optimal_timestep[e_r] += max_wavespeed * area;
       element_scratch.optimal_timestep[e_l] += max_wavespeed * area;
     }
@@ -523,6 +525,7 @@ public:
     RealType time = 0,
     bool is_unsteady = false) const
   {
+
     // Zero out the residuals and optimal timestep
     zero(element_scratch.residual_density);
     zero(element_scratch.residual_momentum_x);
@@ -565,8 +568,8 @@ public:
       element_scratch.residual_momentum_y[e_r] -= flux[2] * area;
       element_scratch.residual_energy[e_r] -= flux[3] * area;
 
-      // Add the edge-weighted wave speed to the optimal timestep. We'll compute
-      // the actual timestep later.
+      // Add the edge-weighted wave speed to the optimal timestep. We'll
+      // compute the actual timestep later.
       element_scratch.optimal_timestep[e_r] += max_wavespeed * area;
       element_scratch.optimal_timestep[e_l] += max_wavespeed * area;
     }
@@ -630,8 +633,8 @@ public:
       element_scratch.residual_momentum_y[e] += flux[2] * area;
       element_scratch.residual_energy[e] += flux[3] * area;
 
-      // Add the edge-weighted wave speed to the optimal timestep. We'll compute
-      // the actual timestep later.
+      // Add the edge-weighted wave speed to the optimal timestep. We'll
+      // compute the actual timestep later.
       element_scratch.optimal_timestep[e] += max_wavespeed * area;
     }
 
@@ -670,8 +673,8 @@ public:
       element_scratch.residual_momentum_y[e_r] -= flux[2] * area;
       element_scratch.residual_energy[e_r] -= flux[3] * area;
 
-      // Add the edge-weighted wave speed to the optimal timestep. We'll compute
-      // the actual timestep later.
+      // Add the edge-weighted wave speed to the optimal timestep. We'll
+      // compute the actual timestep later.
       element_scratch.optimal_timestep[e_r] += max_wavespeed * area;
       element_scratch.optimal_timestep[e_l] += max_wavespeed * area;
     }
@@ -717,6 +720,88 @@ public:
                                        dt * element_scratch.inv_area[i];
       element_scratch.energy[i] -=
         element_scratch.residual_energy[i] * dt * element_scratch.inv_area[i];
+    }
+  }
+
+  void compute_residual_2nd_order(
+    const Triangulation<dim, RealType>& tri,
+    const InteriorFaceData<dim, RealType>& interior_face_scratch,
+    const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
+    const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
+    ElementData<dim, RealType>& element_scratch,
+    const FluxFunction& flux_func = &flux_roe) const
+  {
+
+    std::vector<std::array<Tensor<1, 2, RealType>, 4>> grad(
+      element_scratch.size());
+
+    // SECOND ORDER HELPER FUNCTIONS
+    auto cell_state = [&](int e) {
+      return Tensor<1, 4, RealType>{ element_scratch.density[e],
+                                     element_scratch.momentum_x[e],
+                                     element_scratch.momentum_y[e],
+                                     element_scratch.energy[e] };
+    };
+
+    auto reconstruct = [&](int e, RealType xf, RealType yf) {
+      const RealType dx = xf - element_scratch.centroid_x[e];
+      const RealType dy = yf - element_scratch.centroid_y[e];
+
+      Tensor<1, 4, RealType> U = cell_state(e);
+      for (int eq = 0; eq < 4; ++eq) {
+        U[eq] += grad[e][eq][0] * dx + grad[e][eq][1] * dy;
+      }
+      return U;
+    };
+
+    // STEP 13
+    // Zero out the residuals and optimal timestep
+    zero(element_scratch.residual_density);
+    zero(element_scratch.residual_momentum_x);
+    zero(element_scratch.residual_momentum_y);
+    zero(element_scratch.residual_energy);
+    zero(element_scratch.optimal_timestep);
+
+    // STEP 4-12
+    // compute gradients for each element, optionally apply limiter
+    // grad[eq][0] = dU_eq/dx
+    // grad[eq][1] = dU_eq/dy
+    for (unsigned int i = 0; i < element_scratch.size(); ++i) {
+      ComputeGradients(tri, element_scratch, static_cast<int>(i), grad[i]);
+    }
+
+    // STEP 14
+    // loop over interior faces
+    for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
+      const auto e_l = interior_face_scratch.elem_l[i];
+      const auto e_r = interior_face_scratch.elem_r[i];
+      const auto n_x = interior_face_scratch.normal_x[i];
+      const auto n_y = interior_face_scratch.normal_y[i];
+      const auto area = interior_face_scratch.face_area[i];
+
+      // get centroids
+      const RealType xf = interior_face_scratch.centroid_x[i];
+      const RealType yf = interior_face_scratch.centroid_y[i];
+
+      // eq 3.5.2 STEP 16
+      Tensor<1, 4, RealType> UL = reconstruct(e_l, xf, yf);
+      Tensor<1, 4, RealType> UR = reconstruct(e_r, xf, yf);
+
+      const Tensor<1, 2, RealType> n = { n_x, n_y };
+      const auto [flux, smax] = flux_func(UL, UR, n);
+
+      element_scratch.residual_density[e_l] += flux[0] * area;
+      element_scratch.residual_momentum_x[e_l] += flux[1] * area;
+      element_scratch.residual_momentum_y[e_l] += flux[2] * area;
+      element_scratch.residual_energy[e_l] += flux[3] * area;
+
+      element_scratch.residual_density[e_r] -= flux[0] * area;
+      element_scratch.residual_momentum_x[e_r] -= flux[1] * area;
+      element_scratch.residual_momentum_y[e_r] -= flux[2] * area;
+      element_scratch.residual_energy[e_r] -= flux[3] * area;
+
+      element_scratch.optimal_timestep[e_l] += smax * area;
+      element_scratch.optimal_timestep[e_r] += smax * area;
     }
   }
 
