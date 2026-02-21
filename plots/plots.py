@@ -1,3 +1,5 @@
+from enum import auto
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -111,7 +113,6 @@ def plotsolution(grifile,solutionfile,sname):
     plt.ylabel('y')
     plt.title(sname)
     plt.axis('equal')
-    plt.show()
 
 #-----------------------------------------------------------
 def ploterror(errorfile):
@@ -119,12 +120,12 @@ def ploterror(errorfile):
     error = np.loadtxt(errorfile)
 
     # plot error
+    plt.figure()
     plt.plot(error)
     plt.xlabel('Number of Iterations')
     plt.ylabel('$L_1$')
     plt.yscale('log')
     plt.title('Convergence of $L_1$')
-    plt.show()
 
 #-----------------------------------------------------------#-----------------------------------------------------------
 def plotcoefficients(coefficientsfile,direction):
@@ -132,11 +133,11 @@ def plotcoefficients(coefficientsfile,direction):
     coefficients = np.loadtxt(coefficientsfile)
 
     # plot coefficients
+    plt.figure()
     plt.plot(coefficients)
     plt.xlabel('Number of Iterations')
     plt.ylabel('$C_'+direction+'$')
     plt.title('Convergence of $C_'+direction+'$')
-    plt.show()
 
 #-----------------------------------------------------------
 def plotcp(grifile,solutionfile):
@@ -148,37 +149,28 @@ def plotcp(grifile,solutionfile):
     U = Ut.tolist()
     N = len(U[0])
 
-    # create useful scalars
-    gamma = 1.4
-    q = np.zeros(N)
-    p = np.zeros(N)
-    c = np.zeros(N)
-    M = np.zeros(N)
-    for i in range(N):
-        q[i] = np.sqrt(np.square(U[1][i]) + np.square(U[2][i]))/U[0][i]
-        p[i] = (gamma-1)*(U[3][i] - U[0][i]/2*np.square(q[i]))
-
     # identify top & bottom surfaces
     n = len(Mesh['BE'])
     ntop = 0
     nbot = 0
     for i in range(n):
-        if Mesh['Bname'][Mesh['BE'][i][3]] == 'Top':
+        if Mesh['Bname'][Mesh['BE'][i][3]] == 'BladeTop':
             if ntop == 0:
                 topstart = i
             ntop += 1
-        if Mesh['Bname'][Mesh['BE'][i][3]] == 'Bottom':
+        if Mesh['Bname'][Mesh['BE'][i][3]] == 'BladeBottom':
             if nbot == 0:
                 botstart = i
             nbot += 1
 
     # create cp
+    gamma = 1.4
     p0 = 1/gamma    # rho0*a0^2/gamma
     pout = 0.7*p0
     Mout2 = (2/(gamma-1))*((p0/pout)**((gamma-1)/gamma)-1)
     qout = 1/2*gamma*pout*Mout2
     top = np.zeros([ntop,3])
-    bot = np.zeros([ntop,3])
+    bot = np.zeros([nbot,3])
     stop = np.zeros(ntop)
     sbot = np.zeros(nbot)
     # loop over top
@@ -187,10 +179,17 @@ def plotcp(grifile,solutionfile):
         vert2 = Mesh['BE'][i+topstart][1]
         elem = Mesh['BE'][i+topstart][2]
         top[i][0] = (Mesh['V'][vert1][0]+Mesh['V'][vert2][0])/2
-        dx2 = (Mesh['V'][vert1][0]-Mesh['V'][vert2][0])**2
-        dy2 = (Mesh['V'][vert1][1]-Mesh['V'][vert2][1])**2
-        top[i][1] = np.sqrt(dx2+dy2)
-        top[i][2] = (p[elem]-pout)/qout
+        dx = (Mesh['V'][vert1][0]-Mesh['V'][vert2][0])
+        dy = (Mesh['V'][vert1][1]-Mesh['V'][vert2][1])
+        top[i][1] = np.sqrt(dx**2+dy**2)
+        nx = -dy/top[i][1]
+        ny = dx/top[i][1]
+        dot = U[1][elem] * nx + U[2][elem] * ny
+        u_b = (U[1][elem] - dot * nx) / U[0][elem]
+        u_v = (U[2][elem] - dot * ny) / U[0][elem]
+        q2 = u_b**2 + u_v**2
+        p = (gamma-1)*(U[3][elem] - U[0][elem]/2*q2)
+        top[i][2] = (p-pout)/qout
     # loop over bottom
     for i in range(nbot):
         vert1 = Mesh['BE'][i+botstart][0]
@@ -200,7 +199,14 @@ def plotcp(grifile,solutionfile):
         dx2 = (Mesh['V'][vert1][0]-Mesh['V'][vert2][0])**2
         dy2 = (Mesh['V'][vert1][1]-Mesh['V'][vert2][1])**2
         bot[i][1] = np.sqrt(dx2+dy2)
-        bot[i][2] = (p[elem]-pout)/qout
+        nx = -dy2/bot[i][1]
+        ny = dx2/bot[i][1]
+        dot = U[1][elem] * nx + U[2][elem] * ny
+        u_b = (U[1][elem] - dot * nx) / U[0][elem]
+        u_v = (U[2][elem] - dot * ny) / U[0][elem]
+        q2 = u_b**2 + u_v**2
+        p = (gamma-1)*(U[3][elem] - U[0][elem]/2*q2)
+        bot[i][2] = (p-pout)/qout
     top[top[:,0].argsort()]
     xtop, dstop, cptop = zip(*top)
     bot[bot[:,0].argsort()]
@@ -214,17 +220,33 @@ def plotcp(grifile,solutionfile):
         sbot[i] = sbot[i-1]+(dsbot[i-1]+dsbot[i])/2
 
     # Plot final solution
+    plt.figure()
     plt.plot(stop,cptop)
     plt.plot(sbot,cpbot)
-    plt.xlabel('x')
+    plt.xlabel('s')
     plt.ylabel('Pressure Coefficient')
     plt.title('Pressure Coefficient Along Blade Surface')
     plt.legend(['Top Surface','Bottom Surface'])
-    plt.show()
 
 #-----------------------------------------------------------
 def main():
-    print('main')
+    grid = 'steadystate'
+    order = '1st'
+    type = 'HLLE'
+    grifile = 'grids/coarse_local_refinement_1.gri'
+    solutionfile = 'build/' + grid + '.' + order + '.' + type + '.data.txt'
+    errorfile = 'build/' + grid + '.' + order + '.' + type + '.residual.txt'
+    c_xfile = 'build/' + grid + '.' + order + '.' + type + '.c_x.txt'
+    c_yfile = 'build/' + grid + '.' + order + '.' + type + '.c_y.txt'
+
+    plotsolution(grifile,solutionfile,'mach')
+    plotsolution(grifile,solutionfile,'pressure')
+    plotsolution(grifile,solutionfile,'entropy')
+    ploterror(errorfile)
+    plotcoefficients(c_xfile,'x')
+    plotcoefficients(c_yfile,'y')
+    plotcp(grifile,solutionfile)
+    plt.show()
 
 #-----------------------------------------------------------
 if __name__ == "__main__":

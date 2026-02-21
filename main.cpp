@@ -3,6 +3,7 @@
 #include <read_gri.hpp>
 #include <solver.hpp>
 #include <timer.hpp>
+#include <forcecoeffs.hpp>
 
 int
 main(int argc, char** argv)
@@ -19,10 +20,16 @@ main(int argc, char** argv)
   Triangulation<2, double> tria(reader.get_data());
   Timer::instance().end_section("create triangulation");
 
+  // Recorder and solver instances
+  Solver<2, 1, double> solver;
+  Recorder<2, double> recorder;
+  CalcForceCoeffs<2, double> CalcForceCoeffs;
+
   // Free stream test
   unsigned int n_iterations = 100;
   std::vector<double> residual_history(n_iterations, 0);
-  Solver<2, 1, double> solver;
+  std::vector<double> c_x_history(n_iterations, 0);
+  std::vector<double> c_y_history(n_iterations, 0);
 
   Timer::instance().begin_section("freestream - roe flux");
   std::cout << "\nFreestream Test - Roe Flux" << std::endl;
@@ -37,10 +44,17 @@ main(int argc, char** argv)
     solver.compute_update_with_local_timestepping(tria.get_elements());
 
     residual_history[i] = tria.get_elements().max_residual();
+    auto force_coeffs = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+    c_x_history[i] = force_coeffs[0];
+    c_y_history[i] = force_coeffs[1];
   }
   std::cout << "  Min/Max Residual " << min(residual_history) << "/"
             << max(residual_history) << std::endl;
+  recorder.recordSimulation(tria.get_elements(), residual_history,
+                            c_x_history, c_y_history, "freestream", "1st", "roe");
   zero(residual_history);
+  zero(c_x_history);
+  zero(c_y_history);
   Timer::instance().end_section("freestream - roe flux");
 
   Timer::instance().begin_section("freestream - HLLE flux");
@@ -56,11 +70,73 @@ main(int argc, char** argv)
     solver.compute_update_with_local_timestepping(tria.get_elements());
 
     residual_history[i] = tria.get_elements().max_residual();
+    auto force_coeffs = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+    c_x_history[i] = force_coeffs[0];
+    c_y_history[i] = force_coeffs[1];
   }
   std::cout << "  Min/Max Residual " << min(residual_history) << "/"
             << max(residual_history) << std::endl;
+  recorder.recordSimulation(tria.get_elements(), residual_history, c_x_history, c_y_history,
+                            "freestream", "1st", "HLLE");
   zero(residual_history);
+  zero(c_x_history);
+  zero(c_y_history);
   Timer::instance().end_section("freestream - HLLE flux");
+
+  // Steady state
+  // TODO: Tolerance cutoff?
+  n_iterations = 10000;
+  residual_history.resize(n_iterations);
+  c_x_history.resize(n_iterations);
+  c_y_history.resize(n_iterations);
+
+  Timer::instance().begin_section("steadystate - roe flux");
+  std::cout << "\nSteadystate - Roe Flux" << std::endl;
+  solver.set_free_stream_initial_state(tria.get_elements());
+  for (unsigned int i = 0; i < n_iterations; ++i) {
+    solver.compute_residual(tria.get_interior_faces(),
+                            tria.get_boundary_faces(),
+                            tria.get_periodic_faces(),
+                            tria.get_elements(),
+                            &flux_roe);
+    solver.compute_update_with_local_timestepping(tria.get_elements());
+    residual_history[i] = tria.get_elements().max_residual();
+    auto force_coeffs = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+    c_x_history[i] = force_coeffs[0];
+    c_y_history[i] = force_coeffs[1];
+  }
+  std::cout << "  Min/Max Residual " << min(residual_history) << "/"
+            << max(residual_history) << std::endl;
+  recorder.recordSimulation(tria.get_elements(), residual_history, c_x_history, c_y_history,
+                            "steadystate", "1st", "roe");
+  zero(residual_history);
+  zero(c_x_history);
+  zero(c_y_history);
+  Timer::instance().end_section("steadystate - roe flux");
+
+  Timer::instance().begin_section("steadystate - HLLE flux");
+  std::cout << "\nSteadystate - HLLE Flux" << std::endl;
+  solver.set_free_stream_initial_state(tria.get_elements());
+  for (unsigned int i = 0; i < n_iterations; ++i) {
+    solver.compute_residual(tria.get_interior_faces(),
+                            tria.get_boundary_faces(),
+                            tria.get_periodic_faces(),
+                            tria.get_elements(),
+                            &Flux_HLLE);
+    solver.compute_update_with_local_timestepping(tria.get_elements());
+    residual_history[i] = tria.get_elements().max_residual();
+    auto force_coeffs = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+    c_x_history[i] = force_coeffs[0];
+    c_y_history[i] = force_coeffs[1];
+  }
+  std::cout << "  Min/Max Residual " << min(residual_history) << "/"
+            << max(residual_history) << std::endl;
+  recorder.recordSimulation(tria.get_elements(), residual_history, c_x_history, c_y_history,
+                            "steadystate", "1st", "HLLE");
+  zero(residual_history);
+  zero(c_x_history);
+  zero(c_y_history);
+  Timer::instance().end_section("steadystate - HLLE flux");
 
   Timer::instance().summary();
 

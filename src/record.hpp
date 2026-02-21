@@ -56,10 +56,14 @@ public:
     void recordSimulation(ElementData<dim, RealType>& element_state,
             std::vector<double> residual, std::vector<double> c_x, std::vector<double> c_y,
             std::string grid, std::string order, std::string type){
+        cleanFile(grid, order, type, "data");
+        cleanFile(grid, order, type, "residual");
+        cleanFile(grid, order, type, "c_x");
+        cleanFile(grid, order, type, "c_y");
         recordData(element_state, grid, order, type);
         recordHist(residual, grid, order, type, "residual");
-        recordHist(c_x, grid, order, type, "cx");
-        recordHist(c_y, grid, order, type, "cy");
+        recordHist(c_x, grid, order, type, "c_x");
+        recordHist(c_y, grid, order, type, "c_y");
     }
 };
 
