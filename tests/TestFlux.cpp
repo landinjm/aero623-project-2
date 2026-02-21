@@ -9,13 +9,13 @@ TEST(CellFlux, CorrectOutput)
 {
   Tensor<1, 4, double> U = { 1, 0, 0, 0 };
   Tensor<1, 2, double> n = { 1, 0 };
-  Tensor<1, 4, double> fluxCell = Cell_Flux(U, n);
+  Tensor<1, 4, double> fluxCell = euler_flux(U, n);
   Tensor<1, 4, double> fluxActual = { 0, 0, 0, 0 };
   EXPECT_TRUE(fluxCell == fluxActual);
 
   U = { 1, 3, 4, 17.5 };
   n = { 1, 1 };
-  fluxCell = Cell_Flux(U, n);
+  fluxCell = euler_flux(U, n);
   fluxActual = { 7, 23, 30, 136.5 };
   EXPECT_TRUE(fluxCell == fluxActual);
 }
@@ -28,7 +28,7 @@ TEST(HLLETest, Consistency)
 
   std::pair<Tensor<1, 4, double>, double> fluxHLLE = Flux_HLLE(U, U, n);
 
-  Tensor<1, 4, double> fluxCell = Cell_Flux(U, n);
+  Tensor<1, 4, double> fluxCell = euler_flux(U, n);
   EXPECT_TRUE(fluxCell == fluxHLLE.first);
 }
 
@@ -54,7 +54,7 @@ TEST(HLLETest, SupersonicUpwinding)
   Tensor<1, 2, double> n = { 1, 0 };
 
   std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = Flux_HLLE(UL, UR, n);
-  Tensor<1, 4, double> upwindFlux = Cell_Flux(UL, n);
+  Tensor<1, 4, double> upwindFlux = euler_flux(UL, n);
   EXPECT_TRUE(fluxHLLE_1.first == upwindFlux);
 }
 
@@ -67,7 +67,7 @@ TEST(HLLETest, CorrectOutput)
   Tensor<1, 2, double> n = { .6, .8 };
 
   std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = Flux_HLLE(UL, UR, n);
-  Tensor<1, 4, double> upwindFlux = Cell_Flux(UL, n);
+  Tensor<1, 4, double> upwindFlux = euler_flux(UL, n);
   EXPECT_TRUE(fluxHLLE_1.first.isApprox(F_expected, 1e-6));
 }
 
@@ -77,7 +77,7 @@ TEST(RoeTest, Consistency)
   Tensor<1, 4, double> U = { 1.0, 1.0, 0.0, 3.0 };
   Tensor<1, 2, double> n = { 1.0, 0.0 };
   std::pair<Tensor<1, 4, double>, double> fluxRoe = flux_roe(U, U, n);
-  Tensor<1, 4, double> fluxCell = Cell_Flux(U, n);
+  Tensor<1, 4, double> fluxCell = euler_flux(U, n);
   EXPECT_TRUE(fluxRoe.first == fluxCell);
 }
 
@@ -114,7 +114,7 @@ TEST(RoeTest, SupersonicUpwinding)
 
   // Note: Use 'flux_roe' (matching your function name from the snippet)
   std::pair<Tensor<1, 4, double>, double> fluxRoe = flux_roe(UL, UR, n);
-  Tensor<1, 4, double> upwindFlux = Cell_Flux(UL, n);
+  Tensor<1, 4, double> upwindFlux = euler_flux(UL, n);
 
   // For supersonic flow, the numerical flux must equal the upwind flux
   for (int i = 0; i < 4; ++i) {

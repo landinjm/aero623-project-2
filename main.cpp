@@ -1,6 +1,7 @@
 #include <Eigen/Dense>
 #include <iostream>
 #include <read_gri.hpp>
+#include <record.hpp>
 #include <solver.hpp>
 #include <timer.hpp>
 #include <forcecoeffs.hpp>
