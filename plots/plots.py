@@ -228,27 +228,3 @@ def plotcp(grifile,solutionfile):
     plt.title('Pressure Coefficient Along Blade Surface')
     plt.legend(['Top Surface','Bottom Surface'])
 
-#-----------------------------------------------------------
-def main():
-    grid = 'steadystate'
-    order = '1st'
-    type = 'roe'
-    grifile = 'grids/coarse_local_refinement_1.gri'
-    solutionfile = 'build/' + grid + '.' + order + '.' + type + '.data.txt'
-    errorfile = 'build/' + grid + '.' + order + '.' + type + '.residual.txt'
-    c_xfile = 'build/' + grid + '.' + order + '.' + type + '.c_x.txt'
-    c_yfile = 'build/' + grid + '.' + order + '.' + type + '.c_y.txt'
-
-    plotsolution(grifile,solutionfile,'mach')
-    plotsolution(grifile,solutionfile,'pressure')
-    plotsolution(grifile,solutionfile,'entropy')
-    ploterror(errorfile)
-    plotcoefficients(c_xfile,'x')
-    plotcoefficients(c_yfile,'y')
-    plotcp(grifile,solutionfile)
-    plt.show()
-
-#-----------------------------------------------------------
-if __name__ == "__main__":
-    main()
-
