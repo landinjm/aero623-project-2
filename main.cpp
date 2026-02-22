@@ -13,11 +13,11 @@ main(int argc, char** argv)
   // Read the grid
   Timer::instance().begin_section("read grid");
   GriReader<2> reader;
-  reader.read_gri("../grids/coarse_local_refinement.gri");
+  reader.read_gri("../grids/coarse_local_refinement_1.gri");
   auto data = reader.get_data();
   Timer::instance().end_section("read grid");
 
-  // Generate triangulation data structurs
+  // Generate triangulation data structures
   Timer::instance().begin_section("create triangulation");
   Triangulation<2, double> tria(reader.get_data());
   Timer::instance().end_section("create triangulation");
@@ -38,7 +38,8 @@ main(int argc, char** argv)
                                                     tria.get_interior_faces(),
                                                     tria.get_boundary_faces(),
                                                     tria.get_periodic_faces(),
-                                                    &flux_roe);
+                                                    &flux_roe,
+                                                    true);
 
       freestream_residual_history[i] = tria.get_elements().max_residual();
     }
@@ -58,7 +59,8 @@ main(int argc, char** argv)
                                                     tria.get_interior_faces(),
                                                     tria.get_boundary_faces(),
                                                     tria.get_periodic_faces(),
-                                                    &Flux_HLLE);
+                                                    &Flux_HLLE,
+                                                    true);
 
       freestream_residual_history[i] = tria.get_elements().max_residual();
     }
@@ -157,12 +159,12 @@ main(int argc, char** argv)
 
     // Now run for a bunch of timesteps
     double time = 0;
-    for (unsigned int i = 0; i < 10000; ++i) {
+    for (unsigned int i = 0; i < 1000; ++i) {
       auto dt = solver.compute_update_with_ssp_rk2(tria.get_elements(),
                                                    tria.get_interior_faces(),
                                                    tria.get_boundary_faces(),
                                                    tria.get_periodic_faces(),
-                                                   &flux_roe,
+                                                   &Flux_HLLE,
                                                    time);
       time += dt;
 

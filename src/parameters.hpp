@@ -29,7 +29,7 @@ struct Parameters
   static constexpr RealType p_0 = rho_0 * a_0 * a_0 / gamma;
 
   /**
-   * @brief Inlet stagnation temperature multiplied by the gas contant.
+   * @brief Inlet stagnation temperature multiplied by the gas constant.
    */
   static constexpr RealType T_0_and_R = p_0 / rho_0;
 
