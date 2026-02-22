@@ -11,83 +11,78 @@ template<unsigned int dim, typename RealType>
 class Recorder
 {
 public:
-  void cleanFile(std::string grid,
-                 std::string order,
-                 std::string type,
-                 std::string value)
-  {
-    // Create/clear and open a text file
-    std::ofstream file(
-      (grid + "." + order + "." + type + "." + value + ".txt"));
+    void recordHist(std::vector<double> data, std::string grid, std::string order, std::string type, std::string value){
+        // Open and write a text file
+        std::ofstream file((grid+"."+order+"."+type+"."+value+".txt"), std::ios::out);
 
-    // Close the file
-    file.close();
-  }
+        // Write to the file
+        for (const auto& d : data) {
+            file << d << "\n";
+        }
+        file << std::endl;
 
-  void recordHist(std::vector<double> data,
-                  std::string grid,
-                  std::string order,
-                  std::string type,
-                  std::string value)
-  {
-    // Open and append a text file
-    std::ofstream file((grid + "." + order + "." + type + "." + value + ".txt"),
-                       std::ios::app);
-
-    // Write to the file
-    for (const auto& d : data) {
-      file << d << "\n";
+        // Close the file
+        file.close();
     }
-    file << std::endl;
 
-    // Close the file
-    file.close();
-  }
+    void recordDataHist(ElementData<dim, RealType>& element_state,
+                    std::string grid,
+                    std::string order,
+                    std::string type,
+                    std::string timestep = ""){
+      // Grab values
+      const auto rho = element_state.density;
+      const auto momentum_x = element_state.momentum_x;
+      const auto momentum_y = element_state.momentum_y;
+      const auto energy = element_state.energy;
 
-  void recordData(ElementData<dim, RealType>& element_state,
-                  std::string grid,
-                  std::string order,
-                  std::string type,
-                  std::string timestep = "")
-  {
-    // Grab values
-    const auto rho = element_state.density;
-    const auto momentum_x = element_state.momentum_x;
-    const auto momentum_y = element_state.momentum_y;
-    const auto energy = element_state.energy;
+      // Construct filename
+      std::string filename = grid + "." + order + "." + type;
+      if (!timestep.empty()) {
+        filename += "." + timestep;
+      }
+      filename += ".data.txt";
 
-    // Construct filename
-    std::string filename = grid + "." + order + "." + type;
-    if (!timestep.empty()) {
-      filename += "." + timestep;
+      // Open and write a text file
+      std::ofstream file(filename, std::ios::out);
+
+      // Write to the file
+      for (unsigned int i = 0; i < element_state.size(); ++i) {
+        file << rho[i] << " " << momentum_x[i] << " " << momentum_y[i] << " "
+            << energy[i] << "\n";
+      }
+      file << std::endl;
+      file.close();
     }
-    filename += ".data.txt";
 
-    // Open and append a text file
-    std::ofstream file(filename, std::ios::out);
+    void recordData(ElementData<dim, RealType>& element_state,
+                std::string grid, std::string order, std::string type){
+        // Grab values
+        const auto rho = element_state.density;
+        const auto momentum_x = element_state.momentum_x;
+        const auto momentum_y = element_state.momentum_y;
+        const auto energy = element_state.energy;
+        
+        // Open and write a text file
+        std::ofstream file((grid+"."+order+"."+type+".data.txt"), std::ios::out);
 
-    // Write to the file
-    for (unsigned int i = 0; i < element_state.size(); ++i) {
-      file << rho[i] << " " << momentum_x[i] << " " << momentum_y[i] << " "
-           << energy[i] << "\n";
+        // Write to the file
+        for (unsigned int i = 0; i < element_state.size(); ++i) {
+            file << rho[i] << " " << momentum_x[i] << " " << momentum_y[i] << " " << energy[i] << "\n";
+        }
+        file << std::endl;
+
+        // Close the file
+        file.close();
     }
-    file << std::endl;
 
-    // Close the file
-    file.close();
-  }
-
-  void recordSimulation(ElementData<dim, RealType>& element_state,
-                        std::vector<double> residual,
-                        std::vector<double> c_x,
-                        std::vector<double> c_y,
-                        std::string grid,
-                        std::string order,
-                        std::string type)
-  {
-    recordData(element_state, grid, order, type);
-    recordHist(residual, grid, order, type, "residual");
-    recordHist(c_x, grid, order, type, "cx");
-    recordHist(c_y, grid, order, type, "cy");
-  }
+    void recordSimulation(ElementData<dim, RealType>& element_state,
+            std::vector<double> residual, std::vector<double> c_x, std::vector<double> c_y,
+            std::string grid, std::string order, std::string type){
+        recordData(element_state, grid, order, type);
+        recordHist(residual, grid, order, type, "residual");
+        recordHist(c_x, grid, order, type, "c_x");
+        recordHist(c_y, grid, order, type, "c_y");
+    }
 };
+
