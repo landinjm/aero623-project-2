@@ -223,3 +223,4 @@ def plotcp(grifile,solutionfile):
     plt.title('Pressure Coefficient Along Blade Surface')
     plt.legend(['Top Surface','Bottom Surface'])
     plt.show()
+
