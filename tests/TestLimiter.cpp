@@ -10,7 +10,7 @@ TEST(Gradient, ZeroGradient)
 {
   GriReader<2> reader;
   reader.read_gri("../tests/test_2.gri");
-  Triangulation<2, double> tria(reader.get_data());
+  Triangulation<2, 2, double> tria(reader.get_data());
 
   auto& elem = tria.get_elements();
 
@@ -41,7 +41,7 @@ TEST(Gradient, CorrectOutput)
   GriReader<2> reader;
   reader.read_gri("../tests/test_2.gri");
 
-  Triangulation<2, double> tria(reader.get_data());
+  Triangulation<2, 2, double> tria(reader.get_data());
   auto& elem = tria.get_elements();
 
   // Define linear field
@@ -77,7 +77,7 @@ TEST(Gradient, PeriodicBoundary)
   GriReader<2> reader;
   reader.read_gri("../tests/test_2.gri");
 
-  Triangulation<2, double> tria(reader.get_data());
+  Triangulation<2, 2, double> tria(reader.get_data());
   auto& elem = tria.get_elements();
 
   // Linear periodic field
