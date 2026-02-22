@@ -36,7 +36,7 @@ struct Parameters
   /**
    * @brief Inlet angle of attack (degrees).
    */
-  static constexpr RealType alpha = RealType{ 50.0 };
+  static constexpr RealType alpha = RealType{ 5.0 };
 
   /**
    * @brief x-component of inlet flow normal.

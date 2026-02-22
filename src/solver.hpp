@@ -3,13 +3,11 @@
 #include <flux.hpp>
 #include <functional>
 #include <libassert/assert.hpp>
-#include <numbers>
+#include <numeric>
 #include <parameters.hpp>
 #include <tensor.hpp>
 #include <triangulation.hpp>
 #include <utilities.hpp>
-
-#include "limiters.hpp"
 
 template<typename RealType>
 inline RealType
@@ -479,6 +477,7 @@ public:
   }
 
   void compute_residual(
+    const MeshData& mesh_data,
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
@@ -493,6 +492,12 @@ public:
       boundary_face_gradient_prep(
         boundary_face_scratch, element_scratch, cfg.is_freestream);
       finalize_gradient(element_scratch);
+      apply_barth_jespersen_limiter(mesh_data,
+                                    interior_face_scratch,
+                                    boundary_face_scratch,
+                                    periodic_face_scratch,
+                                    element_scratch,
+                                    cfg.is_freestream);
     }
 
     interior_face_residual(
@@ -509,6 +514,7 @@ public:
   };
 
   RealType compute_update(
+    const MeshData& mesh_data,
     ElementData<dim, degree, RealType>& element_scratch,
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
@@ -516,13 +522,15 @@ public:
     const SolverConfig& cfg) const
   {
     if (cfg.time_integration == TimeIntegration::LocalTimestepping) {
-      return compute_update_local(element_scratch,
+      return compute_update_local(mesh_data,
+                                  element_scratch,
                                   interior_face_scratch,
                                   boundary_face_scratch,
                                   periodic_face_scratch,
                                   cfg);
     } else {
-      return compute_update_ssprk2(element_scratch,
+      return compute_update_ssprk2(mesh_data,
+                                   element_scratch,
                                    interior_face_scratch,
                                    boundary_face_scratch,
                                    periodic_face_scratch,
@@ -532,13 +540,15 @@ public:
 
 private:
   RealType compute_update_local(
+    const MeshData& mesh_data,
     ElementData<dim, degree, RealType>& element_scratch,
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
     const SolverConfig& cfg) const
   {
-    compute_residual(interior_face_scratch,
+    compute_residual(mesh_data,
+                     interior_face_scratch,
                      boundary_face_scratch,
                      periodic_face_scratch,
                      element_scratch,
@@ -561,6 +571,7 @@ private:
   }
 
   RealType compute_update_ssprk2(
+    const MeshData& mesh_data,
     ElementData<dim, degree, RealType>& element_scratch,
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
@@ -568,7 +579,8 @@ private:
     const SolverConfig& cfg) const
   {
     // Stage 1
-    compute_residual(interior_face_scratch,
+    compute_residual(mesh_data,
+                     interior_face_scratch,
                      boundary_face_scratch,
                      periodic_face_scratch,
                      element_scratch,
@@ -586,7 +598,8 @@ private:
     }
 
     // Stage 2
-    compute_residual(interior_face_scratch,
+    compute_residual(mesh_data,
+                     interior_face_scratch,
                      boundary_face_scratch,
                      periodic_face_scratch,
                      tmp,
@@ -1034,11 +1047,7 @@ private:
       Tensor<1, 4, RealType> boundary_state;
 
       if (is_freestream) {
-        auto initial_state = get_initial_state();
-        boundary_state[0] = 0.5 * interior_state[0] + 0.5 * initial_state[0];
-        boundary_state[1] = 0.5 * interior_state[1] + 0.5 * initial_state[1];
-        boundary_state[2] = 0.5 * interior_state[2] + 0.5 * initial_state[2];
-        boundary_state[3] = 0.5 * interior_state[3] + 0.5 * initial_state[3];
+        boundary_state = get_initial_state();
       } else {
         switch (boundary_id) {
             // InletSide
@@ -1060,10 +1069,13 @@ private:
         }
       }
 
-      const auto avg_density = boundary_state[0];
-      const auto avg_momentum_x = boundary_state[1];
-      const auto avg_momentum_y = boundary_state[2];
-      const auto avg_energy = boundary_state[3];
+      const auto avg_density =
+        0.5 * interior_state[0] + 0.5 * boundary_state[0];
+      const auto avg_momentum_x =
+        0.5 * interior_state[1] + 0.5 * boundary_state[1];
+      const auto avg_momentum_y =
+        0.5 * interior_state[2] + 0.5 * boundary_state[2];
+      const auto avg_energy = 0.5 * interior_state[3] + 0.5 * boundary_state[3];
 
       const auto weight_density_x = avg_density * area * n_x;
       const auto weight_density_y = avg_density * area * n_y;
@@ -1102,5 +1114,311 @@ private:
       element_scratch.grad_x_energy[i] *= inv_area;
       element_scratch.grad_y_energy[i] *= inv_area;
     }
+  }
+
+  /**
+   * @brief Barth Jespersen Limiter
+   */
+  void apply_barth_jespersen_limiter(
+    const MeshData& mesh_data,
+    const InteriorFaceData<dim, RealType>& interior_face_scratch,
+    const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
+    const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
+    ElementData<dim, degree, RealType>& element_scratch,
+    bool is_freestream) const
+  {
+    const auto n_elements = element_scratch.size();
+    std::vector<RealType> alpha(n_elements, 1.0);
+
+    // Create vectors for the min and max states for each cells and its
+    // neighbors
+    auto min_density = element_scratch.density;
+    auto max_density = element_scratch.density;
+    auto min_momentum_x = element_scratch.momentum_x;
+    auto max_momentum_x = element_scratch.momentum_x;
+    auto min_momentum_y = element_scratch.momentum_y;
+    auto max_momentum_y = element_scratch.momentum_y;
+    auto min_energy = element_scratch.energy;
+    auto max_energy = element_scratch.energy;
+
+    // Loop over interior faces
+    for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
+      const auto e_l = interior_face_scratch.elem_l[i];
+      const auto e_r = interior_face_scratch.elem_r[i];
+
+      min_density[e_l] =
+        std::min(min_density[e_l], element_scratch.density[e_r]);
+      max_density[e_l] =
+        std::max(max_density[e_l], element_scratch.density[e_r]);
+      min_density[e_r] =
+        std::min(min_density[e_r], element_scratch.density[e_l]);
+      max_density[e_r] =
+        std::max(max_density[e_r], element_scratch.density[e_l]);
+
+      min_momentum_x[e_l] =
+        std::min(min_momentum_x[e_l], element_scratch.momentum_x[e_r]);
+      max_momentum_x[e_l] =
+        std::max(max_momentum_x[e_l], element_scratch.momentum_x[e_r]);
+      min_momentum_x[e_r] =
+        std::min(min_momentum_x[e_r], element_scratch.momentum_x[e_l]);
+      max_momentum_x[e_r] =
+        std::max(max_momentum_x[e_r], element_scratch.momentum_x[e_l]);
+
+      min_momentum_y[e_l] =
+        std::min(min_momentum_y[e_l], element_scratch.momentum_y[e_r]);
+      max_momentum_y[e_l] =
+        std::max(max_momentum_y[e_l], element_scratch.momentum_y[e_r]);
+      min_momentum_y[e_r] =
+        std::min(min_momentum_y[e_r], element_scratch.momentum_y[e_l]);
+      max_momentum_y[e_r] =
+        std::max(max_momentum_y[e_r], element_scratch.momentum_y[e_l]);
+
+      min_energy[e_l] = std::min(min_energy[e_l], element_scratch.energy[e_r]);
+      max_energy[e_l] = std::max(max_energy[e_l], element_scratch.energy[e_r]);
+      min_energy[e_r] = std::min(min_energy[e_r], element_scratch.energy[e_l]);
+      max_energy[e_r] = std::max(max_energy[e_r], element_scratch.energy[e_l]);
+    }
+
+    // Loop over periodic faces
+    for (unsigned int i = 0; i < periodic_face_scratch.size(); ++i) {
+      const auto e_l = periodic_face_scratch.elem_l[i];
+      const auto e_r = periodic_face_scratch.elem_r[i];
+
+      min_density[e_l] =
+        std::min(min_density[e_l], element_scratch.density[e_r]);
+      max_density[e_l] =
+        std::max(max_density[e_l], element_scratch.density[e_r]);
+      min_density[e_r] =
+        std::min(min_density[e_r], element_scratch.density[e_l]);
+      max_density[e_r] =
+        std::max(max_density[e_r], element_scratch.density[e_l]);
+
+      min_momentum_x[e_l] =
+        std::min(min_momentum_x[e_l], element_scratch.momentum_x[e_r]);
+      max_momentum_x[e_l] =
+        std::max(max_momentum_x[e_l], element_scratch.momentum_x[e_r]);
+      min_momentum_x[e_r] =
+        std::min(min_momentum_x[e_r], element_scratch.momentum_x[e_l]);
+      max_momentum_x[e_r] =
+        std::max(max_momentum_x[e_r], element_scratch.momentum_x[e_l]);
+
+      min_momentum_y[e_l] =
+        std::min(min_momentum_y[e_l], element_scratch.momentum_y[e_r]);
+      max_momentum_y[e_l] =
+        std::max(max_momentum_y[e_l], element_scratch.momentum_y[e_r]);
+      min_momentum_y[e_r] =
+        std::min(min_momentum_y[e_r], element_scratch.momentum_y[e_l]);
+      max_momentum_y[e_r] =
+        std::max(max_momentum_y[e_r], element_scratch.momentum_y[e_l]);
+
+      min_energy[e_l] = std::min(min_energy[e_l], element_scratch.energy[e_r]);
+      max_energy[e_l] = std::max(max_energy[e_l], element_scratch.energy[e_r]);
+      min_energy[e_r] = std::min(min_energy[e_r], element_scratch.energy[e_l]);
+      max_energy[e_r] = std::max(max_energy[e_r], element_scratch.energy[e_l]);
+    }
+
+    // Loop over boundary faces
+    for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
+      const auto e = boundary_face_scratch.elem[i];
+      const auto n_x = boundary_face_scratch.normal_x[i];
+      const auto n_y = boundary_face_scratch.normal_y[i];
+      const auto boundary_id = boundary_face_scratch.boundary_id[i];
+
+      // Check that we don't accidentally have periodic boundaries
+      DEBUG_ASSERT(boundary_id != 0 && boundary_id != 1 && boundary_id != 2 &&
+                   boundary_id != 3);
+
+      // For boundary faces, the avg values are simply the know boundary states.
+      // If we in a freestream test, simply take the average of the interior
+      // state with the freestream state (i.e., the initial condition).
+      const Tensor<1, 4, RealType> interior_state =
+        get_state(element_scratch, e);
+      const Tensor<1, 2, RealType> n = { n_x, n_y };
+      Tensor<1, 4, RealType> boundary_state;
+
+      if (is_freestream) {
+        boundary_state = get_initial_state();
+      } else {
+        switch (boundary_id) {
+            // InletSide
+          case 4:
+            boundary_state = subsonic_inflow_state(interior_state, n);
+            break;
+            // OutletSide
+          case 5:
+            boundary_state = subsonic_outflow_state(interior_state, n);
+            break;
+            // BladeTop
+          case 6:
+            // BladeBottom
+          case 7:
+            boundary_state = inviscid_wall_state(interior_state, n);
+            break;
+          default:
+            DEBUG_ASSERT(false, "How did we get here? Probably hardcoding");
+        }
+      }
+
+      min_density[e] = std::min(min_density[e], boundary_state[0]);
+      max_density[e] = std::max(max_density[e], boundary_state[0]);
+
+      min_momentum_x[e] = std::min(min_momentum_x[e], boundary_state[1]);
+      max_momentum_x[e] = std::max(max_momentum_x[e], boundary_state[1]);
+
+      min_momentum_y[e] = std::min(min_momentum_y[e], boundary_state[2]);
+      max_momentum_y[e] = std::max(max_momentum_y[e], boundary_state[2]);
+
+      min_energy[e] = std::min(min_energy[e], boundary_state[3]);
+      max_energy[e] = std::max(max_energy[e], boundary_state[3]);
+    }
+
+    for (unsigned int i = 0; i < n_elements; ++i) {
+      // Grab the three vectors from cell centroid to nodes
+      const auto n_1 = mesh_data.node_1[i];
+      const auto n_2 = mesh_data.node_2[i];
+      const auto n_3 = mesh_data.node_3[i];
+
+      const auto r_1_x = mesh_data.x[n_1] - element_scratch.centroid_x[i];
+      const auto r_1_y = mesh_data.y[n_1] - element_scratch.centroid_y[i];
+      const auto r_2_x = mesh_data.x[n_2] - element_scratch.centroid_x[i];
+      const auto r_2_y = mesh_data.y[n_2] - element_scratch.centroid_y[i];
+      const auto r_3_x = mesh_data.x[n_3] - element_scratch.centroid_x[i];
+      const auto r_3_y = mesh_data.y[n_3] - element_scratch.centroid_y[i];
+
+      // Compute the neighbor states
+      const auto density_1 = element_scratch.density[i] +
+                             r_1_x * element_scratch.grad_x_density[i] +
+                             r_1_y * element_scratch.grad_y_density[i];
+      const auto density_2 = element_scratch.density[i] +
+                             r_2_x * element_scratch.grad_x_density[i] +
+                             r_2_y * element_scratch.grad_y_density[i];
+      const auto density_3 = element_scratch.density[i] +
+                             r_3_x * element_scratch.grad_x_density[i] +
+                             r_3_y * element_scratch.grad_y_density[i];
+
+      const auto momentum_x_1 = element_scratch.momentum_x[i] +
+                                r_1_x * element_scratch.grad_x_momentum_x[i] +
+                                r_1_y * element_scratch.grad_y_momentum_x[i];
+      const auto momentum_x_2 = element_scratch.momentum_x[i] +
+                                r_2_x * element_scratch.grad_x_momentum_x[i] +
+                                r_2_y * element_scratch.grad_y_momentum_x[i];
+      const auto momentum_x_3 = element_scratch.momentum_x[i] +
+                                r_3_x * element_scratch.grad_x_momentum_x[i] +
+                                r_3_y * element_scratch.grad_y_momentum_x[i];
+
+      const auto momentum_y_1 = element_scratch.momentum_y[i] +
+                                r_1_x * element_scratch.grad_x_momentum_y[i] +
+                                r_1_y * element_scratch.grad_y_momentum_y[i];
+      const auto momentum_y_2 = element_scratch.momentum_y[i] +
+                                r_2_x * element_scratch.grad_x_momentum_y[i] +
+                                r_2_y * element_scratch.grad_y_momentum_y[i];
+      const auto momentum_y_3 = element_scratch.momentum_y[i] +
+                                r_3_x * element_scratch.grad_x_momentum_y[i] +
+                                r_3_y * element_scratch.grad_y_momentum_y[i];
+
+      const auto energy_1 = element_scratch.energy[i] +
+                            r_1_x * element_scratch.grad_x_energy[i] +
+                            r_1_y * element_scratch.grad_y_energy[i];
+      const auto energy_2 = element_scratch.energy[i] +
+                            r_2_x * element_scratch.grad_x_energy[i] +
+                            r_2_y * element_scratch.grad_y_energy[i];
+      const auto energy_3 = element_scratch.energy[i] +
+                            r_3_x * element_scratch.grad_x_energy[i] +
+                            r_3_y * element_scratch.grad_y_energy[i];
+
+      // Compute the alpha for each of neighbor states
+      auto limit = [](RealType q_node,
+                      RealType q_cell,
+                      RealType q_min,
+                      RealType q_max) -> RealType {
+        const auto dq = q_node - q_cell;
+        if (dq > 0.0) {
+          return std::min(RealType(1), (q_max - q_cell) / dq);
+        } else if (dq < 0.0) {
+          return std::min(RealType(1), (q_min - q_cell) / dq);
+        }
+        return RealType(1);
+      };
+
+      alpha[i] = std::min(alpha[i],
+                          limit(density_1,
+                                element_scratch.density[i],
+                                min_density[i],
+                                max_density[i]));
+      alpha[i] = std::min(alpha[i],
+                          limit(density_2,
+                                element_scratch.density[i],
+                                min_density[i],
+                                max_density[i]));
+      alpha[i] = std::min(alpha[i],
+                          limit(density_3,
+                                element_scratch.density[i],
+                                min_density[i],
+                                max_density[i]));
+
+      alpha[i] = std::min(alpha[i],
+                          limit(momentum_x_1,
+                                element_scratch.momentum_x[i],
+                                min_momentum_x[i],
+                                max_momentum_x[i]));
+      alpha[i] = std::min(alpha[i],
+                          limit(momentum_x_2,
+                                element_scratch.momentum_x[i],
+                                min_momentum_x[i],
+                                max_momentum_x[i]));
+      alpha[i] = std::min(alpha[i],
+                          limit(momentum_x_3,
+                                element_scratch.momentum_x[i],
+                                min_momentum_x[i],
+                                max_momentum_x[i]));
+
+      alpha[i] = std::min(alpha[i],
+                          limit(momentum_y_1,
+                                element_scratch.momentum_y[i],
+                                min_momentum_y[i],
+                                max_momentum_y[i]));
+      alpha[i] = std::min(alpha[i],
+                          limit(momentum_y_2,
+                                element_scratch.momentum_y[i],
+                                min_momentum_y[i],
+                                max_momentum_y[i]));
+      alpha[i] = std::min(alpha[i],
+                          limit(momentum_y_3,
+                                element_scratch.momentum_y[i],
+                                min_momentum_y[i],
+                                max_momentum_y[i]));
+
+      alpha[i] = std::min(
+        alpha[i],
+        limit(
+          energy_1, element_scratch.energy[i], min_energy[i], max_energy[i]));
+      alpha[i] = std::min(
+        alpha[i],
+        limit(
+          energy_2, element_scratch.energy[i], min_energy[i], max_energy[i]));
+      alpha[i] = std::min(
+        alpha[i],
+        limit(
+          energy_3, element_scratch.energy[i], min_energy[i], max_energy[i]));
+    }
+
+    // Apply limiter
+    for (unsigned int i = 0; i < n_elements; ++i) {
+      element_scratch.grad_x_density[i] *= alpha[i];
+      element_scratch.grad_y_density[i] *= alpha[i];
+      element_scratch.grad_x_momentum_x[i] *= alpha[i];
+      element_scratch.grad_y_momentum_x[i] *= alpha[i];
+      element_scratch.grad_x_momentum_y[i] *= alpha[i];
+      element_scratch.grad_y_momentum_y[i] *= alpha[i];
+      element_scratch.grad_x_energy[i] *= alpha[i];
+      element_scratch.grad_y_energy[i] *= alpha[i];
+    }
+    /*
+        const auto min_alpha = *std::min_element(alpha.begin(), alpha.end());
+        const auto avg_alpha =
+          std::accumulate(alpha.begin(), alpha.end(), RealType(0)) / n_elements;
+        std::cout << "  alpha min=" << min_alpha << " avg=" << avg_alpha <<
+       "\n";
+                    */
   }
 };
