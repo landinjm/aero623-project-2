@@ -110,14 +110,12 @@ flux_roe(Tensor<1, 4, double> UL,
          Tensor<1, 4, double> UR,
          Tensor<1, 2, double> n);
 
-// Requires: UL and UR are 4x1 Tensor doubles representing the state [rho,
-// rho*u, rho*v, rho*E].
-//           n = 2x1 tensor double showing the normal vector
-// Modifies:
-// Effects: computes the numerical flux and the max propagation speed using the
-// HLLE Riemman solver
+/**
+ * @brief HLLE Flux for 2D Euler Equations
+ * Returns {Numerical Flux, Max Wave Speed}
+ */
 std::pair<Tensor<1, 4, double>, double>
-Flux_HLLE(Tensor<1, 4, double> UL,
+flux_hlle(Tensor<1, 4, double> UL,
           Tensor<1, 4, double> UR,
           Tensor<1, 2, double> n);
 

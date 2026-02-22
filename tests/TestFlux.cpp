@@ -26,7 +26,7 @@ TEST(HLLETest, Consistency)
   Tensor<1, 4, double> U = { 1, 3, 4, 17.5 };
   Tensor<1, 2, double> n = { 1, 0 };
 
-  std::pair<Tensor<1, 4, double>, double> fluxHLLE = Flux_HLLE(U, U, n);
+  std::pair<Tensor<1, 4, double>, double> fluxHLLE = flux_hlle(U, U, n);
 
   Tensor<1, 4, double> fluxCell = euler_flux(U, n);
   EXPECT_TRUE(fluxCell == fluxHLLE.first);
@@ -39,9 +39,9 @@ TEST(HLLETest, Conservation)
   Tensor<1, 4, double> UR = { 1, 1, 2, 10 };
   Tensor<1, 2, double> n = { 1, 1 };
 
-  std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = Flux_HLLE(UL, UR, n);
+  std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = flux_hlle(UL, UR, n);
   std::pair<Tensor<1, 4, double>, double> fluxHLLE_2 =
-    Flux_HLLE(UR, UL, -1 * n);
+    flux_hlle(UR, UL, -1 * n);
   EXPECT_TRUE(fluxHLLE_1.first == -1 * fluxHLLE_2.first);
   EXPECT_TRUE(fluxHLLE_1.second == fluxHLLE_2.second);
 }
@@ -53,7 +53,7 @@ TEST(HLLETest, SupersonicUpwinding)
   Tensor<1, 4, double> UR = { 0.9, 450.0, 0.0, 237500.0 };
   Tensor<1, 2, double> n = { 1, 0 };
 
-  std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = Flux_HLLE(UL, UR, n);
+  std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = flux_hlle(UL, UR, n);
   Tensor<1, 4, double> upwindFlux = euler_flux(UL, n);
   EXPECT_TRUE(fluxHLLE_1.first == upwindFlux);
 }
@@ -66,7 +66,7 @@ TEST(HLLETest, CorrectOutput)
   Tensor<1, 4, double> F_expected = { -1.322875656, 3, 4, 0 };
   Tensor<1, 2, double> n = { .6, .8 };
 
-  std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = Flux_HLLE(UL, UR, n);
+  std::pair<Tensor<1, 4, double>, double> fluxHLLE_1 = flux_hlle(UL, UR, n);
   Tensor<1, 4, double> upwindFlux = euler_flux(UL, n);
   EXPECT_TRUE(fluxHLLE_1.first.isApprox(F_expected, 1e-6));
 }

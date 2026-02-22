@@ -107,7 +107,7 @@ flux_roe(Tensor<1, 4, double> UL,
 }
 
 std::pair<Tensor<1, 4, double>, double>
-Flux_HLLE(Tensor<1, 4, double> UL,
+flux_hlle(Tensor<1, 4, double> UL,
           Tensor<1, 4, double> UR,
           Tensor<1, 2, double> n)
 {
