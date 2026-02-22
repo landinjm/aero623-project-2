@@ -61,6 +61,7 @@ public:
   void summary() const
   {
     // Print header
+    std::cout << "\n" << std::endl;
     std::cout << std::left << std::setw(20) << "Section" << std::right
               << std::setw(15) << "Call Count" << std::setw(18)
               << "Total Time (ms)" << std::setw(18) << "Average (ms)" << "\n";

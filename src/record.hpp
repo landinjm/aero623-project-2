@@ -33,6 +33,36 @@ public:
         file.close();
     }
 
+    void recordDataHist(ElementData<dim, RealType>& element_state,
+                    std::string grid,
+                    std::string order,
+                    std::string type,
+                    std::string timestep = ""){
+      // Grab values
+      const auto rho = element_state.density;
+      const auto momentum_x = element_state.momentum_x;
+      const auto momentum_y = element_state.momentum_y;
+      const auto energy = element_state.energy;
+
+      // Construct filename
+      std::string filename = grid + "." + order + "." + type;
+      if (!timestep.empty()) {
+        filename += "." + timestep;
+      }
+      filename += ".data.txt";
+
+      // Open and append a text file
+      std::ofstream file(filename, std::ios::out);
+
+      // Write to the file
+      for (unsigned int i = 0; i < element_state.size(); ++i) {
+        file << rho[i] << " " << momentum_x[i] << " " << momentum_y[i] << " "
+            << energy[i] << "\n";
+      }
+      file << std::endl;
+      file.close();
+    }
+
     void recordData(ElementData<dim, RealType>& element_state,
                 std::string grid, std::string order, std::string type){
         // Grab values

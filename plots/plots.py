@@ -65,7 +65,7 @@ def readgri(fname):
     return Mesh
 
 #-----------------------------------------------------------
-def plotsolution(grifile,solutionfile,sname):
+def plotsolution(grifile,solutionfile,sname,outfile):
     # read mesh and solution
     Mesh = readgri(grifile)
     U = np.loadtxt(solutionfile)
@@ -105,6 +105,7 @@ def plotsolution(grifile,solutionfile,sname):
         tris.append(tri)
     pc = col.PatchCollection(tris,cmap='jet')
     pc.set_array(S)
+    #pc.set_clim(vmin=0.71, vmax=0.74)
     fig, ax = plt.subplots()
     ax.add_collection(pc)
     plt.colorbar(pc)

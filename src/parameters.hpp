@@ -29,7 +29,7 @@ struct Parameters
   static constexpr RealType p_0 = rho_0 * a_0 * a_0 / gamma;
 
   /**
-   * @brief Inlet stagnation temperature multiplied by the gas contant.
+   * @brief Inlet stagnation temperature multiplied by the gas constant.
    */
   static constexpr RealType T_0_and_R = p_0 / rho_0;
 
@@ -56,5 +56,12 @@ struct Parameters
   /**
    * @brief Maximum CFL number to use when calculating optimal timestep.
    */
-  static constexpr RealType cfl_max = 0.9;
+  static constexpr RealType cfl_max = RealType{ 0.9 };
+
+  /**
+   * @brief Unsteady flow parameters.
+   */
+  static constexpr RealType f_wake = RealType{ 0.1 };
+  static constexpr RealType delta = RealType{ 0.1 };
+  static constexpr RealType Delta_y = RealType{ 18.0 };
 };

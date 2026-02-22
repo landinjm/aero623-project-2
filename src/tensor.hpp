@@ -50,6 +50,12 @@ public:
     return data[i];
   }
 
+  constexpr RealType& operator()(unsigned int i, unsigned int j)
+  {
+    static_assert(rank == 2);
+    return data[i * dim + j];
+  }
+
   // Addition
   constexpr Tensor operator+(const Tensor& other) const
   {
