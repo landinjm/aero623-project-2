@@ -117,7 +117,7 @@ def plotsolution(grifile,solutionfile,sname,outfile):
     plt.close(fig)
 
 #-----------------------------------------------------------
-def ploterror(errorfile):
+def ploterror(errorfile,outfile):
     # read error
     error = np.loadtxt(errorfile)
 
@@ -128,9 +128,11 @@ def ploterror(errorfile):
     plt.ylabel('$L_1$')
     plt.yscale('log')
     plt.title('Convergence of $L_1$')
+    plt.savefig(outfile, dpi=300)
+    plt.close()
 
 #-----------------------------------------------------------#-----------------------------------------------------------
-def plotcoefficients(coefficientsfile,direction):
+def plotcoefficients(coefficientsfile,direction,outfile):
     # read coefficients
     coefficients = np.loadtxt(coefficientsfile)
 
@@ -140,9 +142,10 @@ def plotcoefficients(coefficientsfile,direction):
     plt.xlabel('Number of Iterations')
     plt.ylabel('$C_'+direction+'$')
     plt.title('Convergence of $C_'+direction+'$')
-
+    plt.savefig(outfile, dpi=300)
+    plt.close()
 #-----------------------------------------------------------
-def plotcp(grifile,solutionfile):
+def plotcp(grifile,solutionfile,outfile):
     # read mesh and solution
     Mesh = readgri(grifile)
     U = np.loadtxt(solutionfile)
@@ -226,31 +229,9 @@ def plotcp(grifile,solutionfile):
     plt.plot(stop/stop[-1],cptop)
     plt.plot(sbot/sbot[-1],cpbot)
     plt.xlabel('s/c')
-    plt.ylabel('Pressure Coefficient')
+    plt.ylabel('$C_p$')
     plt.title('Pressure Coefficient Along Blade Surface')
     plt.legend(['Top Surface','Bottom Surface'])
-
-#-----------------------------------------------------------
-def main():
-    grid = 'steadystate'
-    order = '1st'
-    type = 'roe'
-    grifile = 'grids/coarse_local_refinement_1.gri'
-    solutionfile = 'build/' + grid + '.' + order + '.' + type + '.data.txt'
-    errorfile = 'build/' + grid + '.' + order + '.' + type + '.residual.txt'
-    c_xfile = 'build/' + grid + '.' + order + '.' + type + '.c_x.txt'
-    c_yfile = 'build/' + grid + '.' + order + '.' + type + '.c_y.txt'
-
-    plotsolution(grifile,solutionfile,'mach','plots/mach.png')
-    plotsolution(grifile,solutionfile,'pressure','plots/pressure.png')
-    plotsolution(grifile,solutionfile,'entropy','plots/entropy.png')
-    ploterror(errorfile)
-    plotcoefficients(c_xfile,'x')
-    plotcoefficients(c_yfile,'y')
-    plotcp(grifile,solutionfile)
-    plt.show()
-
-#-----------------------------------------------------------
-#if __name__ == "__main__":
-    #main()
+    plt.savefig(outfile, dpi=300)
+    plt.close()
 
