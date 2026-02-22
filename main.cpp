@@ -8,14 +8,14 @@
 template<unsigned int dim, unsigned int degree, typename RealType>
 void
 freestream_test(
-  Triangulation<dim, RealType> tria,
+  Triangulation<dim, degree, RealType> tria,
   std::string flux_function,
   const typename Solver<dim, degree, RealType>::FluxFunction& flux_func,
   unsigned int n_iterations = 100)
 {
   std::vector<RealType> residual_history(n_iterations, 0);
   Solver<dim, degree, RealType> solver;
-  Recorder<dim, RealType> recorder;
+  Recorder<dim, degree, RealType> recorder;
 
   std::string timer = "Freestream - ";
   if constexpr (degree == 1) {
@@ -55,12 +55,15 @@ main(int argc, char** argv)
 
   // Generate triangulation data structures
   Timer::instance().begin_section("create triangulation");
-  Triangulation<2, double> tria(reader.get_data());
+  Triangulation<2, 1, double> tria_1(reader.get_data());
+  Triangulation<2, 2, double> tria_2(reader.get_data());
   Timer::instance().end_section("create triangulation");
 
   // Free stream test
-  freestream_test<2, 1, double>(tria, "Roe Flux", &flux_roe);
-  freestream_test<2, 1, double>(tria, "HLLE Flux", &flux_hlle);
+  freestream_test<2, 1, double>(tria_1, "Roe Flux", &flux_roe);
+  freestream_test<2, 1, double>(tria_1, "HLLE Flux", &flux_hlle);
+  freestream_test<2, 2, double>(tria_2, "Roe Flux", &flux_roe);
+  freestream_test<2, 2, double>(tria_2, "HLLE Flux", &flux_hlle);
 
   // Cleanup
   Timer::instance().summary();

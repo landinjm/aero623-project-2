@@ -4,8 +4,8 @@
 #include <array>
 
 void
-ComputeGradients(const Triangulation<2, double>& tri,
-                 ElementData<2, double>& elem,
+ComputeGradients(const Triangulation<2, 2, double>& tri,
+                 ElementData<2, 2, double>& elem,
                  int elem_id,
                  std::array<Tensor<1, 2, double>, 4>& L0)
 {
@@ -188,8 +188,8 @@ Limiter_BJ(std::array<Tensor<1, 2, double>, 4>& L0,
 
 Tensor<1, 4, double>
 neighbormin(int elem_id,
-            const ElementData<2, double>& elem,
-            const Triangulation<2, double>& tri)
+            const ElementData<2, 2, double>& elem,
+            const Triangulation<2, 2, double>& tri)
 {
   const auto& interior = tri.get_interior_faces();
   const auto& periodic = tri.get_periodic_faces();
@@ -251,8 +251,8 @@ neighbormin(int elem_id,
 
 Tensor<1, 4, double>
 neighbormax(int elem_id,
-            const ElementData<2, double>& elem,
-            const Triangulation<2, double>& tri)
+            const ElementData<2, 2, double>& elem,
+            const Triangulation<2, 2, double>& tri)
 {
   const auto& interior = tri.get_interior_faces();
   const auto& periodic = tri.get_periodic_faces();
@@ -315,7 +315,7 @@ neighbormax(int elem_id,
 std::array<Tensor<1, 2, double>, 3>
 ComputeVertexVectors(int elem_id,
                      const MeshData& data,
-                     const ElementData<2, double>& elem)
+                     const ElementData<2, 2, double>& elem)
 {
   int v0 = data.node_1[elem_id];
   int v1 = data.node_2[elem_id];

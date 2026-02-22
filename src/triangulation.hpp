@@ -9,9 +9,11 @@
 #include <utilities.hpp>
 #include <vector>
 
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int degree, typename RealType>
 struct ElementData
 {
+  static_assert(dim == 1 || dim == 2, "Only 1st and 2nd order are supported");
+
   std::vector<RealType> area;
   std::vector<RealType> inv_area;
 
@@ -32,6 +34,22 @@ struct ElementData
   std::vector<RealType> residual_energy;
 
   std::vector<RealType> optimal_timestep;
+
+  std::vector<RealType> grad_x_density;
+  std::vector<RealType> grad_y_density;
+  std::vector<RealType> grad_z_density;
+  std::vector<RealType> grad_x_momentum_x;
+  std::vector<RealType> grad_y_momentum_x;
+  std::vector<RealType> grad_z_momentum_x;
+  std::vector<RealType> grad_x_momentum_y;
+  std::vector<RealType> grad_y_momentum_y;
+  std::vector<RealType> grad_z_momentum_y;
+  std::vector<RealType> grad_x_momentum_z;
+  std::vector<RealType> grad_y_momentum_z;
+  std::vector<RealType> grad_z_momentum_z;
+  std::vector<RealType> grad_x_energy;
+  std::vector<RealType> grad_y_energy;
+  std::vector<RealType> grad_z_energy;
 
   std::size_t size() const { return area.size(); }
 
@@ -63,20 +81,58 @@ struct ElementData
     residual_energy.resize(n);
 
     optimal_timestep.resize(n);
+
+    if constexpr (degree == 2) {
+      grad_x_density.resize(n);
+      grad_y_density.resize(n);
+      if constexpr (dim == 3) {
+        grad_z_density.resize(n);
+      }
+      grad_x_momentum_x.resize(n);
+      grad_y_momentum_x.resize(n);
+      if constexpr (dim == 3) {
+        grad_z_momentum_x.resize(n);
+      }
+      grad_x_momentum_y.resize(n);
+      grad_y_momentum_y.resize(n);
+      if constexpr (dim == 3) {
+        grad_z_momentum_y.resize(n);
+      }
+      if constexpr (dim == 3) {
+        grad_x_momentum_z.resize(n);
+        grad_y_momentum_z.resize(n);
+        grad_z_momentum_z.resize(n);
+      }
+      grad_x_energy.resize(n);
+      grad_y_energy.resize(n);
+      if constexpr (dim == 3) {
+        grad_z_energy.resize(n);
+      }
+    }
   }
 
   RealType max_residual() const
   {
-    return std::max({ max(residual_density),
-                      max(residual_momentum_x),
-                      max(residual_momentum_y),
-                      max(residual_energy) });
+    RealType residual = std::max({ max(residual_density),
+                                   max(residual_momentum_x),
+                                   max(residual_momentum_y),
+                                   max(residual_energy) });
+    if constexpr (dim == 3) {
+      residual = std::max(residual, max(residual_momentum_z));
+    }
+    return residual;
   }
 
   RealType l1_residual() const
   {
-    return l1_norm(residual_density) + l1_norm(residual_momentum_x) +
-           l1_norm(residual_momentum_y) + l1_norm(residual_energy);
+    RealType residual = l1_norm(residual_density) +
+                        l1_norm(residual_momentum_x) +
+                        l1_norm(residual_momentum_y) + l1_norm(residual_energy);
+    if constexpr (dim == 3) {
+      residual += l1_norm(momentum_z);
+    }
+
+    return residual;
   }
 };
 
@@ -224,12 +280,12 @@ struct PeriodicFaceData
  * multiplied with boundary area at each element. The l2-norm of this error is
  * returned at the end.
  */
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int degree, typename RealType>
 RealType
 mesh_verification(const InteriorFaceData<dim, RealType>& interior_face_scratch,
                   const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
                   const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
-                  const ElementData<dim, RealType>& element_scratch)
+                  const ElementData<dim, degree, RealType>& element_scratch)
 {
   std::vector<std::array<RealType, dim>> elem_sum(element_scratch.size());
 
@@ -278,7 +334,7 @@ mesh_verification(const InteriorFaceData<dim, RealType>& interior_face_scratch,
   return std::sqrt(error);
 }
 
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int degree, typename RealType>
 class Triangulation
 {
 public:
@@ -315,9 +371,9 @@ public:
     compute_periodic_face_data(data);
   }
 
-  ElementData<dim, RealType>& get_elements() { return element_data; }
+  ElementData<dim, degree, RealType>& get_elements() { return element_data; }
 
-  const ElementData<dim, RealType>& get_elements() const
+  const ElementData<dim, degree, RealType>& get_elements() const
   {
     return element_data;
   }
@@ -867,9 +923,8 @@ private:
   unsigned int _n_interior_faces = 0;
   unsigned int _n_periodic_faces = 0;
 
-  ElementData<dim, RealType> element_data;
+  ElementData<dim, degree, RealType> element_data;
   InteriorFaceData<dim, RealType> interior_face_data;
   BoundaryFaceData<dim, RealType> boundary_face_data;
   PeriodicFaceData<dim, RealType> periodic_face_data;
 };
-
