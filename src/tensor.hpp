@@ -38,17 +38,20 @@ public:
   }
 
   // Element access
-  constexpr RealType& operator[](unsigned int i) {
+  constexpr RealType& operator[](unsigned int i)
+  {
     assert(i < size);
     return data[i];
   }
 
-  constexpr const RealType& operator[](unsigned int i) const {
+  constexpr const RealType& operator[](unsigned int i) const
+  {
     assert(i < size);
     return data[i];
   }
 
-  constexpr RealType& operator()(unsigned int i, unsigned int j) {
+  constexpr RealType& operator()(unsigned int i, unsigned int j)
+  {
     static_assert(rank == 2);
     return data[i * dim + j];
   }

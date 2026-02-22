@@ -1,354 +1,334 @@
 #include "limiters.hpp"
-#include <array>
+
 #include <algorithm>
+#include <array>
 
-void ComputeGradients(const Triangulation<2,double>& tri,
-                            ElementData<2,double>& elem,
-                            int elem_id,
-                            std::array<Tensor<1,2,double>,4>& L0)
+void
+ComputeGradients(const Triangulation<2, double>& tri,
+                 ElementData<2, double>& elem,
+                 int elem_id,
+                 std::array<Tensor<1, 2, double>, 4>& L0)
 {
-    const auto& interior = tri.get_interior_faces();
-    const auto& boundary = tri.get_boundary_faces();
-    const auto& periodic = tri.get_periodic_faces();
+  const auto& interior = tri.get_interior_faces();
+  const auto& boundary = tri.get_boundary_faces();
+  const auto& periodic = tri.get_periodic_faces();
 
-    //zero out the input gradient
-    for (int i =0; i < 4; i++)
-        L0[i] = L0[i] * 0.0;
+  // zero out the input gradient
+  for (int i = 0; i < 4; i++)
+    L0[i] = L0[i] * 0.0;
 
-    // ---------- Interior Faces ----------
-    for (int f = 0; f < interior.size(); ++f)  //TODO: This is a big time sink potentially
-    {
-        
-        int L = interior.elem_l[f];
-        int R = interior.elem_r[f];
+  // ---------- Interior Faces ----------
+  for (int f = 0; f < interior.size();
+       ++f) // TODO: This is a big time sink potentially
+  {
 
-        if (elem_id != L && elem_id != R)
-            continue;   //ignore unrelated faces
+    int L = interior.elem_l[f];
+    int R = interior.elem_r[f];
 
-        //normal points from left to right element
-        Tensor<1,2,double> n = {
-            interior.normal_x[f],
-            interior.normal_y[f]
-        };
+    if (elem_id != L && elem_id != R)
+      continue; // ignore unrelated faces
 
-        double length = interior.face_area[f];
+    // normal points from left to right element
+    Tensor<1, 2, double> n = { interior.normal_x[f], interior.normal_y[f] };
 
-        // Face state (average)
-        Tensor<1,4,double> U_hat = {
-            0.5 * (elem.density[L] + elem.density[R]),
-            0.5 * (elem.momentum_x[L]   + elem.momentum_x[R]),
-            0.5 * (elem.momentum_y[L]   + elem.momentum_y[R]),
-            0.5 * (elem.energy[L]  + elem.energy[R])
-        };
+    double length = interior.face_area[f];
 
-        //loop over each conserved variable [rho, rho*u, rho*v, rho*E]
-        for (int eq = 0; eq < 4; ++eq)
-        {
-            Tensor<1,2,double> contrib = U_hat[eq] * n * length;
-            
-            if (elem_id == L) {
-                L0[eq][0] += contrib[0];
-                L0[eq][1] += contrib[1];
-            } else {
-                L0[eq][0] -= contrib[0];
-                L0[eq][1] -= contrib[1];
-            }
+    // Face state (average)
+    Tensor<1, 4, double> U_hat = {
+      0.5 * (elem.density[L] + elem.density[R]),
+      0.5 * (elem.momentum_x[L] + elem.momentum_x[R]),
+      0.5 * (elem.momentum_y[L] + elem.momentum_y[R]),
+      0.5 * (elem.energy[L] + elem.energy[R])
+    };
 
-        }
+    // loop over each conserved variable [rho, rho*u, rho*v, rho*E]
+    for (int eq = 0; eq < 4; ++eq) {
+      Tensor<1, 2, double> contrib = U_hat[eq] * n * length;
+
+      if (elem_id == L) {
+        L0[eq][0] += contrib[0];
+        L0[eq][1] += contrib[1];
+      } else {
+        L0[eq][0] -= contrib[0];
+        L0[eq][1] -= contrib[1];
+      }
     }
+  }
 
-    // ---------- Boundary Faces ----------
-    for (int f = 0; f < boundary.size(); ++f)  //TODO: This is a big time sink potentially
-    {
-        int e = boundary.elem[f];
+  // ---------- Boundary Faces ----------
+  for (int f = 0; f < boundary.size();
+       ++f) // TODO: This is a big time sink potentially
+  {
+    int e = boundary.elem[f];
 
-        if (e != elem_id)
-            continue;
+    if (e != elem_id)
+      continue;
 
-        Tensor<1,2,double> n = {
-            boundary.normal_x[f],
-            boundary.normal_y[f]
-        };
+    Tensor<1, 2, double> n = { boundary.normal_x[f], boundary.normal_y[f] };
 
-        double length = boundary.face_area[f];
+    double length = boundary.face_area[f];
 
-        // Replace with BC state if needed
-        Tensor<1,4,double> U_hat = {
-            (elem.density[e]),
-            (elem.momentum_x[e]),
-            (elem.momentum_y[e]),
-            (elem.energy[e])
-        };
+    // Replace with BC state if needed
+    Tensor<1, 4, double> U_hat = { (elem.density[e]),
+                                   (elem.momentum_x[e]),
+                                   (elem.momentum_y[e]),
+                                   (elem.energy[e]) };
 
-        for (int eq = 0; eq < 4; ++eq)
-        {
-            Tensor<1,2,double> contrib = U_hat[eq] * n * length;
+    for (int eq = 0; eq < 4; ++eq) {
+      Tensor<1, 2, double> contrib = U_hat[eq] * n * length;
 
-            L0[eq][0] += contrib[0];
-            L0[eq][1] += contrib[1];
-
-        }
+      L0[eq][0] += contrib[0];
+      L0[eq][1] += contrib[1];
     }
+  }
 
-    // ---------- Periodic Faces ----------
-    for (int f = 0; f < periodic.size(); ++f) //TODO: This is a big time sink potentially
-    {
-        int L = periodic.elem_l[f];
-        int R = periodic.elem_r[f];
+  // ---------- Periodic Faces ----------
+  for (int f = 0; f < periodic.size();
+       ++f) // TODO: This is a big time sink potentially
+  {
+    int L = periodic.elem_l[f];
+    int R = periodic.elem_r[f];
 
-        if (elem_id != L && elem_id != R)
-            continue;   //ignore unrelated faces
+    if (elem_id != L && elem_id != R)
+      continue; // ignore unrelated faces
 
-        Tensor<1,2,double> n = {
-            periodic.normal_x[f],
-            periodic.normal_y[f]
-        };
+    Tensor<1, 2, double> n = { periodic.normal_x[f], periodic.normal_y[f] };
 
-        double length = periodic.face_area[f];
+    double length = periodic.face_area[f];
 
-        Tensor<1,4,double> U_hat = {
-            0.5 * (elem.density[L] + elem.density[R]),
-            0.5 * (elem.momentum_x[L]   + elem.momentum_x[R]),
-            0.5 * (elem.momentum_y[L]   + elem.momentum_y[R]),
-            0.5 * (elem.energy[L]  + elem.energy[R])
-        };
+    Tensor<1, 4, double> U_hat = {
+      0.5 * (elem.density[L] + elem.density[R]),
+      0.5 * (elem.momentum_x[L] + elem.momentum_x[R]),
+      0.5 * (elem.momentum_y[L] + elem.momentum_y[R]),
+      0.5 * (elem.energy[L] + elem.energy[R])
+    };
 
-        for (int eq = 0; eq < 4; ++eq)
-        {
-            Tensor<1,2,double> contrib = U_hat[eq] * n * length;
+    for (int eq = 0; eq < 4; ++eq) {
+      Tensor<1, 2, double> contrib = U_hat[eq] * n * length;
 
-            if (elem_id == L) {
-                L0[eq][0] += contrib[0];
-                L0[eq][1] += contrib[1];
-            } else {
-                L0[eq][0] -= contrib[0];
-                L0[eq][1] -= contrib[1];
-            }
-
-        }
+      if (elem_id == L) {
+        L0[eq][0] += contrib[0];
+        L0[eq][1] += contrib[1];
+      } else {
+        L0[eq][0] -= contrib[0];
+        L0[eq][1] -= contrib[1];
+      }
     }
+  }
 
-    // ---------- Divide by Area ----------
-    double invA = elem.inv_area[elem_id];
-    for (int i = 0; i < 4; ++i)
-        L0[i] = L0[i] * invA;
+  // ---------- Divide by Area ----------
+  double invA = elem.inv_area[elem_id];
+  for (int i = 0; i < 4; ++i)
+    L0[i] = L0[i] * invA;
 }
 
-void 
-Limiter_BJ(std::array<Tensor<1,2,double>,4>& L0,
-           Tensor<1,4,double>& u0,
-           Tensor<1,4,double>& umin,
-           Tensor<1,4,double>& umax,
-           std::array<Tensor<1,2,double>,3>& r) {
+void
+Limiter_BJ(std::array<Tensor<1, 2, double>, 4>& L0,
+           Tensor<1, 4, double>& u0,
+           Tensor<1, 4, double>& umin,
+           Tensor<1, 4, double>& umax,
+           std::array<Tensor<1, 2, double>, 3>& r)
+{
 
-    //define the tensor product between the gradient and the vector to the cell nodes
-    Tensor<1,4,double> Lr1 = {r[0][0] * L0[0][0] + r[0][1] * L0[0][1], 
-                              r[0][0] * L0[1][0] + r[0][1] * L0[1][1], 
-                              r[0][0] * L0[2][0] + r[0][1] * L0[2][1], 
-                              r[0][0] * L0[3][0] + r[0][1] * L0[3][1]};
+  // define the tensor product between the gradient and the vector to the cell
+  // nodes
+  Tensor<1, 4, double> Lr1 = { r[0][0] * L0[0][0] + r[0][1] * L0[0][1],
+                               r[0][0] * L0[1][0] + r[0][1] * L0[1][1],
+                               r[0][0] * L0[2][0] + r[0][1] * L0[2][1],
+                               r[0][0] * L0[3][0] + r[0][1] * L0[3][1] };
 
-    Tensor<1,4,double> Lr2 = {r[1][0] * L0[0][0] + r[1][1] * L0[0][1],
-                              r[1][0] * L0[1][0] + r[1][1] * L0[1][1], 
-                              r[1][0] * L0[2][0] + r[1][1] * L0[2][1],
-                              r[1][0] * L0[3][0] + r[1][1] * L0[3][1]};
+  Tensor<1, 4, double> Lr2 = { r[1][0] * L0[0][0] + r[1][1] * L0[0][1],
+                               r[1][0] * L0[1][0] + r[1][1] * L0[1][1],
+                               r[1][0] * L0[2][0] + r[1][1] * L0[2][1],
+                               r[1][0] * L0[3][0] + r[1][1] * L0[3][1] };
 
-    Tensor<1,4,double> Lr3 = {r[2][0] * L0[0][0] + r[2][1] * L0[0][1],
-                              r[2][0] * L0[1][0] + r[2][1] * L0[1][1], 
-                              r[2][0] * L0[2][0] + r[2][1] * L0[2][1], 
-                              r[2][0] * L0[3][0] + r[2][1] * L0[3][1]};
+  Tensor<1, 4, double> Lr3 = { r[2][0] * L0[0][0] + r[2][1] * L0[0][1],
+                               r[2][0] * L0[1][0] + r[2][1] * L0[1][1],
+                               r[2][0] * L0[2][0] + r[2][1] * L0[2][1],
+                               r[2][0] * L0[3][0] + r[2][1] * L0[3][1] };
 
-    //get adjacent states
-    Tensor<1,4,double> u1 = u0 + Lr1;
-    Tensor<1,4,double> u2 = u0 + Lr2;
-    Tensor<1,4,double> u3 = u0 + Lr3;
-    std::array<Tensor<1,4,double>, 3> ui = {u1, u2, u3};
+  // get adjacent states
+  Tensor<1, 4, double> u1 = u0 + Lr1;
+  Tensor<1, 4, double> u2 = u0 + Lr2;
+  Tensor<1, 4, double> u3 = u0 + Lr3;
+  std::array<Tensor<1, 4, double>, 3> ui = { u1, u2, u3 };
 
-    //find the scalar limiter
-    Tensor<1,4,double> alpha = {1,1,1,1};
-    //loop through the nodes of an element
-    for (int i = 0; i < 3; i++) {
-        double alpha_cmp;
-        const auto& uiN = ui[i];
-        
-        //loop through the states
-        for (int j = 0; j < 4; j++) {
+  // find the scalar limiter
+  Tensor<1, 4, double> alpha = { 1, 1, 1, 1 };
+  // loop through the nodes of an element
+  for (int i = 0; i < 3; i++) {
+    double alpha_cmp;
+    const auto& uiN = ui[i];
 
-            //compute the required scalar limiter for each node
-            if (uiN[j] - u0[j] > 0.0) {
-                alpha_cmp = std::min(1.0, (umax[j] - u0[j])/(uiN[j] - u0[j]));
-            } else if (uiN[j] - u0[j] < 0.0) {
-                alpha_cmp = std::min(1.0, (umin[j] - u0[j])/(uiN[j] - u0[j]));
-            } else {
-                alpha_cmp = 1.0;
-            }//end if
-
-            //set scalar limiter to the minimum of the adjacent nodes
-            alpha[j] = std::min(alpha[j], alpha_cmp);
-        }//end state for
-    }//end node for
-
-
-    //return the limited gradient
-    //loop through the states
+    // loop through the states
     for (int j = 0; j < 4; j++) {
-        //loop through the gradients
-        L0[j][0] = alpha[j] * L0[j][0];
-        L0[j][1] = alpha[j] * L0[j][1];
-    }
-}//end Limiter_BJ
 
-Tensor<1,4,double>
+      // compute the required scalar limiter for each node
+      if (uiN[j] - u0[j] > 0.0) {
+        alpha_cmp = std::min(1.0, (umax[j] - u0[j]) / (uiN[j] - u0[j]));
+      } else if (uiN[j] - u0[j] < 0.0) {
+        alpha_cmp = std::min(1.0, (umin[j] - u0[j]) / (uiN[j] - u0[j]));
+      } else {
+        alpha_cmp = 1.0;
+      } // end if
+
+      // set scalar limiter to the minimum of the adjacent nodes
+      alpha[j] = std::min(alpha[j], alpha_cmp);
+    } // end state for
+  } // end node for
+
+  // return the limited gradient
+  // loop through the states
+  for (int j = 0; j < 4; j++) {
+    // loop through the gradients
+    L0[j][0] = alpha[j] * L0[j][0];
+    L0[j][1] = alpha[j] * L0[j][1];
+  }
+} // end Limiter_BJ
+
+Tensor<1, 4, double>
 neighbormin(int elem_id,
-            const ElementData<2,double>& elem,
-            const Triangulation<2,double>& tri)
+            const ElementData<2, double>& elem,
+            const Triangulation<2, double>& tri)
 {
-    const auto& interior = tri.get_interior_faces();
-    const auto& periodic = tri.get_periodic_faces();
+  const auto& interior = tri.get_interior_faces();
+  const auto& periodic = tri.get_periodic_faces();
 
-    // Initialize min with this cell's state
-    Tensor<1,4,double> umin = {
-        elem.density[elem_id],
-        elem.momentum_x[elem_id],
-        elem.momentum_y[elem_id],
-        elem.energy[elem_id]
-    };
+  // Initialize min with this cell's state
+  Tensor<1, 4, double> umin = { elem.density[elem_id],
+                                elem.momentum_x[elem_id],
+                                elem.momentum_y[elem_id],
+                                elem.energy[elem_id] };
 
-    // -------- Interior Faces --------
-    for (int f = 0; f < interior.size(); ++f)
-    {
-        int L = interior.elem_l[f];
-        int R = interior.elem_r[f];
+  // -------- Interior Faces --------
+  for (int f = 0; f < interior.size(); ++f) {
+    int L = interior.elem_l[f];
+    int R = interior.elem_r[f];
 
-        int neighbor = -1;
+    int neighbor = -1;
 
-        if (elem_id == L)      neighbor = R;
-        else if (elem_id == R) neighbor = L;
-        else continue;
+    if (elem_id == L)
+      neighbor = R;
+    else if (elem_id == R)
+      neighbor = L;
+    else
+      continue;
 
-        Tensor<1,4,double> uN = {
-            elem.density[neighbor],
-            elem.momentum_x[neighbor],
-            elem.momentum_y[neighbor],
-            elem.energy[neighbor]
-        };
+    Tensor<1, 4, double> uN = { elem.density[neighbor],
+                                elem.momentum_x[neighbor],
+                                elem.momentum_y[neighbor],
+                                elem.energy[neighbor] };
 
-        for (int eq = 0; eq < 4; ++eq)
-            umin[eq] = std::min(umin[eq], uN[eq]);
-    }
+    for (int eq = 0; eq < 4; ++eq)
+      umin[eq] = std::min(umin[eq], uN[eq]);
+  }
 
-    // -------- Periodic Faces --------
-    for (int f = 0; f < periodic.size(); ++f)
-    {
-        int L = periodic.elem_l[f];
-        int R = periodic.elem_r[f];
+  // -------- Periodic Faces --------
+  for (int f = 0; f < periodic.size(); ++f) {
+    int L = periodic.elem_l[f];
+    int R = periodic.elem_r[f];
 
-        int neighbor = -1;
+    int neighbor = -1;
 
-        if (elem_id == L)      neighbor = R;
-        else if (elem_id == R) neighbor = L;
-        else continue;
+    if (elem_id == L)
+      neighbor = R;
+    else if (elem_id == R)
+      neighbor = L;
+    else
+      continue;
 
-        Tensor<1,4,double> uN = {
-            elem.density[neighbor],
-            elem.momentum_x[neighbor],
-            elem.momentum_y[neighbor],
-            elem.energy[neighbor]
-        };
+    Tensor<1, 4, double> uN = { elem.density[neighbor],
+                                elem.momentum_x[neighbor],
+                                elem.momentum_y[neighbor],
+                                elem.energy[neighbor] };
 
-        for (int eq = 0; eq < 4; ++eq)
-            umin[eq] = std::min(umin[eq], uN[eq]);
-    }
+    for (int eq = 0; eq < 4; ++eq)
+      umin[eq] = std::min(umin[eq], uN[eq]);
+  }
 
-    return umin;
+  return umin;
 }
 
-Tensor<1,4,double>
+Tensor<1, 4, double>
 neighbormax(int elem_id,
-            const ElementData<2,double>& elem,
-            const Triangulation<2,double>& tri)
+            const ElementData<2, double>& elem,
+            const Triangulation<2, double>& tri)
 {
-    const auto& interior = tri.get_interior_faces();
-    const auto& periodic = tri.get_periodic_faces();
+  const auto& interior = tri.get_interior_faces();
+  const auto& periodic = tri.get_periodic_faces();
 
-    // Initialize max with this cell's state
-    Tensor<1,4,double> umax = {
-        elem.density[elem_id],
-        elem.momentum_x[elem_id],
-        elem.momentum_y[elem_id],
-        elem.energy[elem_id]
-    };
+  // Initialize max with this cell's state
+  Tensor<1, 4, double> umax = { elem.density[elem_id],
+                                elem.momentum_x[elem_id],
+                                elem.momentum_y[elem_id],
+                                elem.energy[elem_id] };
 
-    // -------- Interior Faces --------
-    for (int f = 0; f < interior.size(); ++f)
-    {
-        int L = interior.elem_l[f];
-        int R = interior.elem_r[f];
+  // -------- Interior Faces --------
+  for (int f = 0; f < interior.size(); ++f) {
+    int L = interior.elem_l[f];
+    int R = interior.elem_r[f];
 
-        int neighbor = -1;
+    int neighbor = -1;
 
-        if (elem_id == L)      neighbor = R;
-        else if (elem_id == R) neighbor = L;
-        else continue;
+    if (elem_id == L)
+      neighbor = R;
+    else if (elem_id == R)
+      neighbor = L;
+    else
+      continue;
 
-        Tensor<1,4,double> uN = {
-            elem.density[neighbor],
-            elem.momentum_x[neighbor],
-            elem.momentum_y[neighbor],
-            elem.energy[neighbor]
-        };
+    Tensor<1, 4, double> uN = { elem.density[neighbor],
+                                elem.momentum_x[neighbor],
+                                elem.momentum_y[neighbor],
+                                elem.energy[neighbor] };
 
-        for (int eq = 0; eq < 4; ++eq)
-            umax[eq] = std::max(umax[eq], uN[eq]);
-    }
+    for (int eq = 0; eq < 4; ++eq)
+      umax[eq] = std::max(umax[eq], uN[eq]);
+  }
 
-    // -------- Periodic Faces --------
-    for (int f = 0; f < periodic.size(); ++f)
-    {
-        int L = periodic.elem_l[f];
-        int R = periodic.elem_r[f];
+  // -------- Periodic Faces --------
+  for (int f = 0; f < periodic.size(); ++f) {
+    int L = periodic.elem_l[f];
+    int R = periodic.elem_r[f];
 
-        int neighbor = -1;
+    int neighbor = -1;
 
-        if (elem_id == L)      neighbor = R;
-        else if (elem_id == R) neighbor = L;
-        else continue;
+    if (elem_id == L)
+      neighbor = R;
+    else if (elem_id == R)
+      neighbor = L;
+    else
+      continue;
 
-        Tensor<1,4,double> uN = {
-            elem.density[neighbor],
-            elem.momentum_x[neighbor],
-            elem.momentum_y[neighbor],
-            elem.energy[neighbor]
-        };
+    Tensor<1, 4, double> uN = { elem.density[neighbor],
+                                elem.momentum_x[neighbor],
+                                elem.momentum_y[neighbor],
+                                elem.energy[neighbor] };
 
-        for (int eq = 0; eq < 4; ++eq)
-            umax[eq] = std::max(umax[eq], uN[eq]);
-    }
+    for (int eq = 0; eq < 4; ++eq)
+      umax[eq] = std::max(umax[eq], uN[eq]);
+  }
 
-    return umax;
+  return umax;
 }
 
-
-std::array<Tensor<1,2,double>,3>
+std::array<Tensor<1, 2, double>, 3>
 ComputeVertexVectors(int elem_id,
                      const MeshData& data,
-                     const ElementData<2,double>& elem)
+                     const ElementData<2, double>& elem)
 {
-    int v0 = data.node_1[elem_id];
-    int v1 = data.node_2[elem_id];
-    int v2 = data.node_3[elem_id];
+  int v0 = data.node_1[elem_id];
+  int v1 = data.node_2[elem_id];
+  int v2 = data.node_3[elem_id];
 
-    double cx = elem.centroid_x[elem_id];
-    double cy = elem.centroid_y[elem_id];
+  double cx = elem.centroid_x[elem_id];
+  double cy = elem.centroid_y[elem_id];
 
-    Tensor<1,2,double> r0 = { data.x[v0] - cx,
-                                data.y[v0] - cy };
+  Tensor<1, 2, double> r0 = { data.x[v0] - cx, data.y[v0] - cy };
 
-    Tensor<1,2,double> r1 = { data.x[v1] - cx,
-                                data.y[v1] - cy };
+  Tensor<1, 2, double> r1 = { data.x[v1] - cx, data.y[v1] - cy };
 
-    Tensor<1,2,double> r2 = { data.x[v2] - cx,
-                                data.y[v2] - cy };
+  Tensor<1, 2, double> r2 = { data.x[v2] - cx, data.y[v2] - cy };
 
-    return { r0, r1, r2 };
-} //end ComputeVertexVectors
-
+  return { r0, r1, r2 };
+} // end ComputeVertexVectors
