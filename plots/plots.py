@@ -64,7 +64,7 @@ def readgri(fname):
     return Mesh
 
 #-----------------------------------------------------------
-def plotsolution(grifile,solutionfile,sname):
+def plotsolution(grifile,solutionfile,sname,outfile):
     # read mesh and solution
     Mesh = readgri(grifile)
     U = np.loadtxt(solutionfile)
@@ -111,7 +111,8 @@ def plotsolution(grifile,solutionfile,sname):
     plt.ylabel('y')
     plt.title(sname)
     plt.axis('equal')
-    plt.show()
+    plt.savefig(outfile, dpi=300)
+    plt.close(fig)
 
 #-----------------------------------------------------------
 def ploterror(errorfile):
@@ -222,11 +223,4 @@ def plotcp(grifile,solutionfile):
     plt.legend(['Top Surface','Bottom Surface'])
     plt.show()
 
-#-----------------------------------------------------------
-def main():
-    print('main')
-
-#-----------------------------------------------------------
-if __name__ == "__main__":
-    main()
 

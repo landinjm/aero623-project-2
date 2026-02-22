@@ -72,6 +72,12 @@ struct ElementData
                       max(residual_momentum_y),
                       max(residual_energy) });
   }
+
+  RealType l1_residual() const
+  {
+    return l1_norm(residual_density) + l1_norm(residual_momentum_x) +
+           l1_norm(residual_momentum_y) + l1_norm(residual_energy);
+  }
 };
 
 template<unsigned int dim, typename RealType>

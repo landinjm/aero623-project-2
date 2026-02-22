@@ -56,5 +56,12 @@ struct Parameters
   /**
    * @brief Maximum CFL number to use when calculating optimal timestep.
    */
-  static constexpr RealType cfl_max = 0.9;
+  static constexpr RealType cfl_max = RealType{ 0.9 };
+
+  /**
+   * @brief Unsteady flow parameters.
+   */
+  static constexpr RealType f_wake = RealType{ 0.1 };
+  static constexpr RealType delta = RealType{ 0.1 };
+  static constexpr RealType Delta_y = RealType{ 18.0 };
 };
