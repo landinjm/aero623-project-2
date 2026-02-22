@@ -31,6 +31,8 @@ main(int argc, char** argv)
   // Free stream test
   unsigned int n_iterations = 100;
   std::vector<double> freestream_residual_history(n_iterations, 0);
+  std::vector<double> c_x_history(n_iterations, 0);
+  std::vector<double> c_y_history(n_iterations, 0);
   {
     Timer::instance().begin_section("freestream - roe flux");
     std::cout << "\nFreestream Test - Roe Flux" << std::endl;
@@ -44,12 +46,18 @@ main(int argc, char** argv)
                                                     true);
 
       freestream_residual_history[i] = tria.get_elements().max_residual();
+      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
+                                               tria.get_elements());
+      c_x_history[i] = c[0];
+      c_y_history[i] = c[1];
     }
     std::cout << "  Min/Max Residual " << min(freestream_residual_history)
               << "/" << max(freestream_residual_history) << std::endl;
-    recorder.recordHist(
-      freestream_residual_history, "freestream", "1st", "roe", "residual");
+    recorder.recordSimulation(tria.get_elements(), freestream_residual_history, c_x_history, c_y_history,
+                              "freestream", "1st", "roe");
     zero(freestream_residual_history);
+    zero(c_x_history);
+    zero(c_y_history);
     Timer::instance().end_section("freestream - roe flux");
   }
   {
@@ -65,23 +73,34 @@ main(int argc, char** argv)
                                                     true);
 
       freestream_residual_history[i] = tria.get_elements().max_residual();
+      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
+                                               tria.get_elements());
+      c_x_history[i] = c[0];
+      c_y_history[i] = c[1];
     }
     std::cout << "  Min/Max Residual " << min(freestream_residual_history)
               << "/" << max(freestream_residual_history) << std::endl;
-    recorder.recordHist(
-      freestream_residual_history, "freestream", "1st", "HLLE", "residual");
+    recorder.recordSimulation(tria.get_elements(), freestream_residual_history, c_x_history, c_y_history,
+                              "freestream", "1st", "HLLE");
     zero(freestream_residual_history);
+    zero(c_x_history);
+    zero(c_y_history);
     Timer::instance().end_section("freestream - HLLE flux");
   }
 
   // Steady state
   std::vector<double> steadystate_residual_history;
+  std::vector<double> steadystate_c_x_steady_history;
+  std::vector<double> steadystate_c_y_steady_history;
+  
   double rel_tolerance = 1.0e-5;
   n_iterations = 100000;
   {
     Timer::instance().begin_section("steadystate - roe flux");
     std::cout << "\nSteadystate - Roe Flux" << std::endl;
     steadystate_residual_history.reserve(n_iterations);
+    steadystate_c_x_steady_history.reserve(n_iterations);
+    steadystate_c_y_steady_history.reserve(n_iterations);
     solver.set_initial_state(tria.get_elements());
     for (unsigned int i = 0; i < n_iterations; ++i) {
       solver.compute_update_with_local_timestepping(tria.get_elements(),
@@ -91,6 +110,10 @@ main(int argc, char** argv)
                                                     &flux_roe);
       auto residual = tria.get_elements().l1_residual();
       steadystate_residual_history.push_back(residual);
+      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
+                                               tria.get_elements());
+      steadystate_c_x_steady_history.push_back(c[0]);
+      steadystate_c_y_steady_history.push_back(c[1]);
 
       if (residual < steadystate_residual_history[0] * rel_tolerance) {
         break;
@@ -99,16 +122,19 @@ main(int argc, char** argv)
     std::cout << "  Start/End Residual " << steadystate_residual_history.front()
               << "/" << steadystate_residual_history.back() << " in "
               << steadystate_residual_history.size() << " Steps" << std::endl;
-    recorder.recordHist(
-      steadystate_residual_history, "steadystate", "1st", "roe", "residual");
-    recorder.recordData(tria.get_elements(), "steadystate", "1st", "roe");
+    recorder.recordSimulation(tria.get_elements(), steadystate_residual_history, steadystate_c_x_steady_history, steadystate_c_y_steady_history,
+                              "steadystate", "1st", "roe");
     steadystate_residual_history.clear();
+    steadystate_c_x_steady_history.clear();
+    steadystate_c_y_steady_history.clear();
     Timer::instance().end_section("steadystate - roe flux");
   }
   {
     Timer::instance().begin_section("steadystate - HLLE flux");
     std::cout << "\nSteadystate - HLLE Flux" << std::endl;
     steadystate_residual_history.reserve(n_iterations);
+    steadystate_c_x_steady_history.reserve(n_iterations);
+    steadystate_c_y_steady_history.reserve(n_iterations);
     solver.set_initial_state(tria.get_elements());
     for (unsigned int i = 0; i < n_iterations; ++i) {
       solver.compute_update_with_local_timestepping(tria.get_elements(),
@@ -118,6 +144,10 @@ main(int argc, char** argv)
                                                     &Flux_HLLE);
       auto residual = tria.get_elements().l1_residual();
       steadystate_residual_history.push_back(residual);
+      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
+                                               tria.get_elements());
+      steadystate_c_x_steady_history.push_back(c[0]);
+      steadystate_c_y_steady_history.push_back(c[1]);
 
       if (residual < steadystate_residual_history[0] * rel_tolerance) {
         break;
@@ -126,10 +156,11 @@ main(int argc, char** argv)
     std::cout << "  Start/End Residual " << steadystate_residual_history.front()
               << "/" << steadystate_residual_history.back() << " in "
               << steadystate_residual_history.size() << " Steps" << std::endl;
-    recorder.recordHist(
-      steadystate_residual_history, "steadystate", "1st", "HLLE", "residual");
-    recorder.recordData(tria.get_elements(), "steadystate", "1st", "HLLE");
+    recorder.recordSimulation(tria.get_elements(), steadystate_residual_history, steadystate_c_x_steady_history, steadystate_c_y_steady_history,
+                              "steadystate", "1st", "HLLE");
     steadystate_residual_history.clear();
+    steadystate_c_x_steady_history.clear();
+    steadystate_c_y_steady_history.clear();
     Timer::instance().end_section("steadystate - HLLE flux");
   }
 
