@@ -392,6 +392,14 @@ public:
     const FluxFunction& flux_func = &flux_roe) const
   {
     zero_values(element_scratch);
+
+    if constexpr (degree == 2) {
+      interior_face_gradient_prep(interior_face_scratch, element_scratch);
+      periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
+      boundary_face_gradient_prep(boundary_face_scratch, element_scratch, true);
+      finalize_gradient(element_scratch);
+    }
+
     interior_face_residual(interior_face_scratch, element_scratch, flux_func);
     periodic_face_residual(periodic_face_scratch, element_scratch, flux_func);
     boundary_face_residual(
@@ -409,6 +417,15 @@ public:
     bool is_unsteady = false) const
   {
     zero_values(element_scratch);
+
+    if constexpr (degree == 2) {
+      interior_face_gradient_prep(interior_face_scratch, element_scratch);
+      periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
+      boundary_face_gradient_prep(
+        boundary_face_scratch, element_scratch, false);
+      finalize_gradient(element_scratch);
+    }
+
     interior_face_residual(interior_face_scratch, element_scratch, flux_func);
     periodic_face_residual(periodic_face_scratch, element_scratch, flux_func);
     boundary_face_residual(boundary_face_scratch,
@@ -536,7 +553,7 @@ public:
 
 private:
   /**
-   *  @brief Contruct state from element index.
+   * @brief Contruct state from element index.
    */
   inline Tensor<1, 4, RealType> get_state(
     const ElementData<dim, degree, RealType>& element_scratch,
@@ -590,6 +607,17 @@ private:
     zero(element_scratch.residual_momentum_y);
     zero(element_scratch.residual_energy);
     zero(element_scratch.optimal_timestep);
+
+    if constexpr (degree == 2) {
+      zero(element_scratch.grad_x_density);
+      zero(element_scratch.grad_y_density);
+      zero(element_scratch.grad_x_momentum_x);
+      zero(element_scratch.grad_y_momentum_x);
+      zero(element_scratch.grad_x_momentum_y);
+      zero(element_scratch.grad_y_momentum_y);
+      zero(element_scratch.grad_x_energy);
+      zero(element_scratch.grad_y_energy);
+    }
   }
 
   /**
@@ -678,11 +706,15 @@ private:
       Tensor<1, 4, RealType> u_l;
       Tensor<1, 4, RealType> u_r;
       if constexpr (degree == 2) {
+        // Make sure to adjust for the translation of periodicity
         const auto f_x = periodic_face_scratch.centroid_x[i];
         const auto f_y = periodic_face_scratch.centroid_y[i];
+        const auto trans_x = periodic_face_scratch.translation_x[i];
+        const auto trans_y = periodic_face_scratch.translation_y[i];
 
         u_l = get_face_state(element_scratch, e_l, f_x, f_y);
-        u_r = get_face_state(element_scratch, e_r, f_x, f_y);
+        u_r =
+          get_face_state(element_scratch, e_r, f_x + trans_x, f_y + trans_y);
       } else {
         u_l = get_state(element_scratch, e_l);
         u_r = get_state(element_scratch, e_r);
@@ -800,6 +832,168 @@ private:
       // Add the edge-weighted wave speed to the optimal timestep. We'll
       // compute the actual timestep later.
       element_scratch.optimal_timestep[e] += max_wavespeed * area;
+    }
+  }
+
+  /**
+   * @brief Compute the gradient over the interior faces.
+   */
+  void interior_face_gradient_prep(
+    const InteriorFaceData<dim, RealType>& interior_face_scratch,
+    ElementData<dim, degree, RealType>& element_scratch) const
+  {
+    for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
+      const auto e_l = interior_face_scratch.elem_l[i];
+      const auto e_r = interior_face_scratch.elem_r[i];
+      const auto n_x = interior_face_scratch.normal_x[i];
+      const auto n_y = interior_face_scratch.normal_y[i];
+      const auto area = interior_face_scratch.face_area[i];
+
+      const auto avg_density =
+        0.5 * element_scratch.density[e_l] + 0.5 * element_scratch.density[e_r];
+      const auto avg_momentum_x = 0.5 * element_scratch.momentum_x[e_l] +
+                                  0.5 * element_scratch.momentum_x[e_r];
+      const auto avg_momentum_y = 0.5 * element_scratch.momentum_y[e_l] +
+                                  0.5 * element_scratch.momentum_y[e_r];
+      const auto avg_energy =
+        0.5 * element_scratch.energy[e_l] + 0.5 * element_scratch.energy[e_r];
+
+      const auto weight_density_x = avg_density * area * n_x;
+      const auto weight_density_y = avg_density * area * n_y;
+      const auto weight_momentum_x_x = avg_momentum_x * area * n_x;
+      const auto weight_momentum_x_y = avg_momentum_x * area * n_y;
+      const auto weight_momentum_y_x = avg_momentum_y * area * n_x;
+      const auto weight_momentum_y_y = avg_momentum_y * area * n_y;
+      const auto weight_energy_x = avg_energy * area * n_x;
+      const auto weight_energy_y = avg_energy * area * n_y;
+
+      element_scratch.grad_x_density[e_l] += weight_density_x;
+      element_scratch.grad_y_density[e_l] += weight_density_y;
+      element_scratch.grad_x_momentum_x[e_l] += weight_momentum_x_x;
+      element_scratch.grad_y_momentum_x[e_l] += weight_momentum_x_y;
+      element_scratch.grad_x_momentum_y[e_l] += weight_momentum_y_x;
+      element_scratch.grad_y_momentum_y[e_l] += weight_momentum_y_y;
+      element_scratch.grad_x_energy[e_l] += weight_energy_x;
+      element_scratch.grad_y_energy[e_l] += weight_energy_y;
+
+      element_scratch.grad_x_density[e_r] -= weight_density_x;
+      element_scratch.grad_y_density[e_r] -= weight_density_y;
+      element_scratch.grad_x_momentum_x[e_r] -= weight_momentum_x_x;
+      element_scratch.grad_y_momentum_x[e_r] -= weight_momentum_x_y;
+      element_scratch.grad_x_momentum_y[e_r] -= weight_momentum_y_x;
+      element_scratch.grad_y_momentum_y[e_r] -= weight_momentum_y_y;
+      element_scratch.grad_x_energy[e_r] -= weight_energy_x;
+      element_scratch.grad_y_energy[e_r] -= weight_energy_y;
+    }
+  }
+
+  /**
+   * @brief Compute the gradient over the periodic faces.
+   */
+  void periodic_face_gradient_prep(
+    const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
+    ElementData<dim, degree, RealType>& element_scratch) const
+  {
+    for (unsigned int i = 0; i < periodic_face_scratch.size(); ++i) {
+      const auto e_l = periodic_face_scratch.elem_l[i];
+      const auto e_r = periodic_face_scratch.elem_r[i];
+      const auto n_x = periodic_face_scratch.normal_x[i];
+      const auto n_y = periodic_face_scratch.normal_y[i];
+      const auto area = periodic_face_scratch.face_area[i];
+
+      const auto avg_density =
+        0.5 * element_scratch.density[e_l] + 0.5 * element_scratch.density[e_r];
+      const auto avg_momentum_x = 0.5 * element_scratch.momentum_x[e_l] +
+                                  0.5 * element_scratch.momentum_x[e_r];
+      const auto avg_momentum_y = 0.5 * element_scratch.momentum_y[e_l] +
+                                  0.5 * element_scratch.momentum_y[e_r];
+      const auto avg_energy =
+        0.5 * element_scratch.energy[e_l] + 0.5 * element_scratch.energy[e_r];
+
+      const auto weight_density_x = avg_density * area * n_x;
+      const auto weight_density_y = avg_density * area * n_y;
+      const auto weight_momentum_x_x = avg_momentum_x * area * n_x;
+      const auto weight_momentum_x_y = avg_momentum_x * area * n_y;
+      const auto weight_momentum_y_x = avg_momentum_y * area * n_x;
+      const auto weight_momentum_y_y = avg_momentum_y * area * n_y;
+      const auto weight_energy_x = avg_energy * area * n_x;
+      const auto weight_energy_y = avg_energy * area * n_y;
+
+      element_scratch.grad_x_density[e_l] += weight_density_x;
+      element_scratch.grad_y_density[e_l] += weight_density_y;
+      element_scratch.grad_x_momentum_x[e_l] += weight_momentum_x_x;
+      element_scratch.grad_y_momentum_x[e_l] += weight_momentum_x_y;
+      element_scratch.grad_x_momentum_y[e_l] += weight_momentum_y_x;
+      element_scratch.grad_y_momentum_y[e_l] += weight_momentum_y_y;
+      element_scratch.grad_x_energy[e_l] += weight_energy_x;
+      element_scratch.grad_y_energy[e_l] += weight_energy_y;
+
+      element_scratch.grad_x_density[e_r] -= weight_density_x;
+      element_scratch.grad_y_density[e_r] -= weight_density_y;
+      element_scratch.grad_x_momentum_x[e_r] -= weight_momentum_x_x;
+      element_scratch.grad_y_momentum_x[e_r] -= weight_momentum_x_y;
+      element_scratch.grad_x_momentum_y[e_r] -= weight_momentum_y_x;
+      element_scratch.grad_y_momentum_y[e_r] -= weight_momentum_y_y;
+      element_scratch.grad_x_energy[e_r] -= weight_energy_x;
+      element_scratch.grad_y_energy[e_r] -= weight_energy_y;
+    }
+  }
+
+  /**
+   * @brief Compute the gradient over the boundary faces.
+   */
+  void boundary_face_gradient_prep(
+    const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
+    ElementData<dim, degree, RealType>& element_scratch,
+    bool is_freestream) const
+  {
+    for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
+      const auto e = boundary_face_scratch.elem[i];
+      const auto n_x = boundary_face_scratch.normal_x[i];
+      const auto n_y = boundary_face_scratch.normal_y[i];
+      const auto area = boundary_face_scratch.face_area[i];
+
+      const auto avg_density = element_scratch.density[e];
+      const auto avg_momentum_x = element_scratch.momentum_x[e];
+      const auto avg_momentum_y = element_scratch.momentum_y[e];
+      const auto avg_energy = element_scratch.energy[e];
+
+      const auto weight_density_x = avg_density * area * n_x;
+      const auto weight_density_y = avg_density * area * n_y;
+      const auto weight_momentum_x_x = avg_momentum_x * area * n_x;
+      const auto weight_momentum_x_y = avg_momentum_x * area * n_y;
+      const auto weight_momentum_y_x = avg_momentum_y * area * n_x;
+      const auto weight_momentum_y_y = avg_momentum_y * area * n_y;
+      const auto weight_energy_x = avg_energy * area * n_x;
+      const auto weight_energy_y = avg_energy * area * n_y;
+
+      element_scratch.grad_x_density[e] += weight_density_x;
+      element_scratch.grad_y_density[e] += weight_density_y;
+      element_scratch.grad_x_momentum_x[e] += weight_momentum_x_x;
+      element_scratch.grad_y_momentum_x[e] += weight_momentum_x_y;
+      element_scratch.grad_x_momentum_y[e] += weight_momentum_y_x;
+      element_scratch.grad_y_momentum_y[e] += weight_momentum_y_y;
+      element_scratch.grad_x_energy[e] += weight_energy_x;
+      element_scratch.grad_y_energy[e] += weight_energy_y;
+    }
+  }
+
+  /**
+   * @brief Finalize gradient calculation
+   */
+  void finalize_gradient(
+    ElementData<dim, degree, RealType>& element_scratch) const
+  {
+    for (unsigned int i = 0; i < element_scratch.size(); ++i) {
+      const auto inv_area = element_scratch.inv_area[i];
+      element_scratch.grad_x_density[i] *= inv_area;
+      element_scratch.grad_y_density[i] *= inv_area;
+      element_scratch.grad_x_momentum_x[i] *= inv_area;
+      element_scratch.grad_y_momentum_x[i] *= inv_area;
+      element_scratch.grad_x_momentum_y[i] *= inv_area;
+      element_scratch.grad_y_momentum_y[i] *= inv_area;
+      element_scratch.grad_x_energy[i] *= inv_area;
+      element_scratch.grad_y_energy[i] *= inv_area;
     }
   }
 };

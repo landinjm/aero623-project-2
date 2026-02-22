@@ -20,7 +20,7 @@ freestream_test(
   std::string timer = "Freestream - ";
   if constexpr (degree == 1) {
     timer += "1st Order - ";
-  } else if constexpr (degree == 1) {
+  } else if constexpr (degree == 2) {
     timer += "2nd Order - ";
   }
   timer += flux_function;
