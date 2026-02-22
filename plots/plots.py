@@ -235,3 +235,7 @@ def plotcp(grifile,solutionfile,outfile):
     plt.savefig(outfile, dpi=300)
     plt.close()
 
+#-----------------------------------------------------------
+#if __name__ == "__main__":
+    #main()
+
