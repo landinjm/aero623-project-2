@@ -14,6 +14,7 @@ freestream_test(
   unsigned int n_iterations = 100)
 {
   std::vector<RealType> residual_history(n_iterations, 0);
+
   Solver<dim, degree, RealType> solver;
   Recorder<dim, degree, RealType> recorder;
 
@@ -43,6 +44,57 @@ freestream_test(
   Timer::instance().end_section(timer);
 }
 
+template<unsigned int dim, unsigned int degree, typename RealType>
+void
+steadystate_test(
+  Triangulation<dim, degree, RealType> tria,
+  std::string flux_function,
+  const typename Solver<dim, degree, RealType>::FluxFunction& flux_func,
+  unsigned int n_iterations = 40000,
+  RealType rel_tol = 1.0e-5,
+  bool verbose = false)
+{
+  std::vector<RealType> residual_history;
+  residual_history.reserve(n_iterations);
+
+  Solver<dim, degree, RealType> solver;
+  Recorder<dim, degree, RealType> recorder;
+
+  std::string timer = "Steadystate - ";
+  if constexpr (degree == 1) {
+    timer += "1st Order - ";
+  } else if constexpr (degree == 2) {
+    timer += "2nd Order - ";
+  }
+  timer += flux_function;
+
+  Timer::instance().begin_section(timer);
+  std::cout << "\n" << timer << std::endl;
+  solver.set_initial_state(tria.get_elements());
+  for (unsigned int i = 0; i < n_iterations; ++i) {
+    solver.compute_update_with_local_timestepping(tria.get_elements(),
+                                                  tria.get_interior_faces(),
+                                                  tria.get_boundary_faces(),
+                                                  tria.get_periodic_faces(),
+                                                  flux_func,
+                                                  false);
+
+    auto residual = tria.get_elements().l1_residual();
+    residual_history.push_back(residual);
+    if (verbose) {
+      std::cout << "Residual: " << residual << std::endl;
+    }
+
+    if (residual < residual_history.front() * rel_tol) {
+      break;
+    }
+  }
+  std::cout << "  Start/End Residual " << residual_history.front() << "/"
+            << residual_history.back() << " in " << residual_history.size()
+            << " Steps" << std::endl;
+  Timer::instance().end_section(timer);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -64,6 +116,13 @@ main(int argc, char** argv)
   freestream_test<2, 1, double>(tria_1, "HLLE Flux", &flux_hlle);
   freestream_test<2, 2, double>(tria_2, "Roe Flux", &flux_roe);
   freestream_test<2, 2, double>(tria_2, "HLLE Flux", &flux_hlle);
+
+  // Steadystate test
+  steadystate_test<2, 1, double>(tria_1, "Roe Flux", &flux_roe);
+  steadystate_test<2, 1, double>(tria_1, "HLLE Flux", &flux_hlle);
+  steadystate_test<2, 2, double>(
+    tria_2, "Roe Flux", &flux_roe, 100, 1.0e-5, true);
+  // steadystate_test<2, 2, double>(tria_2, "HLLE Flux", &flux_hlle);
 
   // Cleanup
   Timer::instance().summary();
