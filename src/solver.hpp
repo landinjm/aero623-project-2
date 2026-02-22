@@ -507,9 +507,10 @@ public:
 
     // Compute the optimal timestep
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      element_scratch.optimal_timestep[i] = Parameters<RealType>::cfl_max *
-                                            RealType(2.0) /
-                                            element_scratch.optimal_timestep[i];
+      element_scratch.optimal_timestep[i] =
+        Parameters<RealType>::cfl_max * RealType(2.0) *
+        element_scratch.area[i] / element_scratch.optimal_timestep[i];
+      DEBUG_ASSERT(element_scratch.optimal_timestep[i] >= 0.0);
     }
   };
 
@@ -677,9 +678,9 @@ public:
 
     // Compute the optimal timestep
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      element_scratch.optimal_timestep[i] = Parameters<RealType>::cfl_max *
-                                            RealType(2.0) /
-                                            element_scratch.optimal_timestep[i];
+      element_scratch.optimal_timestep[i] =
+        Parameters<RealType>::cfl_max * RealType(2.0) *
+        element_scratch.area[i] / element_scratch.optimal_timestep[i];
       DEBUG_ASSERT(element_scratch.optimal_timestep[i] >= 0.0);
     }
   };
@@ -689,22 +690,33 @@ public:
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
-    const FluxFunction& flux_func = &flux_roe) const
+    const FluxFunction& flux_func = &flux_roe,
+    bool is_freestream = false) const
   {
-    compute_residual(interior_face_scratch,
-                     boundary_face_scratch,
-                     periodic_face_scratch,
-                     element_scratch,
-                     flux_func);
+    if (is_freestream) {
+      compute_free_stream_residual(interior_face_scratch,
+                                   boundary_face_scratch,
+                                   periodic_face_scratch,
+                                   element_scratch,
+                                   flux_func);
+    } else {
+      compute_residual(interior_face_scratch,
+                       boundary_face_scratch,
+                       periodic_face_scratch,
+                       element_scratch,
+                       flux_func);
+    }
 
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
       const auto dt = element_scratch.optimal_timestep[i];
-      element_scratch.density[i] -= element_scratch.residual_density[i] * dt;
-      element_scratch.momentum_x[i] -=
-        element_scratch.residual_momentum_x[i] * dt;
-      element_scratch.momentum_y[i] -=
-        element_scratch.residual_momentum_y[i] * dt;
-      element_scratch.energy[i] -= element_scratch.residual_energy[i] * dt;
+      element_scratch.density[i] -=
+        element_scratch.residual_density[i] * dt * element_scratch.inv_area[i];
+      element_scratch.momentum_x[i] -= element_scratch.residual_momentum_x[i] *
+                                       dt * element_scratch.inv_area[i];
+      element_scratch.momentum_y[i] -= element_scratch.residual_momentum_y[i] *
+                                       dt * element_scratch.inv_area[i];
+      element_scratch.energy[i] -=
+        element_scratch.residual_energy[i] * dt * element_scratch.inv_area[i];
     }
   }
 
@@ -732,10 +744,13 @@ public:
 
     // First stage
     for (unsigned int i = 0; i < tmp.size(); ++i) {
-      tmp.density[i] -= tmp.residual_density[i] * dt;
-      tmp.momentum_x[i] -= tmp.residual_momentum_x[i] * dt;
-      tmp.momentum_y[i] -= tmp.residual_momentum_y[i] * dt;
-      tmp.energy[i] -= tmp.residual_energy[i] * dt;
+      tmp.density[i] -= tmp.residual_density[i] * dt * tmp.inv_area[i];
+      tmp.momentum_x[i] -= tmp.residual_momentum_x[i] * dt * tmp.inv_area[i];
+      ;
+      tmp.momentum_y[i] -= tmp.residual_momentum_y[i] * dt * tmp.inv_area[i];
+      ;
+      tmp.energy[i] -= tmp.residual_energy[i] * dt * tmp.inv_area[i];
+      ;
     }
 
     // Second stage
@@ -747,18 +762,22 @@ public:
                      time,
                      true);
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      element_scratch.density[i] = 0.5 * element_scratch.density[i] +
-                                   0.5 * tmp.density[i] -
-                                   0.5 * tmp.residual_density[i] * dt;
-      element_scratch.momentum_x[i] = 0.5 * element_scratch.momentum_x[i] +
-                                      0.5 * tmp.momentum_x[i] -
-                                      0.5 * tmp.residual_momentum_x[i] * dt;
-      element_scratch.momentum_y[i] = 0.5 * element_scratch.momentum_y[i] +
-                                      0.5 * tmp.momentum_y[i] -
-                                      0.5 * tmp.residual_momentum_y[i] * dt;
-      element_scratch.energy[i] = 0.5 * element_scratch.energy[i] +
-                                  0.5 * tmp.energy[i] -
-                                  0.5 * tmp.residual_energy[i] * dt;
+      element_scratch.density[i] =
+        0.5 * element_scratch.density[i] + 0.5 * tmp.density[i] -
+        0.5 * tmp.residual_density[i] * dt * tmp.inv_area[i];
+      ;
+      element_scratch.momentum_x[i] =
+        0.5 * element_scratch.momentum_x[i] + 0.5 * tmp.momentum_x[i] -
+        0.5 * tmp.residual_momentum_x[i] * dt * tmp.inv_area[i];
+      ;
+      element_scratch.momentum_y[i] =
+        0.5 * element_scratch.momentum_y[i] + 0.5 * tmp.momentum_y[i] -
+        0.5 * tmp.residual_momentum_y[i] * dt * tmp.inv_area[i];
+      ;
+      element_scratch.energy[i] =
+        0.5 * element_scratch.energy[i] + 0.5 * tmp.energy[i] -
+        0.5 * tmp.residual_energy[i] * dt * tmp.inv_area[i];
+      ;
     }
 
     // Return the timestep

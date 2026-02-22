@@ -5,7 +5,7 @@ import glob
 import re
 
 EXECUTABLE = "./proj-2"
-GRIFILE = "../grids/coarse_local_refinement.gri"
+GRIFILE = "../grids/coarse_local_refinement_1.gri"
 SNAME = "entropy"
 FRAMERATE  = 10
 

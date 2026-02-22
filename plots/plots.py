@@ -104,6 +104,7 @@ def plotsolution(grifile,solutionfile,sname,outfile):
         tris.append(tri)
     pc = col.PatchCollection(tris,cmap='jet')
     pc.set_array(S)
+    #pc.set_clim(vmin=0.71, vmax=0.74)
     fig, ax = plt.subplots()
     ax.add_collection(pc)
     plt.colorbar(pc)
@@ -222,5 +223,3 @@ def plotcp(grifile,solutionfile):
     plt.title('Pressure Coefficient Along Blade Surface')
     plt.legend(['Top Surface','Bottom Surface'])
     plt.show()
-
-
