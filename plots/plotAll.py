@@ -15,16 +15,17 @@ def main():
                 errorfile = 'build/' + grid + '.' + order + '.' + type + '.residual.txt'
                 c_xfile = 'build/' + grid + '.' + order + '.' + type + '.c_x.txt'
                 c_yfile = 'build/' + grid + '.' + order + '.' + type + '.c_y.txt'
-                outprefix = 'plots/' + grid + '_' + order + '_' + type
+                outprefix = grid + '.' + order + '.' + type
+                outfile = 'plots/' + outprefix
 
-                os.makedirs(outprefix, exist_ok=True)
+                os.makedirs(outfile, exist_ok=True)
 
-                plots.plotsolution(grifile,solutionfile,'mach',outprefix + '/mach.png')
-                plots.plotsolution(grifile,solutionfile,'entropy',outprefix + '/entropy.png')
-                plots.ploterror(errorfile,outprefix + '/error.png')
-                plots.plotcoefficients(c_xfile,'x',outprefix + '/c_x.png')
-                plots.plotcoefficients(c_yfile,'y',outprefix + '/c_y.png')
-                plots.plotcp(grifile,solutionfile,outprefix + '/cp.png')
+                plots.plotsolution(grifile,solutionfile,'mach',outfile + '/' + outprefix + '.mach.png')
+                plots.plotsolution(grifile,solutionfile,'entropy',outfile + '/' + outprefix + '.entropy.png')
+                plots.ploterror(errorfile,outfile + '/' + outprefix + '.error.png')
+                plots.plotcoefficients(c_xfile,'x',outfile + '/' + outprefix + '.c_x.png')
+                plots.plotcoefficients(c_yfile,'y',outfile + '/' + outprefix + '.c_y.png')
+                plots.plotcp(grifile,solutionfile,outfile + '/' + outprefix + '.cp.png')
 
 #-----------------------------------------------------------
 if __name__ == "__main__":
