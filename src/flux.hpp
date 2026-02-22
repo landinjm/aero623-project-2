@@ -13,7 +13,7 @@
  */
 template<typename RealType>
 inline RealType
-pressure(Tensor<1, 4, RealType> state)
+pressure(const Tensor<1, 4, RealType>& state)
 {
   DEBUG_ASSERT(state[0] > 0, "Density must be positive");
 
@@ -48,7 +48,7 @@ speed_of_sound(RealType p, RealType rho)
  */
 template<typename RealType>
 inline RealType
-speed_of_sound(Tensor<1, 4, RealType> state)
+speed_of_sound(const Tensor<1, 4, RealType>& state)
 {
   DEBUG_ASSERT(state[0] > 0, "Density must be positive");
   const auto p = pressure(state);
@@ -82,6 +82,29 @@ max_wavespeed(RealType u,
   DEBUG_ASSERT(rho > 0, "Density must be positive");
   DEBUG_ASSERT(p >= 0, "Pressure must be positive");
   return std::abs(u * n_x + v * n_y) + speed_of_sound(p, rho);
+}
+
+/**
+ * @brief Compute the max wave speed.
+ *
+ * @param[in] state State vector.
+ * @param[in] normal Normal vector.
+ * @param[out] Max wave speed.
+ *
+ * The max wavespeed is just |u| + c, where |u| is the magnitude of the normal
+ * velocity and c is the speed of sound.
+ */
+template<typename RealType>
+inline RealType
+max_wavespeed(const Tensor<1, 4, RealType>& state,
+              const Tensor<1, 2, RealType>& normal)
+{
+  DEBUG_ASSERT(state[0] > 0, "Density must be positive");
+  const auto p = pressure(state);
+  DEBUG_ASSERT(p >= 0, "Pressure must be positive");
+  return std::abs(state[1] / state[0] * normal[0] +
+                  state[2] / state[0] * normal[1]) +
+         speed_of_sound(p, state[0]);
 }
 
 /**

@@ -30,9 +30,9 @@ unsteady_inlet_density(RealType t, RealType y)
 }
 
 template<unsigned int dim, typename RealType>
-inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
-inviscid_wall(const Tensor<1, 2 + dim, RealType>& interior_state,
-              const Tensor<1, dim, RealType>& normal)
+inline Tensor<1, 2 + dim, RealType>
+inviscid_wall_state(const Tensor<1, 2 + dim, RealType>& interior_state,
+                    const Tensor<1, dim, RealType>& normal)
 {
   static_assert(dim == 2, "Only 2D is supported");
 
@@ -47,30 +47,40 @@ inviscid_wall(const Tensor<1, 2 + dim, RealType>& interior_state,
 
   // Compute the tangential boundary velocity
   const auto dot = rho_and_u * n_x + rho_and_v * n_y;
-  const auto u_b = (rho_and_u - dot * n_x) / rho;
-  const auto v_b = (rho_and_v - dot * n_y) / rho;
+  const auto rho_and_u_b = rho_and_u - dot * n_x;
+  const auto rho_and_v_b = rho_and_v - dot * n_y;
 
-  // Compute boundary pressure
-  const auto p_b = (Parameters<RealType>::gamma - 1.0) *
-                   (rho_and_E - 0.5 * rho * (u_b * u_b + v_b * v_b));
-  DEBUG_ASSERT(p_b >= 0, "Pressure must be positive");
+  return Tensor<1, 2 + dim, RealType>{
+    rho, rho_and_u_b, rho_and_v_b, rho_and_E
+  };
+}
+
+template<unsigned int dim, typename RealType>
+inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
+inviscid_wall(const Tensor<1, 2 + dim, RealType>& interior_state,
+              const Tensor<1, dim, RealType>& normal)
+{
+  static_assert(dim == 2, "Only 2D is supported");
+
+  // Grab the boundary state
+  const auto boundary_state = inviscid_wall_state(interior_state, normal);
 
   // Construct boundary flux
-  const auto boundary_flux = Tensor<1, 2 + dim, RealType>{
-    RealType(0.0), p_b * n_x, p_b * n_y, RealType(0.0)
-  };
+  const auto boundary_flux = euler_flux(boundary_state, normal);
 
   // Compute the max wavespeed
-  const auto smag = max_wavespeed(u_b, v_b, n_x, n_y, p_b, rho);
+  const auto smag = max_wavespeed(boundary_state, normal);
 
   return { boundary_flux, smag };
 }
 
 template<unsigned int dim, typename RealType>
-inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
-subsonic_inflow(const Tensor<1, 2 + dim, RealType>& interior_state,
-                const Tensor<1, dim, RealType>& normal)
+inline Tensor<1, 2 + dim, RealType>
+subsonic_inflow_state(const Tensor<1, 2 + dim, RealType>& interior_state,
+                      const Tensor<1, dim, RealType>& normal)
 {
+  static_assert(dim == 2, "Only 2D is supported");
+
   // Grab values
   const auto rho = interior_state[0];
   const auto rho_and_u = interior_state[1];
@@ -149,25 +159,37 @@ subsonic_inflow(const Tensor<1, 2 + dim, RealType>& interior_state,
   const auto energy_b = p_b / (Parameters<RealType>::gamma - 1.0) +
                         0.5 * rho_b * (u_b * u_b + v_b * v_b);
 
-  // Construct the boundary state
-  const auto state_b =
-    Tensor<1, 2 + dim, RealType>{ rho_b, rho_b * u_b, rho_b * v_b, energy_b };
+  return Tensor<1, 2 + dim, RealType>{
+    rho_b, rho_b * u_b, rho_b * v_b, energy_b
+  };
+}
 
-  // Compute the boundary flux
-  const auto boundary_flux = euler_flux<dim, RealType>(state_b, normal);
+template<unsigned int dim, typename RealType>
+inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
+subsonic_inflow(const Tensor<1, 2 + dim, RealType>& interior_state,
+                const Tensor<1, dim, RealType>& normal)
+{
+  static_assert(dim == 2, "Only 2D is supported");
+
+  // Grab the boundary state
+  const auto boundary_state = subsonic_inflow_state(interior_state, normal);
+
+  // Construct boundary flux
+  const auto boundary_flux = euler_flux(boundary_state, normal);
 
   // Compute the max wavespeed
-  const auto smag = max_wavespeed(u_b, v_b, n_x, n_y, p_b, rho_b);
+  const auto smag = max_wavespeed(boundary_state, normal);
 
   return { boundary_flux, smag };
 }
 
 template<unsigned int dim, typename RealType>
-inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
-unsteady_subsonic_inflow(const Tensor<1, 2 + dim, RealType>& interior_state,
-                         const Tensor<1, dim, RealType>& normal,
-                         RealType y_face,
-                         RealType t)
+inline Tensor<1, 2 + dim, RealType>
+unsteady_subsonic_inflow_state(
+  const Tensor<1, 2 + dim, RealType>& interior_state,
+  const Tensor<1, dim, RealType>& normal,
+  RealType y_face,
+  RealType t)
 {
   // Grab values
   const auto rho = interior_state[0];
@@ -249,23 +271,37 @@ unsteady_subsonic_inflow(const Tensor<1, 2 + dim, RealType>& interior_state,
   const auto energy_b = p_b / (Parameters<RealType>::gamma - 1.0) +
                         0.5 * rho_b * (u_b * u_b + v_b * v_b);
 
-  // Construct the boundary state
-  const auto state_b =
-    Tensor<1, 2 + dim, RealType>{ rho_b, rho_b * u_b, rho_b * v_b, energy_b };
+  return Tensor<1, 2 + dim, RealType>{
+    rho_b, rho_b * u_b, rho_b * v_b, energy_b
+  };
+}
 
-  // Compute the boundary flux
-  const auto boundary_flux = euler_flux<dim, RealType>(state_b, normal);
+template<unsigned int dim, typename RealType>
+inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
+unsteady_subsonic_inflow(const Tensor<1, 2 + dim, RealType>& interior_state,
+                         const Tensor<1, dim, RealType>& normal,
+                         RealType y_face,
+                         RealType t)
+{
+  static_assert(dim == 2, "Only 2D is supported");
+
+  // Grab the boundary state
+  const auto boundary_state =
+    unsteady_subsonic_inflow_state(interior_state, normal, y_face, t);
+
+  // Construct boundary flux
+  const auto boundary_flux = euler_flux(boundary_state, normal);
 
   // Compute the max wavespeed
-  const auto smag = max_wavespeed(u_b, v_b, n_x, n_y, p_b, rho_b);
+  const auto smag = max_wavespeed(boundary_state, normal);
 
   return { boundary_flux, smag };
 }
 
 template<unsigned int dim, typename RealType>
-inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
-subsonic_outflow(const Tensor<1, 2 + dim, RealType>& interior_state,
-                 const Tensor<1, dim, RealType>& normal)
+inline Tensor<1, 2 + dim, RealType>
+subsonic_outflow_state(const Tensor<1, 2 + dim, RealType>& interior_state,
+                       const Tensor<1, dim, RealType>& normal)
 {
   // Grab values
   const auto rho = interior_state[0];
@@ -310,16 +346,26 @@ subsonic_outflow(const Tensor<1, 2 + dim, RealType>& interior_state,
     Parameters<RealType>::p_out / (Parameters<RealType>::gamma - 1.0) +
     0.5 * rho_b * (u_b * u_b + v_b * v_b);
 
-  // Construct the boundary state
-  const auto state_b =
-    Tensor<1, 2 + dim, RealType>{ rho_b, rho_b * u_b, rho_b * v_b, energy_b };
+  return Tensor<1, 2 + dim, RealType>{
+    rho_b, rho_b * u_b, rho_b * v_b, energy_b
+  };
+}
 
-  // Compute the boundary flux
-  const auto boundary_flux = euler_flux<dim, RealType>(state_b, normal);
+template<unsigned int dim, typename RealType>
+inline std::pair<Tensor<1, 2 + dim, RealType>, RealType>
+subsonic_outflow(const Tensor<1, 2 + dim, RealType>& interior_state,
+                 const Tensor<1, dim, RealType>& normal)
+{
+  static_assert(dim == 2, "Only 2D is supported");
+
+  // Grab the boundary state
+  const auto boundary_state = subsonic_outflow_state(interior_state, normal);
+
+  // Construct boundary flux
+  const auto boundary_flux = euler_flux(boundary_state, normal);
 
   // Compute the max wavespeed
-  const auto smag =
-    max_wavespeed(u_b, v_b, n_x, n_y, Parameters<RealType>::p_out, rho_b);
+  const auto smag = max_wavespeed(boundary_state, normal);
 
   return { boundary_flux, smag };
 }
@@ -345,6 +391,21 @@ public:
     const Tensor<1, 2, RealType>&);
 
   Solver() = default;
+
+  enum class TimeIntegration
+  {
+    LocalTimestepping,
+    SSPRK2
+  };
+
+  struct SolverConfig
+  {
+    TimeIntegration time_integration = TimeIntegration::LocalTimestepping;
+    bool is_freestream = false;
+    bool is_unsteady = false;
+    RealType time = 0;
+    const FluxFunction* flux_func = &flux_roe;
+  };
 
   /**
    * @brief Set the initial condition according the inflow condition and a
@@ -384,37 +445,45 @@ public:
     set(element_scratch.energy, E);
   }
 
-  void compute_free_stream_residual(
-    const InteriorFaceData<dim, RealType>& interior_face_scratch,
-    const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
-    const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
-    ElementData<dim, degree, RealType>& element_scratch,
-    const FluxFunction& flux_func = &flux_roe) const
+  /**
+   * @brief Get the initial condition according the inflow condition and a
+   * given mach number.
+   */
+  Tensor<1, 4, RealType> get_initial_state(RealType M = 0.1) const
   {
-    zero_values(element_scratch);
+    // Compute the speed of sound
+    const auto denom = 1.0 + 0.5 * (Parameters<RealType>::gamma - 1.0) * M * M;
+    const auto c = std::sqrt(
+      (Parameters<RealType>::gamma * Parameters<RealType>::T_0_and_R) / denom);
 
-    if constexpr (degree == 2) {
-      interior_face_gradient_prep(interior_face_scratch, element_scratch);
-      periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
-      boundary_face_gradient_prep(boundary_face_scratch, element_scratch, true);
-      finalize_gradient(element_scratch);
-    }
+    // Compute the pressure
+    const auto p = Parameters<RealType>::p_0 *
+                   std::pow(1.0 / denom,
+                            Parameters<RealType>::gamma /
+                              (Parameters<RealType>::gamma - 1.0));
+    DEBUG_ASSERT(p >= 0, "Pressure must be positive");
 
-    interior_face_residual(interior_face_scratch, element_scratch, flux_func);
-    periodic_face_residual(periodic_face_scratch, element_scratch, flux_func);
-    boundary_face_residual(
-      boundary_face_scratch, element_scratch, flux_func, true);
-    optimal_time(element_scratch);
-  };
+    // Compute the density
+    const auto rho = p * denom / Parameters<RealType>::T_0_and_R;
+    DEBUG_ASSERT(rho > 0.0, "Density must be positive");
+
+    // Compute the velocity
+    const auto u = M * c * Parameters<RealType>::n_x_0;
+    const auto v = M * c * Parameters<RealType>::n_y_0;
+
+    // Compute the energy
+    const auto E =
+      p / (Parameters<RealType>::gamma - 1.0) + 0.5 * rho * (u * u + v * v);
+
+    return Tensor<1, 2 + dim, RealType>{ rho, rho * u, rho * v, E };
+  }
 
   void compute_residual(
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
     ElementData<dim, degree, RealType>& element_scratch,
-    const FluxFunction& flux_func = &flux_roe,
-    RealType time = 0,
-    bool is_unsteady = false) const
+    const SolverConfig& cfg) const
   {
     zero_values(element_scratch);
 
@@ -422,136 +491,126 @@ public:
       interior_face_gradient_prep(interior_face_scratch, element_scratch);
       periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
       boundary_face_gradient_prep(
-        boundary_face_scratch, element_scratch, false);
+        boundary_face_scratch, element_scratch, cfg.is_freestream);
       finalize_gradient(element_scratch);
     }
 
-    interior_face_residual(interior_face_scratch, element_scratch, flux_func);
-    periodic_face_residual(periodic_face_scratch, element_scratch, flux_func);
+    interior_face_residual(
+      interior_face_scratch, element_scratch, *cfg.flux_func);
+    periodic_face_residual(
+      periodic_face_scratch, element_scratch, *cfg.flux_func);
     boundary_face_residual(boundary_face_scratch,
                            element_scratch,
-                           flux_func,
-                           false,
-                           is_unsteady,
-                           time);
+                           *cfg.flux_func,
+                           cfg.is_freestream,
+                           cfg.is_unsteady,
+                           cfg.time);
     optimal_time(element_scratch);
   };
 
-  void compute_update_with_local_timestepping(
+  RealType compute_update(
     ElementData<dim, degree, RealType>& element_scratch,
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
-    const FluxFunction& flux_func = &flux_roe,
-    bool is_freestream = false) const
+    const SolverConfig& cfg) const
   {
-    if (is_freestream) {
-      compute_free_stream_residual(interior_face_scratch,
+    if (cfg.time_integration == TimeIntegration::LocalTimestepping) {
+      return compute_update_local(element_scratch,
+                                  interior_face_scratch,
+                                  boundary_face_scratch,
+                                  periodic_face_scratch,
+                                  cfg);
+    } else {
+      return compute_update_ssprk2(element_scratch,
+                                   interior_face_scratch,
                                    boundary_face_scratch,
                                    periodic_face_scratch,
-                                   element_scratch,
-                                   flux_func);
-    } else {
-      compute_residual(interior_face_scratch,
-                       boundary_face_scratch,
-                       periodic_face_scratch,
-                       element_scratch,
-                       flux_func);
-    }
-
-    for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      const auto dt = element_scratch.optimal_timestep[i];
-      element_scratch.density[i] -=
-        element_scratch.residual_density[i] * dt * element_scratch.inv_area[i];
-      element_scratch.momentum_x[i] -= element_scratch.residual_momentum_x[i] *
-                                       dt * element_scratch.inv_area[i];
-      element_scratch.momentum_y[i] -= element_scratch.residual_momentum_y[i] *
-                                       dt * element_scratch.inv_area[i];
-      element_scratch.energy[i] -=
-        element_scratch.residual_energy[i] * dt * element_scratch.inv_area[i];
+                                   cfg);
     }
   }
 
-  void compute_update_with_local_timestepping(
-    ElementData<dim, degree, RealType>& element_scratch) const
-  {
-    for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      const auto dt = element_scratch.optimal_timestep[i];
-      const auto inv_area = element_scratch.inv_area[i];
-      element_scratch.density[i] -= element_scratch.residual_density[i] * dt;
-      element_scratch.momentum_x[i] -=
-        element_scratch.residual_momentum_x[i] * dt;
-      element_scratch.momentum_y[i] -=
-        element_scratch.residual_momentum_y[i] * dt;
-      element_scratch.energy[i] -= element_scratch.residual_energy[i] * dt;
-    }
-  }
-
-  RealType compute_update_with_ssp_rk2(
+private:
+  RealType compute_update_local(
     ElementData<dim, degree, RealType>& element_scratch,
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
-    const FluxFunction& flux_func = &flux_roe,
-    RealType time = 0) const
+    const SolverConfig& cfg) const
   {
     compute_residual(interior_face_scratch,
                      boundary_face_scratch,
                      periodic_face_scratch,
                      element_scratch,
-                     flux_func,
-                     time,
-                     true);
+                     cfg);
 
-    // First determine the maximum timestep
-    auto dt = min(element_scratch.optimal_timestep);
-
-    // Copy the element data into a tmp vector
-    auto tmp = element_scratch;
-
-    // First stage
-    for (unsigned int i = 0; i < tmp.size(); ++i) {
-      tmp.density[i] -= tmp.residual_density[i] * dt * tmp.inv_area[i];
-      tmp.momentum_x[i] -= tmp.residual_momentum_x[i] * dt * tmp.inv_area[i];
-      ;
-      tmp.momentum_y[i] -= tmp.residual_momentum_y[i] * dt * tmp.inv_area[i];
-      ;
-      tmp.energy[i] -= tmp.residual_energy[i] * dt * tmp.inv_area[i];
-      ;
+    for (unsigned int i = 0; i < element_scratch.size(); ++i) {
+      const auto dt_inv_area =
+        element_scratch.optimal_timestep[i] * element_scratch.inv_area[i];
+      element_scratch.density[i] -=
+        element_scratch.residual_density[i] * dt_inv_area;
+      element_scratch.momentum_x[i] -=
+        element_scratch.residual_momentum_x[i] * dt_inv_area;
+      element_scratch.momentum_y[i] -=
+        element_scratch.residual_momentum_y[i] * dt_inv_area;
+      element_scratch.energy[i] -=
+        element_scratch.residual_energy[i] * dt_inv_area;
     }
 
-    // Second stage
+    return min(element_scratch.optimal_timestep);
+  }
+
+  RealType compute_update_ssprk2(
+    ElementData<dim, degree, RealType>& element_scratch,
+    const InteriorFaceData<dim, RealType>& interior_face_scratch,
+    const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
+    const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
+    const SolverConfig& cfg) const
+  {
+    // Stage 1
+    compute_residual(interior_face_scratch,
+                     boundary_face_scratch,
+                     periodic_face_scratch,
+                     element_scratch,
+                     cfg);
+
+    const auto dt = min(element_scratch.optimal_timestep);
+    auto tmp = element_scratch;
+
+    for (unsigned int i = 0; i < tmp.size(); ++i) {
+      const auto dt_inv_area = dt * tmp.inv_area[i];
+      tmp.density[i] -= tmp.residual_density[i] * dt_inv_area;
+      tmp.momentum_x[i] -= tmp.residual_momentum_x[i] * dt_inv_area;
+      tmp.momentum_y[i] -= tmp.residual_momentum_y[i] * dt_inv_area;
+      tmp.energy[i] -= tmp.residual_energy[i] * dt_inv_area;
+    }
+
+    // Stage 2
     compute_residual(interior_face_scratch,
                      boundary_face_scratch,
                      periodic_face_scratch,
                      tmp,
-                     flux_func,
-                     time,
-                     true);
+                     cfg);
+
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      element_scratch.density[i] =
-        0.5 * element_scratch.density[i] + 0.5 * tmp.density[i] -
-        0.5 * tmp.residual_density[i] * dt * tmp.inv_area[i];
-      ;
-      element_scratch.momentum_x[i] =
-        0.5 * element_scratch.momentum_x[i] + 0.5 * tmp.momentum_x[i] -
-        0.5 * tmp.residual_momentum_x[i] * dt * tmp.inv_area[i];
-      ;
-      element_scratch.momentum_y[i] =
-        0.5 * element_scratch.momentum_y[i] + 0.5 * tmp.momentum_y[i] -
-        0.5 * tmp.residual_momentum_y[i] * dt * tmp.inv_area[i];
-      ;
-      element_scratch.energy[i] =
-        0.5 * element_scratch.energy[i] + 0.5 * tmp.energy[i] -
-        0.5 * tmp.residual_energy[i] * dt * tmp.inv_area[i];
-      ;
+      const auto dt_inv_area = 0.5 * dt * tmp.inv_area[i];
+      element_scratch.density[i] = 0.5 * element_scratch.density[i] +
+                                   0.5 * tmp.density[i] -
+                                   tmp.residual_density[i] * dt_inv_area;
+      element_scratch.momentum_x[i] = 0.5 * element_scratch.momentum_x[i] +
+                                      0.5 * tmp.momentum_x[i] -
+                                      tmp.residual_momentum_x[i] * dt_inv_area;
+      element_scratch.momentum_y[i] = 0.5 * element_scratch.momentum_y[i] +
+                                      0.5 * tmp.momentum_y[i] -
+                                      tmp.residual_momentum_y[i] * dt_inv_area;
+      element_scratch.energy[i] = 0.5 * element_scratch.energy[i] +
+                                  0.5 * tmp.energy[i] -
+                                  tmp.residual_energy[i] * dt_inv_area;
     }
 
-    // Return the timestep
     return dt;
   }
 
-private:
   /**
    * @brief Contruct state from element index.
    */
@@ -770,6 +829,14 @@ private:
         const auto f_y = boundary_face_scratch.centroid_y[i];
 
         u = get_face_state(element_scratch, e, f_x, f_y);
+
+        if (is_freestream) {
+          auto zero_grad_diff = u - get_state(element_scratch, e);
+          DEBUG_ASSERT(std::abs(zero_grad_diff[0]) < 1e-8);
+          DEBUG_ASSERT(std::abs(zero_grad_diff[1]) < 1e-8);
+          DEBUG_ASSERT(std::abs(zero_grad_diff[2]) < 1e-8);
+          DEBUG_ASSERT(std::abs(zero_grad_diff[3]) < 1e-8);
+        }
       } else {
         u = get_state(element_scratch, e);
       }
@@ -952,11 +1019,51 @@ private:
       const auto n_x = boundary_face_scratch.normal_x[i];
       const auto n_y = boundary_face_scratch.normal_y[i];
       const auto area = boundary_face_scratch.face_area[i];
+      const auto boundary_id = boundary_face_scratch.boundary_id[i];
 
-      const auto avg_density = element_scratch.density[e];
-      const auto avg_momentum_x = element_scratch.momentum_x[e];
-      const auto avg_momentum_y = element_scratch.momentum_y[e];
-      const auto avg_energy = element_scratch.energy[e];
+      // Check that we don't accidentally have periodic boundaries
+      DEBUG_ASSERT(boundary_id != 0 && boundary_id != 1 && boundary_id != 2 &&
+                   boundary_id != 3);
+
+      // For boundary faces, the avg values are simply the know boundary states.
+      // If we in a freestream test, simply take the average of the interior
+      // state with the freestream state (i.e., the initial condition).
+      const Tensor<1, 4, RealType> interior_state =
+        get_state(element_scratch, e);
+      const Tensor<1, 2, RealType> n = { n_x, n_y };
+      Tensor<1, 4, RealType> boundary_state;
+
+      if (is_freestream) {
+        auto initial_state = get_initial_state();
+        boundary_state[0] = 0.5 * interior_state[0] + 0.5 * initial_state[0];
+        boundary_state[1] = 0.5 * interior_state[1] + 0.5 * initial_state[1];
+        boundary_state[2] = 0.5 * interior_state[2] + 0.5 * initial_state[2];
+        boundary_state[3] = 0.5 * interior_state[3] + 0.5 * initial_state[3];
+      } else {
+        switch (boundary_id) {
+            // InletSide
+          case 4:
+            boundary_state = subsonic_inflow_state(interior_state, n);
+            break;
+            // OutletSide
+          case 5:
+            boundary_state = subsonic_outflow_state(interior_state, n);
+            break;
+            // BladeTop
+          case 6:
+            // BladeBottom
+          case 7:
+            boundary_state = inviscid_wall_state(interior_state, n);
+            break;
+          default:
+            DEBUG_ASSERT(false, "How did we get here? Probably hardcoding");
+        }
+      }
+
+      const auto avg_density = boundary_state[0];
+      const auto avg_momentum_x = boundary_state[1];
+      const auto avg_momentum_y = boundary_state[2];
+      const auto avg_energy = boundary_state[3];
 
       const auto weight_density_x = avg_density * area * n_x;
       const auto weight_density_y = avg_density * area * n_y;

@@ -6,7 +6,7 @@ import re
 
 EXECUTABLE = "./proj-2"
 GRIFILE = "../grids/coarse_local_refinement_1.gri"
-SNAME = "entropy"
+SNAME = "mach"
 FRAMERATE  = 10
 
 def run_simulation():
@@ -24,8 +24,8 @@ def run_simulation():
 
 def render_frames():
     os.makedirs('frames', exist_ok=True)
-    files = glob.glob('unsteady.1st.*.data.txt')
-    files.sort(key=lambda f: float(re.search(r'\.([0-9]+\.[0-9]+)\.data', f).group(1)))
+    files = glob.glob('Freestream.2ndOrder.RoeFlux.data.txt')
+    #files.sort(key=lambda f: float(re.search(r'\.([0-9]+\.[0-9]+)\.data', f).group(1)))
 
     if not files:
         print('No unsteady data files found.')
@@ -53,6 +53,6 @@ def make_movie():
     print('Movie saved to output.mp4')
 
 if __name__ == '__main__':
-    run_simulation()
+    #run_simulation()
     render_frames()
-    make_movie()
+    #make_movie()
