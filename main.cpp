@@ -22,6 +22,7 @@ freestream_test(
     .time_integration = LocalSolver::TimeIntegration::LocalTimestepping,
     .is_freestream = true,
     .is_unsteady = false,
+    .use_limiter = true,
     .time = 0,
     .flux_func = &flux_func
   };
@@ -64,6 +65,7 @@ steadystate_test(
   unsigned int n_iterations = 20000,
   RealType rel_tol = 1.0e-5,
   bool use_global_timestep = false,
+  bool use_limiter = false,
   std::function<void(ElementData<dim, degree, RealType>&)> initial_guess =
     nullptr)
 {
@@ -78,6 +80,7 @@ steadystate_test(
                           : LocalSolver::TimeIntegration::LocalTimestepping,
     .is_freestream = false,
     .is_unsteady = false,
+    .use_limiter = use_limiter,
     .time = 0,
     .flux_func = &flux_func
   };
@@ -117,6 +120,10 @@ steadystate_test(
     if (residual < residual_history.front() * rel_tol) {
       break;
     }
+    if (std::isnan(residual)) {
+      std::cout << "NaN at Step " << i << "\n";
+      break;
+    }
   }
   std::cout << "  Start/End Residual " << residual_history.front() << "/"
             << residual_history.back() << " in " << residual_history.size()
@@ -130,13 +137,77 @@ steadystate_test(
   Timer::instance().end_section(timer);
 }
 
+template<unsigned int dim, unsigned int degree, typename RealType>
+void
+unsteady_test(
+  const MeshData& mesh_data,
+  Triangulation<dim, degree, RealType>& tria,
+  std::string flux_function,
+  const typename Solver<dim, degree, RealType>::FluxFunction& flux_func,
+  unsigned int n_iterations = 20000,
+  std::function<void(ElementData<dim, degree, RealType>&)> initial_guess =
+    nullptr)
+{
+  using LocalSolver = Solver<dim, degree, RealType>;
+  LocalSolver solver;
+  typename LocalSolver::SolverConfig cfg{ .time_integration =
+                                            LocalSolver::TimeIntegration::RK3,
+                                          .is_freestream = false,
+                                          .is_unsteady = true,
+                                          .use_limiter = true,
+                                          .time = 0,
+                                          .flux_func = &flux_func };
+  Recorder<dim, degree, RealType> recorder;
+
+  std::string timer = "Steadystate - ";
+  std::string order = "";
+  if constexpr (degree == 1) {
+    order = "1stOrder";
+  } else if constexpr (degree == 2) {
+    order = "2ndOrder";
+  }
+  timer += order + " - ";
+  timer += flux_function;
+
+  Timer::instance().begin_section(timer);
+  std::cout << "\n" << timer << std::endl;
+  solver.set_initial_state(tria.get_elements());
+  if (initial_guess) {
+    initial_guess(tria.get_elements());
+  }
+  RealType time = 0.0;
+  for (unsigned int i = 0; i < n_iterations; ++i) {
+    auto dt = solver.compute_update(mesh_data,
+                                    tria.get_elements(),
+                                    tria.get_interior_faces(),
+                                    tria.get_boundary_faces(),
+                                    tria.get_periodic_faces(),
+                                    cfg);
+    time += dt;
+    auto residual = tria.get_elements().l1_residual();
+
+    if (i % 500 == 0) {
+      std::cout << "Step " << i << " Residual " << residual << "\n";
+    }
+    if (std::isnan(residual)) {
+      std::cout << "NaN at Step " << i << "\n";
+      break;
+    }
+  }
+
+  recorder.recordData(
+    tria.get_elements(), "Unsteady", order, flux_function, "");
+
+  Timer::instance().end_section(timer);
+}
+
 int
 main(int argc, char** argv)
 {
   // Read the grid
   Timer::instance().begin_section("read grid");
   GriReader<2> reader;
-  reader.read_gri("../grids/coarse_local_refinement.gri");
+  reader.read_gri("../grids/coarse_local_refinement_1.gri");
   auto data = reader.get_data();
   Timer::instance().end_section("read grid");
 
@@ -161,8 +232,31 @@ main(int argc, char** argv)
     tria_2,
     "RoeFlux",
     &flux_roe,
-    50000,
+    1000,
     1.0e-5,
+    true,
+    false,
+    [&elements_1st](auto& elements) {
+      ASSERT(elements.size() == elements_1st.size());
+      for (unsigned int i = 0; i < elements.size(); ++i) {
+        elements.density[i] = elements_1st.density[i];
+        elements.momentum_x[i] = elements_1st.momentum_x[i];
+        elements.momentum_y[i] = elements_1st.momentum_y[i];
+        elements.energy[i] = elements_1st.energy[i];
+      }
+    });
+
+  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
+
+  elements_1st = tria_1.get_elements();
+  steadystate_test<2, 2, double>(
+    data,
+    tria_2,
+    "RoeFlux",
+    &flux_roe,
+    1000,
+    1.0e-5,
+    true,
     true,
     [&elements_1st](auto& elements) {
       ASSERT(elements.size() == elements_1st.size());
@@ -182,8 +276,31 @@ main(int argc, char** argv)
     tria_2,
     "HLLEFlux",
     &flux_hlle,
-    50000,
+    1000,
     1.0e-5,
+    true,
+    false,
+    [&elements_1st](auto& elements) {
+      ASSERT(elements.size() == elements_1st.size());
+      for (unsigned int i = 0; i < elements.size(); ++i) {
+        elements.density[i] = elements_1st.density[i];
+        elements.momentum_x[i] = elements_1st.momentum_x[i];
+        elements.momentum_y[i] = elements_1st.momentum_y[i];
+        elements.energy[i] = elements_1st.energy[i];
+      }
+    });
+
+  steadystate_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
+
+  elements_1st = tria_1.get_elements();
+  steadystate_test<2, 2, double>(
+    data,
+    tria_2,
+    "HLLEFlux",
+    &flux_hlle,
+    1000,
+    1.0e-5,
+    true,
     true,
     [&elements_1st](auto& elements) {
       ASSERT(elements.size() == elements_1st.size());
@@ -192,6 +309,68 @@ main(int argc, char** argv)
         elements.momentum_x[i] = elements_1st.momentum_x[i];
         elements.momentum_y[i] = elements_1st.momentum_y[i];
         elements.energy[i] = elements_1st.energy[i];
+      }
+    });
+
+  // Unsteady
+  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
+
+  elements_1st = tria_1.get_elements();
+  unsteady_test<2, 1, double>(
+    data, tria_1, "RoeFlux", &flux_roe, 500, [&elements_1st](auto& elements) {
+      ASSERT(elements.size() == elements_1st.size());
+      for (unsigned int i = 0; i < elements.size(); ++i) {
+        elements.density[i] = elements_1st.density[i];
+        elements.momentum_x[i] = elements_1st.momentum_x[i];
+        elements.momentum_y[i] = elements_1st.momentum_y[i];
+        elements.energy[i] = elements_1st.energy[i];
+      }
+    });
+
+  steadystate_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
+
+  elements_1st = tria_1.get_elements();
+  unsteady_test<2, 1, double>(
+    data, tria_1, "HLLEFlux", &flux_hlle, 500, [&elements_1st](auto& elements) {
+      ASSERT(elements.size() == elements_1st.size());
+      for (unsigned int i = 0; i < elements.size(); ++i) {
+        elements.density[i] = elements_1st.density[i];
+        elements.momentum_x[i] = elements_1st.momentum_x[i];
+        elements.momentum_y[i] = elements_1st.momentum_y[i];
+        elements.energy[i] = elements_1st.energy[i];
+      }
+    });
+
+  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
+
+  elements_1st = tria_1.get_elements();
+  steadystate_test<2, 2, double>(
+    data,
+    tria_2,
+    "RoeFlux",
+    &flux_roe,
+    50000,
+    1.0e-5,
+    true,
+    true,
+    [&elements_1st](auto& elements) {
+      ASSERT(elements.size() == elements_1st.size());
+      for (unsigned int i = 0; i < elements.size(); ++i) {
+        elements.density[i] = elements_1st.density[i];
+        elements.momentum_x[i] = elements_1st.momentum_x[i];
+        elements.momentum_y[i] = elements_1st.momentum_y[i];
+        elements.energy[i] = elements_1st.energy[i];
+      }
+    });
+  auto& elements_2nd = tria_2.get_elements();
+  unsteady_test<2, 2, double>(
+    data, tria_2, "RoeFlux", &flux_roe, 50000, [&elements_2nd](auto& elements) {
+      ASSERT(elements.size() == elements_2nd.size());
+      for (unsigned int i = 0; i < elements.size(); ++i) {
+        elements.density[i] = elements_2nd.density[i];
+        elements.momentum_x[i] = elements_2nd.momentum_x[i];
+        elements.momentum_y[i] = elements_2nd.momentum_y[i];
+        elements.energy[i] = elements_2nd.energy[i];
       }
     });
 

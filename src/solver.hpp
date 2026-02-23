@@ -401,6 +401,7 @@ public:
     TimeIntegration time_integration = TimeIntegration::LocalTimestepping;
     bool is_freestream = false;
     bool is_unsteady = false;
+    bool use_limiter = false;
     RealType time = 0;
     const FluxFunction* flux_func = &flux_roe;
   };
@@ -486,26 +487,22 @@ public:
   {
     zero_values(element_scratch);
 
-    if constexpr (degree == 2) { /*
-       interior_face_gradient_prep(interior_face_scratch, element_scratch);
-       periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
-       boundary_face_gradient_prep(boundary_face_scratch,
-                                   element_scratch,
-                                   cfg.is_freestream,
-                                   get_initial_state());
-       finalize_gradient(element_scratch);*/
+    if constexpr (degree == 2) {
       gradient_prep(interior_face_scratch,
                     boundary_face_scratch,
                     periodic_face_scratch,
                     element_scratch,
-                    cfg.is_freestream);
-
-      apply_barth_jespersen_limiter(mesh_data,
-                                    interior_face_scratch,
-                                    boundary_face_scratch,
-                                    periodic_face_scratch,
-                                    element_scratch,
-                                    cfg.is_freestream);
+                    cfg.is_freestream,
+                    cfg.is_unsteady,
+                    cfg.time);
+      if (cfg.use_limiter) {
+        apply_barth_jespersen_limiter(mesh_data,
+                                      interior_face_scratch,
+                                      boundary_face_scratch,
+                                      periodic_face_scratch,
+                                      element_scratch,
+                                      cfg.is_freestream);
+      }
     }
 
     interior_face_residual(
@@ -703,8 +700,6 @@ public:
                   element_scratch.grad_y_energy[element_index] * dy;
     }
 
-    ASSERT(state[0] > 0, "Density must be positive");
-
     return state;
   }
 
@@ -742,34 +737,6 @@ public:
         element_scratch.area[i] / element_scratch.optimal_timestep[i];
       DEBUG_ASSERT(element_scratch.optimal_timestep[i] >= 0.0);
     }
-  }
-
-  void accumulate_face_gradient(
-    ElementData<dim, degree, RealType>& element_scratch,
-    unsigned int e,
-    RealType avg_density,
-    RealType avg_momentum_x,
-    RealType avg_momentum_y,
-    RealType avg_energy,
-    RealType area,
-    RealType n_x,
-    RealType n_y,
-    RealType sign = 1.0) const
-  {
-    element_scratch.grad_x_density[e] += sign * avg_density * area * n_x;
-    element_scratch.grad_y_density[e] += sign * avg_density * area * n_y;
-    element_scratch.grad_x_momentum_x[e] += sign * avg_momentum_x * area * n_x;
-    element_scratch.grad_y_momentum_x[e] += sign * avg_momentum_x * area * n_y;
-    element_scratch.grad_x_momentum_y[e] += sign * avg_momentum_y * area * n_x;
-    element_scratch.grad_y_momentum_y[e] += sign * avg_momentum_y * area * n_y;
-    element_scratch.grad_x_energy[e] += sign * avg_energy * area * n_x;
-    element_scratch.grad_y_energy[e] += sign * avg_energy * area * n_y;
-  }
-
-  Tensor<1, 4, RealType> face_average(const Tensor<1, 4, RealType>& u_l,
-                                      const Tensor<1, 4, RealType>& u_r) const
-  {
-    return 0.5 * u_l + 0.5 * u_r;
   }
 
   Tensor<1, 4, RealType> get_boundary_state(
@@ -1014,22 +981,11 @@ public:
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
     ElementData<dim, degree, RealType>& element_scratch,
-    bool is_freestream) const
+    bool is_freestream,
+    bool is_unsteady,
+    RealType time = 0) const
   {
     const auto n_elements = element_scratch.size();
-
-    std::vector<RealType> A11(n_elements);
-    std::vector<RealType> A12(n_elements);
-    std::vector<RealType> A22(n_elements);
-
-    std::vector<RealType> b1_density(n_elements);
-    std::vector<RealType> b2_density(n_elements);
-    std::vector<RealType> b1_momentum_x(n_elements);
-    std::vector<RealType> b2_momentum_x(n_elements);
-    std::vector<RealType> b1_momentum_y(n_elements);
-    std::vector<RealType> b2_momentum_y(n_elements);
-    std::vector<RealType> b1_energy(n_elements);
-    std::vector<RealType> b2_energy(n_elements);
 
     // Loop over interior faces
     for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
@@ -1045,40 +1001,31 @@ public:
       const auto u_r = get_state(element_scratch, e_r);
       const auto du = u_r - u_l;
 
-      A11[e_l] += dx * dx;
-      A12[e_l] += dx * dy;
-      A22[e_l] += dy * dy;
+      element_scratch.A11[e_l] += dx * dx;
+      element_scratch.A12[e_l] += dx * dy;
+      element_scratch.A22[e_l] += dy * dy;
 
-      b1_density[e_l] += dx * du[0];
-      b2_density[e_l] += dy * du[0];
-      b1_momentum_x[e_l] += dx * du[1];
-      b2_momentum_x[e_l] += dy * du[1];
-      b1_momentum_y[e_l] += dx * du[2];
-      b2_momentum_y[e_l] += dy * du[2];
-      b1_energy[e_l] += dx * du[3];
-      b2_energy[e_l] += dy * du[3];
+      element_scratch.A11[e_r] += dx * dx;
+      element_scratch.A12[e_r] += dx * dy;
+      element_scratch.A22[e_r] += dy * dy;
 
-      b1_density[e_r] -= dx * du[0];
-      b2_density[e_r] -= dy * du[0];
-      b1_momentum_x[e_r] -= dx * du[1];
-      b2_momentum_x[e_r] -= dy * du[1];
-      b1_momentum_y[e_r] -= dx * du[2];
-      b2_momentum_y[e_r] -= dy * du[2];
-      b1_energy[e_r] -= dx * du[3];
-      b2_energy[e_r] -= dy * du[3];
+      element_scratch.b1_density[e_l] += dx * du[0];
+      element_scratch.b2_density[e_l] += dy * du[0];
+      element_scratch.b1_momentum_x[e_l] += dx * du[1];
+      element_scratch.b2_momentum_x[e_l] += dy * du[1];
+      element_scratch.b1_momentum_y[e_l] += dx * du[2];
+      element_scratch.b2_momentum_y[e_l] += dy * du[2];
+      element_scratch.b1_energy[e_l] += dx * du[3];
+      element_scratch.b2_energy[e_l] += dy * du[3];
 
-      A11[e_r] += dx * dx;
-      A12[e_r] += dx * dy;
-      A22[e_r] += dy * dy;
-
-      b1_density[e_r] -= dx * du[0];
-      b2_density[e_r] -= dy * du[0];
-      b1_momentum_x[e_r] -= dx * du[1];
-      b2_momentum_x[e_r] -= dy * du[1];
-      b1_momentum_y[e_r] -= dx * du[2];
-      b2_momentum_y[e_r] -= dy * du[2];
-      b1_energy[e_r] -= dx * du[3];
-      b2_energy[e_r] -= dy * du[3];
+      element_scratch.b1_density[e_r] -= dx * du[0];
+      element_scratch.b2_density[e_r] -= dy * du[0];
+      element_scratch.b1_momentum_x[e_r] -= dx * du[1];
+      element_scratch.b2_momentum_x[e_r] -= dy * du[1];
+      element_scratch.b1_momentum_y[e_r] -= dx * du[2];
+      element_scratch.b2_momentum_y[e_r] -= dy * du[2];
+      element_scratch.b1_energy[e_r] -= dx * du[3];
+      element_scratch.b2_energy[e_r] -= dy * du[3];
     }
 
     // Loop over periodic faces
@@ -1097,46 +1044,41 @@ public:
       const auto u_r = get_state(element_scratch, e_r);
       const auto du = u_r - u_l;
 
-      A11[e_l] += dx * dx;
-      A12[e_l] += dx * dy;
-      A22[e_l] += dy * dy;
+      element_scratch.A11[e_l] += dx * dx;
+      element_scratch.A12[e_l] += dx * dy;
+      element_scratch.A22[e_l] += dy * dy;
 
-      b1_density[e_l] += dx * du[0];
-      b2_density[e_l] += dy * du[0];
-      b1_momentum_x[e_l] += dx * du[1];
-      b2_momentum_x[e_l] += dy * du[1];
-      b1_momentum_y[e_l] += dx * du[2];
-      b2_momentum_y[e_l] += dy * du[2];
-      b1_energy[e_l] += dx * du[3];
-      b2_energy[e_l] += dy * du[3];
+      element_scratch.A11[e_r] += dx * dx;
+      element_scratch.A12[e_r] += dx * dy;
+      element_scratch.A22[e_r] += dy * dy;
 
-      b1_density[e_r] -= dx * du[0];
-      b2_density[e_r] -= dy * du[0];
-      b1_momentum_x[e_r] -= dx * du[1];
-      b2_momentum_x[e_r] -= dy * du[1];
-      b1_momentum_y[e_r] -= dx * du[2];
-      b2_momentum_y[e_r] -= dy * du[2];
-      b1_energy[e_r] -= dx * du[3];
-      b2_energy[e_r] -= dy * du[3];
+      element_scratch.b1_density[e_l] += dx * du[0];
+      element_scratch.b2_density[e_l] += dy * du[0];
+      element_scratch.b1_momentum_x[e_l] += dx * du[1];
+      element_scratch.b2_momentum_x[e_l] += dy * du[1];
+      element_scratch.b1_momentum_y[e_l] += dx * du[2];
+      element_scratch.b2_momentum_y[e_l] += dy * du[2];
+      element_scratch.b1_energy[e_l] += dx * du[3];
+      element_scratch.b2_energy[e_l] += dy * du[3];
 
-      A11[e_r] += dx * dx;
-      A12[e_r] += dx * dy;
-      A22[e_r] += dy * dy;
-
-      b1_density[e_r] -= dx * du[0];
-      b2_density[e_r] -= dy * du[0];
-      b1_momentum_x[e_r] -= dx * du[1];
-      b2_momentum_x[e_r] -= dy * du[1];
-      b1_momentum_y[e_r] -= dx * du[2];
-      b2_momentum_y[e_r] -= dy * du[2];
-      b1_energy[e_r] -= dx * du[3];
-      b2_energy[e_r] -= dy * du[3];
+      element_scratch.b1_density[e_r] -= dx * du[0];
+      element_scratch.b2_density[e_r] -= dy * du[0];
+      element_scratch.b1_momentum_x[e_r] -= dx * du[1];
+      element_scratch.b2_momentum_x[e_r] -= dy * du[1];
+      element_scratch.b1_momentum_y[e_r] -= dx * du[2];
+      element_scratch.b2_momentum_y[e_r] -= dy * du[2];
+      element_scratch.b1_energy[e_r] -= dx * du[3];
+      element_scratch.b2_energy[e_r] -= dy * du[3];
     }
 
     // Loop over boundary faces
     for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
       const auto e = boundary_face_scratch.elem[i];
       const auto boundary_id = boundary_face_scratch.boundary_id[i];
+      const auto n_x = boundary_face_scratch.normal_x[i];
+      const auto n_y = boundary_face_scratch.normal_y[i];
+      const auto u = get_state(element_scratch, e);
+      const Tensor<1, 2, RealType> n = { n_x, n_y };
 
       // Check that we don't accidentally have periodic boundaries
       DEBUG_ASSERT(boundary_id != 0 && boundary_id != 1 && boundary_id != 2 &&
@@ -1148,224 +1090,90 @@ public:
         boundary_face_scratch.centroid_y[i] - element_scratch.centroid_y[e];
 
       const auto interior = get_state(element_scratch, e);
-      const auto boundary =
-        get_boundary_state(interior,
-                           { boundary_face_scratch.normal_x[i],
-                             boundary_face_scratch.normal_y[i] },
-                           boundary_id,
-                           is_freestream,
-                           get_initial_state());
+      auto boundary = get_boundary_state(
+        interior, n, boundary_id, is_freestream, get_initial_state());
+
+      if (is_unsteady && boundary_id == 4) {
+        boundary = unsteady_subsonic_inflow_state(
+          u, n, time, boundary_face_scratch.centroid_y[i]);
+      }
 
       const auto du = boundary - interior;
 
-      A11[e] += dx * dx;
-      A12[e] += dx * dy;
-      A22[e] += dy * dy;
+      element_scratch.A11[e] += dx * dx;
+      element_scratch.A12[e] += dx * dy;
+      element_scratch.A22[e] += dy * dy;
 
-      b1_density[e] += dx * du[0];
-      b2_density[e] += dy * du[0];
-      b1_momentum_x[e] += dx * du[1];
-      b2_momentum_x[e] += dy * du[1];
-      b1_momentum_y[e] += dx * du[2];
-      b2_momentum_y[e] += dy * du[2];
-      b1_energy[e] += dx * du[3];
-      b2_energy[e] += dy * du[3];
+      element_scratch.b1_density[e] += dx * du[0];
+      element_scratch.b2_density[e] += dy * du[0];
+      element_scratch.b1_momentum_x[e] += dx * du[1];
+      element_scratch.b2_momentum_x[e] += dy * du[1];
+      element_scratch.b1_momentum_y[e] += dx * du[2];
+      element_scratch.b2_momentum_y[e] += dy * du[2];
+      element_scratch.b1_energy[e] += dx * du[3];
+      element_scratch.b2_energy[e] += dy * du[3];
     }
 
     // Solve the linear system
     for (unsigned int i = 0; i < n_elements; ++i) {
 
-      const auto local_A11 = A11[i];
-      const auto local_A12 = A12[i];
-      const auto local_A22 = A22[i];
+      const auto local_A11 = element_scratch.A11[i];
+      const auto local_A12 = element_scratch.A12[i];
+      const auto local_A22 = element_scratch.A22[i];
 
       const auto det = local_A11 * local_A22 - local_A12 * local_A12;
 
       if (std::abs(det) < 1e-12) {
         element_scratch.grad_x_density[i] = 0.0;
         element_scratch.grad_y_density[i] = 0.0;
-        continue;
-      }
-
-      element_scratch.grad_x_density[i] =
-        (local_A22 * b1_density[i] - local_A12 * b2_density[i]) / det;
-
-      element_scratch.grad_y_density[i] =
-        (local_A11 * b2_density[i] - local_A12 * b1_density[i]) / det;
-
-      if (std::abs(det) < 1e-12) {
         element_scratch.grad_x_momentum_x[i] = 0.0;
         element_scratch.grad_y_momentum_x[i] = 0.0;
-        continue;
-      }
-
-      element_scratch.grad_x_momentum_x[i] =
-        (local_A22 * b1_momentum_x[i] - local_A12 * b2_momentum_x[i]) / det;
-
-      element_scratch.grad_y_momentum_x[i] =
-        (local_A11 * b2_momentum_x[i] - local_A12 * b1_momentum_x[i]) / det;
-
-      if (std::abs(det) < 1e-12) {
         element_scratch.grad_x_momentum_y[i] = 0.0;
         element_scratch.grad_y_momentum_y[i] = 0.0;
-        continue;
-      }
-
-      element_scratch.grad_x_momentum_y[i] =
-        (local_A22 * b1_momentum_y[i] - local_A12 * b2_momentum_y[i]) / det;
-
-      element_scratch.grad_y_momentum_y[i] =
-        (local_A11 * b2_momentum_y[i] - local_A12 * b1_momentum_y[i]) / det;
-
-      if (std::abs(det) < 1e-12) {
         element_scratch.grad_x_energy[i] = 0.0;
         element_scratch.grad_y_energy[i] = 0.0;
         continue;
       }
 
+      element_scratch.grad_x_density[i] =
+        (local_A22 * element_scratch.b1_density[i] -
+         local_A12 * element_scratch.b2_density[i]) /
+        det;
+
+      element_scratch.grad_y_density[i] =
+        (local_A11 * element_scratch.b2_density[i] -
+         local_A12 * element_scratch.b1_density[i]) /
+        det;
+
+      element_scratch.grad_x_momentum_x[i] =
+        (local_A22 * element_scratch.b1_momentum_x[i] -
+         local_A12 * element_scratch.b2_momentum_x[i]) /
+        det;
+
+      element_scratch.grad_y_momentum_x[i] =
+        (local_A11 * element_scratch.b2_momentum_x[i] -
+         local_A12 * element_scratch.b1_momentum_x[i]) /
+        det;
+
+      element_scratch.grad_x_momentum_y[i] =
+        (local_A22 * element_scratch.b1_momentum_y[i] -
+         local_A12 * element_scratch.b2_momentum_y[i]) /
+        det;
+
+      element_scratch.grad_y_momentum_y[i] =
+        (local_A11 * element_scratch.b2_momentum_y[i] -
+         local_A12 * element_scratch.b1_momentum_y[i]) /
+        det;
+
       element_scratch.grad_x_energy[i] =
-        (local_A22 * b1_energy[i] - local_A12 * b2_energy[i]) / det;
+        (local_A22 * element_scratch.b1_energy[i] -
+         local_A12 * element_scratch.b2_energy[i]) /
+        det;
 
       element_scratch.grad_y_energy[i] =
-        (local_A11 * b2_energy[i] - local_A12 * b1_energy[i]) / det;
-    }
-  }
-
-  /**
-   * @brief Compute the gradient over the interior faces.
-   */
-  void interior_face_gradient_prep(
-    const InteriorFaceData<dim, RealType>& interior_face_scratch,
-    ElementData<dim, degree, RealType>& element_scratch) const
-  {
-    for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
-      const auto e_l = interior_face_scratch.elem_l[i];
-      const auto e_r = interior_face_scratch.elem_r[i];
-      const auto n_x = interior_face_scratch.normal_x[i];
-      const auto n_y = interior_face_scratch.normal_y[i];
-      const auto area = interior_face_scratch.face_area[i];
-
-      const auto avg = face_average(get_state(element_scratch, e_l),
-                                    get_state(element_scratch, e_r));
-
-      accumulate_face_gradient(element_scratch,
-                               e_l,
-                               avg[0],
-                               avg[1],
-                               avg[2],
-                               avg[3],
-                               area,
-                               n_x,
-                               n_y,
-                               1.0);
-      accumulate_face_gradient(element_scratch,
-                               e_r,
-                               avg[0],
-                               avg[1],
-                               avg[2],
-                               avg[3],
-                               area,
-                               n_x,
-                               n_y,
-                               -1.0);
-    }
-  }
-
-  /**
-   * @brief Compute the gradient over the periodic faces.
-   */
-  void periodic_face_gradient_prep(
-    const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
-    ElementData<dim, degree, RealType>& element_scratch) const
-  {
-    for (unsigned int i = 0; i < periodic_face_scratch.size(); ++i) {
-      const auto e_l = periodic_face_scratch.elem_l[i];
-      const auto e_r = periodic_face_scratch.elem_r[i];
-      const auto n_x = periodic_face_scratch.normal_x[i];
-      const auto n_y = periodic_face_scratch.normal_y[i];
-      const auto area = periodic_face_scratch.face_area[i];
-
-      const auto avg = face_average(get_state(element_scratch, e_l),
-                                    get_state(element_scratch, e_r));
-
-      accumulate_face_gradient(element_scratch,
-                               e_l,
-                               avg[0],
-                               avg[1],
-                               avg[2],
-                               avg[3],
-                               area,
-                               n_x,
-                               n_y,
-                               1.0);
-      accumulate_face_gradient(element_scratch,
-                               e_r,
-                               avg[0],
-                               avg[1],
-                               avg[2],
-                               avg[3],
-                               area,
-                               n_x,
-                               n_y,
-                               -1.0);
-    }
-  }
-
-  /**
-   * @brief Compute the gradient over the boundary faces.
-   */
-  void boundary_face_gradient_prep(
-    const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
-    ElementData<dim, degree, RealType>& element_scratch,
-    bool is_freestream,
-    const Tensor<1, 4, RealType>& freestream_state) const
-  {
-    for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
-      const auto e = boundary_face_scratch.elem[i];
-      const auto n_x = boundary_face_scratch.normal_x[i];
-      const auto n_y = boundary_face_scratch.normal_y[i];
-      const auto area = boundary_face_scratch.face_area[i];
-      const auto boundary_id = boundary_face_scratch.boundary_id[i];
-
-      // Check that we don't accidentally have periodic boundaries
-      DEBUG_ASSERT(boundary_id != 0 && boundary_id != 1 && boundary_id != 2 &&
-                   boundary_id != 3);
-
-      const Tensor<1, 2, RealType> n = { n_x, n_y };
-      const auto interior = get_state(element_scratch, e);
-      const auto boundary = get_boundary_state(
-        interior, n, boundary_id, is_freestream, freestream_state);
-      const auto avg = boundary;
-
-      accumulate_face_gradient(element_scratch,
-                               e,
-                               avg[0],
-                               avg[1],
-                               avg[2],
-                               avg[3],
-                               area,
-                               n_x,
-                               n_y,
-                               1.0);
-    }
-  }
-
-  /**
-   * @brief Finalize gradient calculation
-   */
-  void finalize_gradient(
-    ElementData<dim, degree, RealType>& element_scratch) const
-  {
-    for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      const auto inv_area = element_scratch.inv_area[i];
-      element_scratch.grad_x_density[i] *= inv_area;
-      element_scratch.grad_y_density[i] *= inv_area;
-      element_scratch.grad_x_momentum_x[i] *= inv_area;
-      element_scratch.grad_y_momentum_x[i] *= inv_area;
-      element_scratch.grad_x_momentum_y[i] *= inv_area;
-      element_scratch.grad_y_momentum_y[i] *= inv_area;
-      element_scratch.grad_x_energy[i] *= inv_area;
-      element_scratch.grad_y_energy[i] *= inv_area;
+        (local_A11 * element_scratch.b2_energy[i] -
+         local_A12 * element_scratch.b1_energy[i]) /
+        det;
     }
   }
 
@@ -1381,7 +1189,7 @@ public:
     bool is_freestream) const
   {
     const auto n_elements = element_scratch.size();
-    std::vector<RealType> alpha(n_elements, 1.0);
+    set(element_scratch.alpha, 1.0);
 
     // Create vectors for the min and max states for each cells and its
     // neighbors
@@ -1538,78 +1346,78 @@ public:
         return RealType(1);
       };
 
-      alpha[i] = std::min(alpha[i],
-                          limit(density_1,
-                                element_scratch.density[i],
-                                min_density[i],
-                                max_density[i]));
-      alpha[i] = std::min(alpha[i],
-                          limit(density_2,
-                                element_scratch.density[i],
-                                min_density[i],
-                                max_density[i]));
-      alpha[i] = std::min(alpha[i],
-                          limit(density_3,
-                                element_scratch.density[i],
-                                min_density[i],
-                                max_density[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(density_1,
+                                                element_scratch.density[i],
+                                                min_density[i],
+                                                max_density[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(density_2,
+                                                element_scratch.density[i],
+                                                min_density[i],
+                                                max_density[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(density_3,
+                                                element_scratch.density[i],
+                                                min_density[i],
+                                                max_density[i]));
 
-      alpha[i] = std::min(alpha[i],
-                          limit(momentum_x_1,
-                                element_scratch.momentum_x[i],
-                                min_momentum_x[i],
-                                max_momentum_x[i]));
-      alpha[i] = std::min(alpha[i],
-                          limit(momentum_x_2,
-                                element_scratch.momentum_x[i],
-                                min_momentum_x[i],
-                                max_momentum_x[i]));
-      alpha[i] = std::min(alpha[i],
-                          limit(momentum_x_3,
-                                element_scratch.momentum_x[i],
-                                min_momentum_x[i],
-                                max_momentum_x[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(momentum_x_1,
+                                                element_scratch.momentum_x[i],
+                                                min_momentum_x[i],
+                                                max_momentum_x[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(momentum_x_2,
+                                                element_scratch.momentum_x[i],
+                                                min_momentum_x[i],
+                                                max_momentum_x[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(momentum_x_3,
+                                                element_scratch.momentum_x[i],
+                                                min_momentum_x[i],
+                                                max_momentum_x[i]));
 
-      alpha[i] = std::min(alpha[i],
-                          limit(momentum_y_1,
-                                element_scratch.momentum_y[i],
-                                min_momentum_y[i],
-                                max_momentum_y[i]));
-      alpha[i] = std::min(alpha[i],
-                          limit(momentum_y_2,
-                                element_scratch.momentum_y[i],
-                                min_momentum_y[i],
-                                max_momentum_y[i]));
-      alpha[i] = std::min(alpha[i],
-                          limit(momentum_y_3,
-                                element_scratch.momentum_y[i],
-                                min_momentum_y[i],
-                                max_momentum_y[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(momentum_y_1,
+                                                element_scratch.momentum_y[i],
+                                                min_momentum_y[i],
+                                                max_momentum_y[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(momentum_y_2,
+                                                element_scratch.momentum_y[i],
+                                                min_momentum_y[i],
+                                                max_momentum_y[i]));
+      element_scratch.alpha[i] = std::min(element_scratch.alpha[i],
+                                          limit(momentum_y_3,
+                                                element_scratch.momentum_y[i],
+                                                min_momentum_y[i],
+                                                max_momentum_y[i]));
 
-      alpha[i] = std::min(
-        alpha[i],
+      element_scratch.alpha[i] = std::min(
+        element_scratch.alpha[i],
         limit(
           energy_1, element_scratch.energy[i], min_energy[i], max_energy[i]));
-      alpha[i] = std::min(
-        alpha[i],
+      element_scratch.alpha[i] = std::min(
+        element_scratch.alpha[i],
         limit(
           energy_2, element_scratch.energy[i], min_energy[i], max_energy[i]));
-      alpha[i] = std::min(
-        alpha[i],
+      element_scratch.alpha[i] = std::min(
+        element_scratch.alpha[i],
         limit(
           energy_3, element_scratch.energy[i], min_energy[i], max_energy[i]));
     }
 
     // Apply limiter
     for (unsigned int i = 0; i < n_elements; ++i) {
-      element_scratch.grad_x_density[i] *= alpha[i];
-      element_scratch.grad_y_density[i] *= alpha[i];
-      element_scratch.grad_x_momentum_x[i] *= alpha[i];
-      element_scratch.grad_y_momentum_x[i] *= alpha[i];
-      element_scratch.grad_x_momentum_y[i] *= alpha[i];
-      element_scratch.grad_y_momentum_y[i] *= alpha[i];
-      element_scratch.grad_x_energy[i] *= alpha[i];
-      element_scratch.grad_y_energy[i] *= alpha[i];
+      element_scratch.grad_x_density[i] *= element_scratch.alpha[i];
+      element_scratch.grad_y_density[i] *= element_scratch.alpha[i];
+      element_scratch.grad_x_momentum_x[i] *= element_scratch.alpha[i];
+      element_scratch.grad_y_momentum_x[i] *= element_scratch.alpha[i];
+      element_scratch.grad_x_momentum_y[i] *= element_scratch.alpha[i];
+      element_scratch.grad_y_momentum_y[i] *= element_scratch.alpha[i];
+      element_scratch.grad_x_energy[i] *= element_scratch.alpha[i];
+      element_scratch.grad_y_energy[i] *= element_scratch.alpha[i];
     }
   }
 };
