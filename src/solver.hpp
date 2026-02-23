@@ -486,14 +486,19 @@ public:
   {
     zero_values(element_scratch);
 
-    if constexpr (degree == 2) {
-      interior_face_gradient_prep(interior_face_scratch, element_scratch);
-      periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
-      boundary_face_gradient_prep(boundary_face_scratch,
-                                  element_scratch,
-                                  cfg.is_freestream,
-                                  get_initial_state());
-      finalize_gradient(element_scratch);
+    if constexpr (degree == 2) { /*
+       interior_face_gradient_prep(interior_face_scratch, element_scratch);
+       periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
+       boundary_face_gradient_prep(boundary_face_scratch,
+                                   element_scratch,
+                                   cfg.is_freestream,
+                                   get_initial_state());
+       finalize_gradient(element_scratch);*/
+      gradient_prep(interior_face_scratch,
+                    boundary_face_scratch,
+                    periodic_face_scratch,
+                    element_scratch,
+                    cfg.is_freestream);
 
       apply_barth_jespersen_limiter(mesh_data,
                                     interior_face_scratch,
@@ -998,6 +1003,231 @@ public:
       // Add the edge-weighted wave speed to the optimal timestep. We'll
       // compute the actual timestep later.
       element_scratch.optimal_timestep[e] += max_wavespeed * area;
+    }
+  }
+
+  /**
+   * @brief Compute the gradient
+   */
+  void gradient_prep(
+    const InteriorFaceData<dim, RealType>& interior_face_scratch,
+    const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
+    const PeriodicFaceData<dim, RealType>& periodic_face_scratch,
+    ElementData<dim, degree, RealType>& element_scratch,
+    bool is_freestream) const
+  {
+    const auto n_elements = element_scratch.size();
+
+    std::vector<RealType> A11(n_elements);
+    std::vector<RealType> A12(n_elements);
+    std::vector<RealType> A22(n_elements);
+
+    std::vector<RealType> b1_density(n_elements);
+    std::vector<RealType> b2_density(n_elements);
+    std::vector<RealType> b1_momentum_x(n_elements);
+    std::vector<RealType> b2_momentum_x(n_elements);
+    std::vector<RealType> b1_momentum_y(n_elements);
+    std::vector<RealType> b2_momentum_y(n_elements);
+    std::vector<RealType> b1_energy(n_elements);
+    std::vector<RealType> b2_energy(n_elements);
+
+    // Loop over interior faces
+    for (unsigned int i = 0; i < interior_face_scratch.size(); ++i) {
+      const auto e_l = interior_face_scratch.elem_l[i];
+      const auto e_r = interior_face_scratch.elem_r[i];
+
+      const auto dx =
+        element_scratch.centroid_x[e_r] - element_scratch.centroid_x[e_l];
+      const auto dy =
+        element_scratch.centroid_y[e_r] - element_scratch.centroid_y[e_l];
+
+      const auto u_l = get_state(element_scratch, e_l);
+      const auto u_r = get_state(element_scratch, e_r);
+      const auto du = u_r - u_l;
+
+      A11[e_l] += dx * dx;
+      A12[e_l] += dx * dy;
+      A22[e_l] += dy * dy;
+
+      b1_density[e_l] += dx * du[0];
+      b2_density[e_l] += dy * du[0];
+      b1_momentum_x[e_l] += dx * du[1];
+      b2_momentum_x[e_l] += dy * du[1];
+      b1_momentum_y[e_l] += dx * du[2];
+      b2_momentum_y[e_l] += dy * du[2];
+      b1_energy[e_l] += dx * du[3];
+      b2_energy[e_l] += dy * du[3];
+
+      b1_density[e_r] -= dx * du[0];
+      b2_density[e_r] -= dy * du[0];
+      b1_momentum_x[e_r] -= dx * du[1];
+      b2_momentum_x[e_r] -= dy * du[1];
+      b1_momentum_y[e_r] -= dx * du[2];
+      b2_momentum_y[e_r] -= dy * du[2];
+      b1_energy[e_r] -= dx * du[3];
+      b2_energy[e_r] -= dy * du[3];
+
+      A11[e_r] += dx * dx;
+      A12[e_r] += dx * dy;
+      A22[e_r] += dy * dy;
+
+      b1_density[e_r] -= dx * du[0];
+      b2_density[e_r] -= dy * du[0];
+      b1_momentum_x[e_r] -= dx * du[1];
+      b2_momentum_x[e_r] -= dy * du[1];
+      b1_momentum_y[e_r] -= dx * du[2];
+      b2_momentum_y[e_r] -= dy * du[2];
+      b1_energy[e_r] -= dx * du[3];
+      b2_energy[e_r] -= dy * du[3];
+    }
+
+    // Loop over periodic faces
+    for (unsigned int i = 0; i < periodic_face_scratch.size(); ++i) {
+      const auto e_l = periodic_face_scratch.elem_l[i];
+      const auto e_r = periodic_face_scratch.elem_r[i];
+
+      const auto dx = element_scratch.centroid_x[e_r] +
+                      periodic_face_scratch.translation_x[i] -
+                      element_scratch.centroid_x[e_l];
+      const auto dy = element_scratch.centroid_y[e_r] +
+                      periodic_face_scratch.translation_y[i] -
+                      element_scratch.centroid_y[e_l];
+
+      const auto u_l = get_state(element_scratch, e_l);
+      const auto u_r = get_state(element_scratch, e_r);
+      const auto du = u_r - u_l;
+
+      A11[e_l] += dx * dx;
+      A12[e_l] += dx * dy;
+      A22[e_l] += dy * dy;
+
+      b1_density[e_l] += dx * du[0];
+      b2_density[e_l] += dy * du[0];
+      b1_momentum_x[e_l] += dx * du[1];
+      b2_momentum_x[e_l] += dy * du[1];
+      b1_momentum_y[e_l] += dx * du[2];
+      b2_momentum_y[e_l] += dy * du[2];
+      b1_energy[e_l] += dx * du[3];
+      b2_energy[e_l] += dy * du[3];
+
+      b1_density[e_r] -= dx * du[0];
+      b2_density[e_r] -= dy * du[0];
+      b1_momentum_x[e_r] -= dx * du[1];
+      b2_momentum_x[e_r] -= dy * du[1];
+      b1_momentum_y[e_r] -= dx * du[2];
+      b2_momentum_y[e_r] -= dy * du[2];
+      b1_energy[e_r] -= dx * du[3];
+      b2_energy[e_r] -= dy * du[3];
+
+      A11[e_r] += dx * dx;
+      A12[e_r] += dx * dy;
+      A22[e_r] += dy * dy;
+
+      b1_density[e_r] -= dx * du[0];
+      b2_density[e_r] -= dy * du[0];
+      b1_momentum_x[e_r] -= dx * du[1];
+      b2_momentum_x[e_r] -= dy * du[1];
+      b1_momentum_y[e_r] -= dx * du[2];
+      b2_momentum_y[e_r] -= dy * du[2];
+      b1_energy[e_r] -= dx * du[3];
+      b2_energy[e_r] -= dy * du[3];
+    }
+
+    // Loop over boundary faces
+    for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
+      const auto e = boundary_face_scratch.elem[i];
+      const auto boundary_id = boundary_face_scratch.boundary_id[i];
+
+      // Check that we don't accidentally have periodic boundaries
+      DEBUG_ASSERT(boundary_id != 0 && boundary_id != 1 && boundary_id != 2 &&
+                   boundary_id != 3);
+
+      const auto dx =
+        boundary_face_scratch.centroid_x[i] - element_scratch.centroid_x[e];
+      const auto dy =
+        boundary_face_scratch.centroid_y[i] - element_scratch.centroid_y[e];
+
+      const auto interior = get_state(element_scratch, e);
+      const auto boundary =
+        get_boundary_state(interior,
+                           { boundary_face_scratch.normal_x[i],
+                             boundary_face_scratch.normal_y[i] },
+                           boundary_id,
+                           is_freestream,
+                           get_initial_state());
+
+      const auto du = boundary - interior;
+
+      A11[e] += dx * dx;
+      A12[e] += dx * dy;
+      A22[e] += dy * dy;
+
+      b1_density[e] += dx * du[0];
+      b2_density[e] += dy * du[0];
+      b1_momentum_x[e] += dx * du[1];
+      b2_momentum_x[e] += dy * du[1];
+      b1_momentum_y[e] += dx * du[2];
+      b2_momentum_y[e] += dy * du[2];
+      b1_energy[e] += dx * du[3];
+      b2_energy[e] += dy * du[3];
+    }
+
+    // Solve the linear system
+    for (unsigned int i = 0; i < n_elements; ++i) {
+
+      const auto local_A11 = A11[i];
+      const auto local_A12 = A12[i];
+      const auto local_A22 = A22[i];
+
+      const auto det = local_A11 * local_A22 - local_A12 * local_A12;
+
+      if (std::abs(det) < 1e-12) {
+        element_scratch.grad_x_density[i] = 0.0;
+        element_scratch.grad_y_density[i] = 0.0;
+        continue;
+      }
+
+      element_scratch.grad_x_density[i] =
+        (local_A22 * b1_density[i] - local_A12 * b2_density[i]) / det;
+
+      element_scratch.grad_y_density[i] =
+        (local_A11 * b2_density[i] - local_A12 * b1_density[i]) / det;
+
+      if (std::abs(det) < 1e-12) {
+        element_scratch.grad_x_momentum_x[i] = 0.0;
+        element_scratch.grad_y_momentum_x[i] = 0.0;
+        continue;
+      }
+
+      element_scratch.grad_x_momentum_x[i] =
+        (local_A22 * b1_momentum_x[i] - local_A12 * b2_momentum_x[i]) / det;
+
+      element_scratch.grad_y_momentum_x[i] =
+        (local_A11 * b2_momentum_x[i] - local_A12 * b1_momentum_x[i]) / det;
+
+      if (std::abs(det) < 1e-12) {
+        element_scratch.grad_x_momentum_y[i] = 0.0;
+        element_scratch.grad_y_momentum_y[i] = 0.0;
+        continue;
+      }
+
+      element_scratch.grad_x_momentum_y[i] =
+        (local_A22 * b1_momentum_y[i] - local_A12 * b2_momentum_y[i]) / det;
+
+      element_scratch.grad_y_momentum_y[i] =
+        (local_A11 * b2_momentum_y[i] - local_A12 * b1_momentum_y[i]) / det;
+
+      if (std::abs(det) < 1e-12) {
+        element_scratch.grad_x_energy[i] = 0.0;
+        element_scratch.grad_y_energy[i] = 0.0;
+        continue;
+      }
+
+      element_scratch.grad_x_energy[i] =
+        (local_A22 * b1_energy[i] - local_A12 * b2_energy[i]) / det;
+
+      element_scratch.grad_y_energy[i] =
+        (local_A11 * b2_energy[i] - local_A12 * b1_energy[i]) / det;
     }
   }
 

@@ -84,11 +84,13 @@ steadystate_test(
   Recorder<dim, degree, RealType> recorder;
 
   std::string timer = "Steadystate - ";
+  std::string order = "";
   if constexpr (degree == 1) {
-    timer += "1st Order - ";
+    order = "1stOrder";
   } else if constexpr (degree == 2) {
-    timer += "2nd Order - ";
+    order = "2ndOrder";
   }
+  timer += order + " - ";
   timer += flux_function;
 
   Timer::instance().begin_section(timer);
@@ -108,8 +110,10 @@ steadystate_test(
     time += dt;
     auto residual = tria.get_elements().l1_residual();
     residual_history.push_back(residual);
-    if (i % 500 == 0)
+
+    if (i % 500 == 0) {
       std::cout << "Step " << i << " Residual " << residual << "\n";
+    }
     if (residual < residual_history.front() * rel_tol) {
       break;
     }
@@ -119,7 +123,9 @@ steadystate_test(
             << " Steps" << std::endl;
 
   recorder.recordHist(
-    residual_history, "Steadystate", "2ndOrder", "HLLE", "Residual");
+    residual_history, "Steadystate", order, flux_function, "Residual");
+  recorder.recordData(
+    tria.get_elements(), "Steadystate", order, flux_function, "");
 
   Timer::instance().end_section(timer);
 }
@@ -141,21 +147,21 @@ main(int argc, char** argv)
   Timer::instance().end_section("create triangulation");
 
   // Free stream test
-  freestream_test<2, 1, double>(data, tria_1, "Roe Flux", &flux_roe);
-  freestream_test<2, 1, double>(data, tria_1, "HLLE Flux", &flux_hlle);
-  freestream_test<2, 2, double>(data, tria_2, "Roe Flux", &flux_roe);
-  freestream_test<2, 2, double>(data, tria_2, "HLLE Flux", &flux_hlle);
+  freestream_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
+  freestream_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
+  freestream_test<2, 2, double>(data, tria_2, "RoeFlux", &flux_roe);
+  freestream_test<2, 2, double>(data, tria_2, "HLLEFlux", &flux_hlle);
 
   // Steadystate test
-  steadystate_test<2, 1, double>(data, tria_1, "Roe Flux", &flux_roe);
+  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
 
   auto& elements_1st = tria_1.get_elements();
   steadystate_test<2, 2, double>(
     data,
     tria_2,
-    "Roe Flux",
+    "RoeFlux",
     &flux_roe,
-    10000,
+    50000,
     1.0e-5,
     true,
     [&elements_1st](auto& elements) {
@@ -168,17 +174,15 @@ main(int argc, char** argv)
       }
     });
 
-  return 0;
-
-  steadystate_test<2, 1, double>(data, tria_1, "HLLE Flux", &flux_hlle);
+  steadystate_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
 
   elements_1st = tria_1.get_elements();
   steadystate_test<2, 2, double>(
     data,
     tria_2,
-    "HLLE Flux",
+    "HLLEFlux",
     &flux_hlle,
-    1000,
+    50000,
     1.0e-5,
     true,
     [&elements_1st](auto& elements) {
@@ -189,7 +193,9 @@ main(int argc, char** argv)
         elements.momentum_y[i] = elements_1st.momentum_y[i];
         elements.energy[i] = elements_1st.energy[i];
       }
-    }); // Cleanup
+    });
+
+  // Cleanup
   Timer::instance().summary();
 
   return 0;
