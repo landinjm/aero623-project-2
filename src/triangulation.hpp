@@ -51,6 +51,20 @@ struct ElementData
   std::vector<RealType> grad_y_energy;
   std::vector<RealType> grad_z_energy;
 
+  std::vector<RealType> alpha;
+  std::vector<RealType> A11;
+  std::vector<RealType> A12;
+  std::vector<RealType> A22;
+
+  std::vector<RealType> b1_density;
+  std::vector<RealType> b2_density;
+  std::vector<RealType> b1_momentum_x;
+  std::vector<RealType> b2_momentum_x;
+  std::vector<RealType> b1_momentum_y;
+  std::vector<RealType> b2_momentum_y;
+  std::vector<RealType> b1_energy;
+  std::vector<RealType> b2_energy;
+
   std::size_t size() const { return area.size(); }
 
   void resize(std::size_t n)
@@ -108,6 +122,20 @@ struct ElementData
       if constexpr (dim == 3) {
         grad_z_energy.resize(n);
       }
+
+      alpha.resize(n);
+      A11.resize(n);
+      A12.resize(n);
+      A22.resize(n);
+
+      b1_density.resize(n);
+      b2_density.resize(n);
+      b1_momentum_x.resize(n);
+      b2_momentum_x.resize(n);
+      b1_momentum_y.resize(n);
+      b2_momentum_y.resize(n);
+      b1_energy.resize(n);
+      b2_energy.resize(n);
     }
   }
 
