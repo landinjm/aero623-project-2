@@ -1,248 +1,213 @@
-#include <forcecoeffs.hpp>
-#include <iostream>
-#include <read_gri.hpp>
-#include <record.hpp>
-#include <solver.hpp>
+#include <Kokkos_Core.hpp>
+#include <config.hpp>
 #include <timer.hpp>
 
-template<unsigned int dim, unsigned int degree, typename RealType>
-void
-freestream_test(
-  const MeshData& mesh_data,
-  Triangulation<dim, degree, RealType>& tria,
-  std::string flux_function,
-  const typename Solver<dim, degree, RealType>::FluxFunction& flux_func,
-  unsigned int n_iterations = 100)
-{
-  std::vector<RealType> residual_history(n_iterations, 0);
+template<typename RealType, typename MemorySpace>
+struct VectorViewTrait;
 
-  using LocalSolver = Solver<dim, degree, RealType>;
-  LocalSolver solver;
-  typename LocalSolver::SolverConfig cfg{
-    .time_integration = LocalSolver::TimeIntegration::LocalTimestepping,
-    .is_freestream = true,
-    .is_unsteady = false,
-    .use_limiter = true,
-    .time = 0,
-    .flux_func = &flux_func
+template<>
+struct VectorViewTrait<double, HostMemSpace>
+{
+  using type = ViewHostVectorType;
+};
+
+template<>
+struct VectorViewTrait<double, DeviceMemSpace>
+{
+  using type = ViewDeviceVectorType;
+};
+
+enum class VectorOperation
+{
+  insert,
+  add,
+  min,
+  max
+};
+
+template<typename RealType, typename MemorySpace>
+class Vector
+{
+public:
+  using ViewType = typename VectorViewTrait<RealType, MemorySpace>::type;
+  using value_type = RealType;
+  using size_type = typename ViewType::size_type;
+
+  /**
+   * @brief Default constructor.
+   */
+  Vector() = default;
+
+  /**
+   * @brief Constructor with specific size
+   */
+  explicit Vector(const size_type size)
+    : data("vector", size) {};
+
+  /**
+   * @brief Copy constructor.
+   */
+  Vector(const Vector<RealType, MemorySpace>& vector)
+    : data("vector", vector.size())
+  {
+    Kokkos::deep_copy(data, vector.data);
   };
-  Recorder<dim, degree, RealType> recorder;
 
-  std::string timer = "Freestream - ";
-  if constexpr (degree == 1) {
-    timer += "1st Order - ";
-  } else if constexpr (degree == 2) {
-    timer += "2nd Order - ";
-  }
-  timer += flux_function;
+  /**
+   * @brief Move constructor.
+   */
+  Vector(Vector<RealType, MemorySpace>&& vector) noexcept
+    : data(std::move(vector.data)) {};
 
-  Timer::instance().begin_section(timer);
-  std::cout << "\n" << timer << std::endl;
-  solver.set_initial_state(tria.get_elements());
-  for (unsigned int i = 0; i < n_iterations; ++i) {
-    solver.compute_update(mesh_data,
-                          tria.get_elements(),
-                          tria.get_interior_faces(),
-                          tria.get_boundary_faces(),
-                          tria.get_periodic_faces(),
-                          cfg);
+  /**
+   * @brief Copy assignment.
+   */
+  Vector<RealType, MemorySpace>& operator=(
+    const Vector<RealType, MemorySpace>& vector) = delete;
 
-    residual_history[i] = tria.get_elements().max_residual();
-  }
-  std::cout << "  Min/Max Residual " << min(residual_history) << "/"
-            << max(residual_history) << std::endl;
-
-  Timer::instance().end_section(timer);
-}
-
-template<unsigned int dim, unsigned int degree, typename RealType>
-void
-steadystate_test(
-  const MeshData& mesh_data,
-  Triangulation<dim, degree, RealType>& tria,
-  std::string flux_function,
-  const typename Solver<dim, degree, RealType>::FluxFunction& flux_func,
-  unsigned int n_iterations = 20000,
-  RealType rel_tol = 1.0e-5,
-  bool use_global_timestep = false,
-  bool use_limiter = false,
-  std::function<void(ElementData<dim, degree, RealType>&)> initial_guess =
-    nullptr)
-{
-  std::vector<RealType> residual_history;
-  std::vector<RealType> c_x_history;
-  std::vector<RealType> c_y_history;
-  residual_history.reserve(n_iterations);
-  c_x_history.reserve(n_iterations);
-  c_y_history.reserve(n_iterations);
-
-  using LocalSolver = Solver<dim, degree, RealType>;
-  LocalSolver solver;
-  typename LocalSolver::SolverConfig cfg{
-    .time_integration = use_global_timestep
-                          ? LocalSolver::TimeIntegration::RK3
-                          : LocalSolver::TimeIntegration::LocalTimestepping,
-    .is_freestream = false,
-    .is_unsteady = false,
-    .use_limiter = use_limiter,
-    .time = 0,
-    .flux_func = &flux_func
-  };
-  Recorder<dim, degree, RealType> recorder;
-  CalcForceCoeffs<dim, degree, RealType> CalcForceCoeffs;
-
-  std::string timer = "Steadystate - ";
-  std::string order = "";
-  if constexpr (degree == 1) {
-    order = "1stOrder";
-  } else if constexpr (degree == 2) {
-    order = "2ndOrder";
-  }
-  timer += order + " - ";
-  timer += flux_function;
-
-  Timer::instance().begin_section(timer);
-  std::cout << "\n" << timer << std::endl;
-  solver.set_initial_state(tria.get_elements());
-  if (initial_guess) {
-    initial_guess(tria.get_elements());
-  }
-  RealType time = 0.0;
-  for (unsigned int i = 0; i < n_iterations; ++i) {
-    auto dt = solver.compute_update(mesh_data,
-                                    tria.get_elements(),
-                                    tria.get_interior_faces(),
-                                    tria.get_boundary_faces(),
-                                    tria.get_periodic_faces(),
-                                    cfg);
-    time += dt;
-    auto residual = tria.get_elements().l1_residual();
-    residual_history.push_back(residual);
-    auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
-                                             tria.get_elements());
-    c_x_history.push_back(c[0]);
-    c_y_history.push_back(c[1]);
-
-    if (i % 500 == 0) {
-      std::cout << "Step " << i << " Residual " << residual << "\n";
+  /**
+   * @brief Move assignment.
+   */
+  Vector<RealType, MemorySpace>& operator=(
+    Vector<RealType, MemorySpace>&& vector) noexcept
+  {
+    if (this == &vector) {
+      return *this;
     }
-    if (residual < residual_history.front() * rel_tol) {
-      break;
-    }
-    if (std::isnan(residual)) {
-      std::cout << "NaN at Step " << i << "\n";
-      break;
-    }
-  }
-  std::cout << "  Start/End Residual " << residual_history.front() << "/"
-            << residual_history.back() << " in " << residual_history.size()
-            << " Steps" << std::endl;
-
-  recorder.recordHist(
-    residual_history, "Steadystate", order, flux_function, "Residual");
-  recorder.recordHist(c_x_history, "Steadystate", order, flux_function, "c_x");
-  recorder.recordHist(c_y_history, "Steadystate", order, flux_function, "c_y");
-  recorder.recordData(
-    tria.get_elements(), "Steadystate", order, flux_function, "");
-
-  Timer::instance().end_section(timer);
-}
-
-template<unsigned int dim, unsigned int degree, typename RealType>
-void
-unsteady_test(
-  const MeshData& mesh_data,
-  Triangulation<dim, degree, RealType>& tria,
-  std::string flux_function,
-  const typename Solver<dim, degree, RealType>::FluxFunction& flux_func,
-  unsigned int n_iterations = 20000,
-  std::function<void(ElementData<dim, degree, RealType>&)> initial_guess =
-    nullptr)
-{
-  using LocalSolver = Solver<dim, degree, RealType>;
-  LocalSolver solver;
-  typename LocalSolver::SolverConfig cfg{ .time_integration =
-                                            LocalSolver::TimeIntegration::RK3,
-                                          .is_freestream = false,
-                                          .is_unsteady = true,
-                                          .use_limiter = true,
-                                          .time = 0,
-                                          .flux_func = &flux_func };
-  Recorder<dim, degree, RealType> recorder;
-  CalcForceCoeffs<dim, degree, RealType> CalcForceCoeffs;
-
-  std::string timer = "Steadystate - ";
-  std::string order = "";
-  if constexpr (degree == 1) {
-    order = "1stOrder";
-  } else if constexpr (degree == 2) {
-    order = "2ndOrder";
-  }
-  timer += order + " - ";
-  timer += flux_function;
-
-  Timer::instance().begin_section(timer);
-  std::cout << "\n" << timer << std::endl;
-  solver.set_initial_state(tria.get_elements());
-  if (initial_guess) {
-    initial_guess(tria.get_elements());
+    data = std::move(vector.data);
+    return *this;
   }
 
-  std::vector<RealType> c_x_history;
-  std::vector<RealType> c_y_history;
-
-  RealType time = 0.0;
-  for (unsigned int i = 0; i < n_iterations; ++i) {
-    auto dt = solver.compute_update(mesh_data,
-                                    tria.get_elements(),
-                                    tria.get_interior_faces(),
-                                    tria.get_boundary_faces(),
-                                    tria.get_periodic_faces(),
-                                    cfg);
-    time += dt;
-    auto residual = tria.get_elements().l1_residual();
-
-    if (i % 500 == 0) {
-      std::cout << "Step " << i << " Residual " << residual << "\n";
-      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
-                                               tria.get_elements());
-      c_x_history.push_back(c[0]);
-      c_y_history.push_back(c[1]);
+  /**
+   * @brief Reinitialize the vector.
+   */
+  void reinit(size_type size)
+  {
+    if (size == data.size()) {
+      return;
     }
-    if (std::isnan(residual)) {
-      std::cout << "NaN at Step " << i << "\n";
-      break;
+
+    Kokkos::resize(data, size);
+  }
+
+  /**
+   * @brief Swap two vectors.
+   */
+  void swap(Vector<RealType, MemorySpace>& vector) noexcept
+  {
+    using std::swap;
+    swap(data, vector.data);
+  }
+
+  /**
+   * @brief Swap two vectors.
+   */
+  friend void swap(Vector<RealType, MemorySpace>& vector_1,
+                   Vector<RealType, MemorySpace>& vector_2) noexcept
+  {
+    vector_1.swap(vector_2);
+  }
+
+  /**
+   * @brief Import data from one memory space to another.
+   */
+  template<typename MemorySpace2>
+  void import(const Vector<RealType, MemorySpace2>& src,
+              VectorOperation operation)
+  {
+    KOKKOS_ASSERT(size() == src.size());
+
+    if (operation == VectorOperation::insert) {
+      Kokkos::deep_copy(data, src.data);
+      return;
+    }
+
+    ViewType tmp(Kokkos::view_alloc("tmp", Kokkos::WithoutInitializing),
+                 src.size());
+    Kokkos::deep_copy(tmp, src.data);
+    auto dst = data;
+
+    if (operation == VectorOperation::add) {
+      Kokkos::parallel_for(
+        Kokkos::RangePolicy<typename MemorySpace::execution_space>(0, size()),
+        KOKKOS_LAMBDA(const size_type i) { dst(i) += tmp(i); });
+    } else if (operation == VectorOperation::min) {
+      Kokkos::parallel_for(
+        Kokkos::RangePolicy<typename MemorySpace::execution_space>(0, size()),
+        KOKKOS_LAMBDA(const size_type i) {
+          dst(i) = Kokkos::min(dst(i), tmp(i));
+        });
+    } else if (operation == VectorOperation::max) {
+      Kokkos::parallel_for(
+        Kokkos::RangePolicy<typename MemorySpace::execution_space>(0, size()),
+        KOKKOS_LAMBDA(const size_type i) {
+          dst(i) = Kokkos::max(dst(i), tmp(i));
+        });
     }
   }
 
-  recorder.recordData(
-    tria.get_elements(), "Unsteady", order, flux_function, "");
-  recorder.recordHist(c_x_history, "Unsteady", order, flux_function, "c_x");
-  recorder.recordHist(c_y_history, "Unsteady", order, flux_function, "c_y");
+  /**
+   * @brief Default destructor.
+   */
+  ~Vector() = default;
 
-  Timer::instance().end_section(timer);
-}
+  /**
+   * @brief Size.
+   */
+  std::size_t size() const { return data.size(); };
+
+private:
+  template<typename RealType2, typename MemorySpace2>
+  friend class Vector;
+
+  ViewType data;
+};
 
 int
-main(int argc, char** argv)
+main(int argc, char* argv[])
 {
-  // Read the grid
-  Timer::instance().begin_section("read grid");
-  GriReader<2> reader;
-  reader.read_gri("../grids/coarse_local_refinement_1.gri");
-  auto data = reader.get_data();
-  Timer::instance().end_section("read grid");
+  Kokkos::initialize(argc, argv);
+  {
+    // Kokkos testing
+    int n_rows = 1000;
+    int n_columns = 10000;
+    int total_dofs = n_rows * n_columns;
+    int n_iterations = 100;
 
-  // Generate triangulation data structures
-  Timer::instance().begin_section("create triangulation");
-  Triangulation<2, 1, double> tria_1(reader.get_data());
-  Timer::instance().end_section("create triangulation");
+    // Create arrays and set the values
+    Timer::instance().begin_section("Allocation - Kokkos");
+    ViewDeviceVectorType x("X", n_columns);
+    ViewDeviceVectorType y("Y", n_rows);
+    ViewDeviceMatrixType A("A", n_rows, n_columns);
 
-  // Steadystate test
-  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
+    // Copy the data to the device
+    Kokkos::deep_copy(x, 1.0);
+    Kokkos::deep_copy(y, 1.0);
+    Kokkos::deep_copy(A, 1.0);
 
-  // Cleanup
-  Timer::instance().summary();
+    Timer::instance().end_section("Allocation - Kokkos");
+
+    // Matrix multiplication some number of iterations
+    Timer::instance().begin_section("Multiplication - Kokkos");
+    for (int iteration = 0; iteration < n_iterations; ++iteration) {
+      double result = 0.0;
+      Kokkos::parallel_reduce(
+        "yAx",
+        device_range_policy(0, n_rows),
+        KOKKOS_LAMBDA(int j, double& update) {
+          double temp2 = 0;
+
+          for (int i = 0; i < n_columns; ++i) {
+            temp2 += A(j, i) * x(i);
+          }
+
+          update += y(j) * temp2;
+        },
+        result);
+    }
+    Timer::instance().end_section("Multiplication - Kokkos");
+  }
+  Kokkos::finalize();
 
   return 0;
 }

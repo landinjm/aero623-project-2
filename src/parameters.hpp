@@ -41,12 +41,12 @@ struct Parameters
   /**
    * @brief x-component of inlet flow normal.
    */
-  static constexpr RealType n_x_0 = std::cos(alpha / 180.0 * M_PI);
+  static constexpr RealType n_x_0 = 0.0; // std::cos(alpha / 180.0 * M_PI);
 
   /**
    * @brief y-component of inlet flow normal.
    */
-  static constexpr RealType n_y_0 = std::sin(alpha / 180.0 * M_PI);
+  static constexpr RealType n_y_0 = 0.0; // std::sin(alpha / 180.0 * M_PI);
 
   /**
    * @brief Outflow static pressure.
