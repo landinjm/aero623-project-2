@@ -70,7 +70,11 @@ steadystate_test(
     nullptr)
 {
   std::vector<RealType> residual_history;
+  std::vector<RealType> c_x_history;
+  std::vector<RealType> c_y_history;
   residual_history.reserve(n_iterations);
+  c_x_history.reserve(n_iterations);
+  c_y_history.reserve(n_iterations);
 
   using LocalSolver = Solver<dim, degree, RealType>;
   LocalSolver solver;
@@ -85,6 +89,7 @@ steadystate_test(
     .flux_func = &flux_func
   };
   Recorder<dim, degree, RealType> recorder;
+  CalcForceCoeffs<dim, degree, RealType> CalcForceCoeffs;
 
   std::string timer = "Steadystate - ";
   std::string order = "";
@@ -113,6 +118,10 @@ steadystate_test(
     time += dt;
     auto residual = tria.get_elements().l1_residual();
     residual_history.push_back(residual);
+    auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+    c_x_history.push_back(c[0]);
+    c_y_history.push_back(c[1]);
+
 
     if (i % 500 == 0) {
       std::cout << "Step " << i << " Residual " << residual << "\n";
@@ -128,9 +137,11 @@ steadystate_test(
   std::cout << "  Start/End Residual " << residual_history.front() << "/"
             << residual_history.back() << " in " << residual_history.size()
             << " Steps" << std::endl;
-
+  
   recorder.recordHist(
     residual_history, "Steadystate", order, flux_function, "Residual");
+  recorder.recordHist(c_x_history, "Steadystate", order, flux_function, "c_x");
+  recorder.recordHist(c_y_history, "Steadystate", order, flux_function, "c_y");
   recorder.recordData(
     tria.get_elements(), "Steadystate", order, flux_function, "");
 
@@ -158,6 +169,7 @@ unsteady_test(
                                           .time = 0,
                                           .flux_func = &flux_func };
   Recorder<dim, degree, RealType> recorder;
+  CalcForceCoeffs<dim, degree, RealType> CalcForceCoeffs;
 
   std::string timer = "Steadystate - ";
   std::string order = "";
@@ -175,6 +187,10 @@ unsteady_test(
   if (initial_guess) {
     initial_guess(tria.get_elements());
   }
+
+  std::vector<RealType> c_x_history;
+  std::vector<RealType> c_y_history;
+
   RealType time = 0.0;
   for (unsigned int i = 0; i < n_iterations; ++i) {
     auto dt = solver.compute_update(mesh_data,
@@ -188,6 +204,9 @@ unsteady_test(
 
     if (i % 500 == 0) {
       std::cout << "Step " << i << " Residual " << residual << "\n";
+      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+      c_x_history.push_back(c[0]);
+      c_y_history.push_back(c[1]);      
     }
     if (std::isnan(residual)) {
       std::cout << "NaN at Step " << i << "\n";
@@ -197,6 +216,8 @@ unsteady_test(
 
   recorder.recordData(
     tria.get_elements(), "Unsteady", order, flux_function, "");
+  recorder.recordHist(c_x_history, "Unsteady", order, flux_function, "c_x");
+  recorder.recordHist(c_y_history, "Unsteady", order, flux_function, "c_y");
 
   Timer::instance().end_section(timer);
 }
@@ -298,7 +319,7 @@ main(int argc, char** argv)
     tria_2,
     "HLLEFlux",
     &flux_hlle,
-    1000,
+    50000,
     1.0e-5,
     true,
     true,
@@ -311,7 +332,7 @@ main(int argc, char** argv)
         elements.energy[i] = elements_1st.energy[i];
       }
     });
-
+  
   // Unsteady
   steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
 
