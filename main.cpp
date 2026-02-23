@@ -51,8 +51,6 @@ freestream_test(
   std::cout << "  Min/Max Residual " << min(residual_history) << "/"
             << max(residual_history) << std::endl;
 
-  recorder.recordData(tria.get_elements(), "Freestream", "2ndOrder", "RoeFlux");
-
   Timer::instance().end_section(timer);
 }
 
