@@ -3,9 +3,9 @@ import os
 
 #-----------------------------------------------------------
 def main():
-    grids = ['steadystate']
-    orders = ['1st','2nd']
-    types = ['roe','HLLE']
+    grids = ['Steadystate']
+    orders = ['1stOrder','2ndOrder']
+    types = ['RoeFlux','HLLEFlux']
     grifile = 'grids/coarse_local_refinement_1.gri'
     for grid in grids:
         for order in orders:
