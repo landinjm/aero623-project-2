@@ -393,7 +393,7 @@ public:
   enum class TimeIntegration
   {
     LocalTimestepping,
-    SSPRK2
+    RK3
   };
 
   struct SolverConfig
@@ -492,6 +492,7 @@ public:
       boundary_face_gradient_prep(
         boundary_face_scratch, element_scratch, cfg.is_freestream);
       finalize_gradient(element_scratch);
+
       apply_barth_jespersen_limiter(mesh_data,
                                     interior_face_scratch,
                                     boundary_face_scratch,
@@ -529,12 +530,12 @@ public:
                                   periodic_face_scratch,
                                   cfg);
     } else {
-      return compute_update_ssprk2(mesh_data,
-                                   element_scratch,
-                                   interior_face_scratch,
-                                   boundary_face_scratch,
-                                   periodic_face_scratch,
-                                   cfg);
+      return compute_update_rk3(mesh_data,
+                                element_scratch,
+                                interior_face_scratch,
+                                boundary_face_scratch,
+                                periodic_face_scratch,
+                                cfg);
     }
   }
 
@@ -570,7 +571,7 @@ private:
     return min(element_scratch.optimal_timestep);
   }
 
-  RealType compute_update_ssprk2(
+  RealType compute_update_rk3(
     const MeshData& mesh_data,
     ElementData<dim, degree, RealType>& element_scratch,
     const InteriorFaceData<dim, RealType>& interior_face_scratch,
@@ -605,20 +606,50 @@ private:
                      tmp,
                      cfg);
 
+    auto tmp_2 = element_scratch;
+
     for (unsigned int i = 0; i < element_scratch.size(); ++i) {
-      const auto dt_inv_area = 0.5 * dt * tmp.inv_area[i];
-      element_scratch.density[i] = 0.5 * element_scratch.density[i] +
-                                   0.5 * tmp.density[i] -
-                                   tmp.residual_density[i] * dt_inv_area;
-      element_scratch.momentum_x[i] = 0.5 * element_scratch.momentum_x[i] +
-                                      0.5 * tmp.momentum_x[i] -
-                                      tmp.residual_momentum_x[i] * dt_inv_area;
-      element_scratch.momentum_y[i] = 0.5 * element_scratch.momentum_y[i] +
-                                      0.5 * tmp.momentum_y[i] -
-                                      tmp.residual_momentum_y[i] * dt_inv_area;
-      element_scratch.energy[i] = 0.5 * element_scratch.energy[i] +
-                                  0.5 * tmp.energy[i] -
-                                  tmp.residual_energy[i] * dt_inv_area;
+      const auto dt_inv_area = dt * tmp.inv_area[i];
+      tmp_2.density[i] =
+        0.75 * element_scratch.density[i] +
+        0.25 * (tmp.density[i] - tmp.residual_density[i] * dt_inv_area);
+      tmp_2.momentum_x[i] =
+        0.75 * element_scratch.momentum_x[i] +
+        0.25 * (tmp.momentum_x[i] - tmp.residual_momentum_x[i] * dt_inv_area);
+      tmp_2.momentum_y[i] =
+        0.75 * element_scratch.momentum_y[i] +
+        0.25 * (tmp.momentum_y[i] - tmp.residual_momentum_y[i] * dt_inv_area);
+      tmp_2.energy[i] =
+        0.75 * element_scratch.energy[i] +
+        0.25 * (tmp.energy[i] - tmp.residual_energy[i] * dt_inv_area);
+    }
+
+    // Stage 3
+    compute_residual(mesh_data,
+                     interior_face_scratch,
+                     boundary_face_scratch,
+                     periodic_face_scratch,
+                     tmp_2,
+                     cfg);
+
+    for (unsigned int i = 0; i < element_scratch.size(); ++i) {
+      const auto dt_inv_area = 0.5 * dt * tmp_2.inv_area[i];
+      element_scratch.density[i] =
+        (1.0 / 3.0) * element_scratch.density[i] +
+        (2.0 / 3.0) *
+          (tmp_2.density[i] - tmp_2.residual_density[i] * dt_inv_area);
+      element_scratch.momentum_x[i] =
+        (1.0 / 3.0) * element_scratch.momentum_x[i] +
+        (2.0 / 3.0) *
+          (tmp_2.momentum_x[i] - tmp_2.residual_momentum_x[i] * dt_inv_area);
+      element_scratch.momentum_y[i] =
+        (1.0 / 3.0) * element_scratch.momentum_y[i] +
+        (2.0 / 3.0) *
+          (tmp_2.momentum_y[i] - tmp_2.residual_momentum_y[i] * dt_inv_area);
+      element_scratch.energy[i] =
+        (1.0 / 3.0) * element_scratch.energy[i] +
+        (2.0 / 3.0) *
+          (tmp_2.energy[i] - tmp_2.residual_energy[i] * dt_inv_area);
     }
 
     return dt;
@@ -665,6 +696,8 @@ private:
       state[3] += element_scratch.grad_x_energy[element_index] * dx +
                   element_scratch.grad_y_energy[element_index] * dy;
     }
+
+    ASSERT(state[0] > 0, "Density must be positive");
 
     return state;
   }
@@ -1217,61 +1250,6 @@ private:
       max_energy[e_r] = std::max(max_energy[e_r], element_scratch.energy[e_l]);
     }
 
-    // Loop over boundary faces
-    for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
-      const auto e = boundary_face_scratch.elem[i];
-      const auto n_x = boundary_face_scratch.normal_x[i];
-      const auto n_y = boundary_face_scratch.normal_y[i];
-      const auto boundary_id = boundary_face_scratch.boundary_id[i];
-
-      // Check that we don't accidentally have periodic boundaries
-      DEBUG_ASSERT(boundary_id != 0 && boundary_id != 1 && boundary_id != 2 &&
-                   boundary_id != 3);
-
-      // For boundary faces, the avg values are simply the know boundary states.
-      // If we in a freestream test, simply take the average of the interior
-      // state with the freestream state (i.e., the initial condition).
-      const Tensor<1, 4, RealType> interior_state =
-        get_state(element_scratch, e);
-      const Tensor<1, 2, RealType> n = { n_x, n_y };
-      Tensor<1, 4, RealType> boundary_state;
-
-      if (is_freestream) {
-        boundary_state = get_initial_state();
-      } else {
-        switch (boundary_id) {
-            // InletSide
-          case 4:
-            boundary_state = subsonic_inflow_state(interior_state, n);
-            break;
-            // OutletSide
-          case 5:
-            boundary_state = subsonic_outflow_state(interior_state, n);
-            break;
-            // BladeTop
-          case 6:
-            // BladeBottom
-          case 7:
-            boundary_state = inviscid_wall_state(interior_state, n);
-            break;
-          default:
-            DEBUG_ASSERT(false, "How did we get here? Probably hardcoding");
-        }
-      }
-
-      min_density[e] = std::min(min_density[e], boundary_state[0]);
-      max_density[e] = std::max(max_density[e], boundary_state[0]);
-
-      min_momentum_x[e] = std::min(min_momentum_x[e], boundary_state[1]);
-      max_momentum_x[e] = std::max(max_momentum_x[e], boundary_state[1]);
-
-      min_momentum_y[e] = std::min(min_momentum_y[e], boundary_state[2]);
-      max_momentum_y[e] = std::max(max_momentum_y[e], boundary_state[2]);
-
-      min_energy[e] = std::min(min_energy[e], boundary_state[3]);
-      max_energy[e] = std::max(max_energy[e], boundary_state[3]);
-    }
-
     for (unsigned int i = 0; i < n_elements; ++i) {
       // Grab the three vectors from cell centroid to nodes
       const auto n_1 = mesh_data.node_1[i];
@@ -1332,9 +1310,9 @@ private:
                       RealType q_min,
                       RealType q_max) -> RealType {
         const auto dq = q_node - q_cell;
-        if (dq > 0.0) {
+        if (dq > 1.0e-8) {
           return std::min(RealType(1), (q_max - q_cell) / dq);
-        } else if (dq < 0.0) {
+        } else if (dq < -1.0e-8) {
           return std::min(RealType(1), (q_min - q_cell) / dq);
         }
         return RealType(1);
@@ -1413,12 +1391,5 @@ private:
       element_scratch.grad_x_energy[i] *= alpha[i];
       element_scratch.grad_y_energy[i] *= alpha[i];
     }
-    /*
-        const auto min_alpha = *std::min_element(alpha.begin(), alpha.end());
-        const auto avg_alpha =
-          std::accumulate(alpha.begin(), alpha.end(), RealType(0)) / n_elements;
-        std::cout << "  alpha min=" << min_alpha << " avg=" << avg_alpha <<
-       "\n";
-                    */
   }
 };

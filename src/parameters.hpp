@@ -36,7 +36,7 @@ struct Parameters
   /**
    * @brief Inlet angle of attack (degrees).
    */
-  static constexpr RealType alpha = RealType{ 5.0 };
+  static constexpr RealType alpha = RealType{ 50.0 };
 
   /**
    * @brief x-component of inlet flow normal.
@@ -56,7 +56,7 @@ struct Parameters
   /**
    * @brief Maximum CFL number to use when calculating optimal timestep.
    */
-  static constexpr RealType cfl_max = RealType{ 0.9 };
+  static constexpr RealType cfl_max = RealType{ 1.0 };
 
   /**
    * @brief Unsteady flow parameters.

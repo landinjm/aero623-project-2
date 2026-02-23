@@ -76,7 +76,7 @@ steadystate_test(
   LocalSolver solver;
   typename LocalSolver::SolverConfig cfg{
     .time_integration = use_global_timestep
-                          ? LocalSolver::TimeIntegration::SSPRK2
+                          ? LocalSolver::TimeIntegration::RK3
                           : LocalSolver::TimeIntegration::LocalTimestepping,
     .is_freestream = false,
     .is_unsteady = false,
@@ -110,7 +110,8 @@ steadystate_test(
     time += dt;
     auto residual = tria.get_elements().l1_residual();
     residual_history.push_back(residual);
-
+    if (i % 500 == 0)
+      std::cout << "Step " << i << " Residual " << residual << "\n";
     if (residual < residual_history.front() * rel_tol) {
       break;
     }
@@ -118,6 +119,10 @@ steadystate_test(
   std::cout << "  Start/End Residual " << residual_history.front() << "/"
             << residual_history.back() << " in " << residual_history.size()
             << " Steps" << std::endl;
+
+  recorder.recordHist(
+    residual_history, "Steadystate", "2ndOrder", "HLLE", "Residual");
+
   Timer::instance().end_section(timer);
 }
 
@@ -152,7 +157,7 @@ main(int argc, char** argv)
     tria_2,
     "Roe Flux",
     &flux_roe,
-    30000,
+    10000,
     1.0e-5,
     true,
     [&elements_1st](auto& elements) {
@@ -165,6 +170,8 @@ main(int argc, char** argv)
       }
     });
 
+  return 0;
+
   steadystate_test<2, 1, double>(data, tria_1, "HLLE Flux", &flux_hlle);
 
   elements_1st = tria_1.get_elements();
@@ -173,7 +180,7 @@ main(int argc, char** argv)
     tria_2,
     "HLLE Flux",
     &flux_hlle,
-    30000,
+    1000,
     1.0e-5,
     true,
     [&elements_1st](auto& elements) {
