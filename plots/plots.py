@@ -238,4 +238,3 @@ def plotcp(grifile,solutionfile,outfile):
 #-----------------------------------------------------------
 #if __name__ == "__main__":
     #main()
-
