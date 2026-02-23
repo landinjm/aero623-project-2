@@ -118,10 +118,10 @@ steadystate_test(
     time += dt;
     auto residual = tria.get_elements().l1_residual();
     residual_history.push_back(residual);
-    auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+    auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
+                                             tria.get_elements());
     c_x_history.push_back(c[0]);
     c_y_history.push_back(c[1]);
-
 
     if (i % 500 == 0) {
       std::cout << "Step " << i << " Residual " << residual << "\n";
@@ -137,7 +137,7 @@ steadystate_test(
   std::cout << "  Start/End Residual " << residual_history.front() << "/"
             << residual_history.back() << " in " << residual_history.size()
             << " Steps" << std::endl;
-  
+
   recorder.recordHist(
     residual_history, "Steadystate", order, flux_function, "Residual");
   recorder.recordHist(c_x_history, "Steadystate", order, flux_function, "c_x");
@@ -204,9 +204,10 @@ unsteady_test(
 
     if (i % 500 == 0) {
       std::cout << "Step " << i << " Residual " << residual << "\n";
-      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(), tria.get_elements());
+      auto c = CalcForceCoeffs.calcForceCoeffs(tria.get_boundary_faces(),
+                                               tria.get_elements());
       c_x_history.push_back(c[0]);
-      c_y_history.push_back(c[1]);      
+      c_y_history.push_back(c[1]);
     }
     if (std::isnan(residual)) {
       std::cout << "NaN at Step " << i << "\n";
@@ -235,165 +236,10 @@ main(int argc, char** argv)
   // Generate triangulation data structures
   Timer::instance().begin_section("create triangulation");
   Triangulation<2, 1, double> tria_1(reader.get_data());
-  Triangulation<2, 2, double> tria_2(reader.get_data());
   Timer::instance().end_section("create triangulation");
-
-  // Free stream test
-  freestream_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
-  freestream_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
-  freestream_test<2, 2, double>(data, tria_2, "RoeFlux", &flux_roe);
-  freestream_test<2, 2, double>(data, tria_2, "HLLEFlux", &flux_hlle);
 
   // Steadystate test
   steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
-
-  auto& elements_1st = tria_1.get_elements();
-  steadystate_test<2, 2, double>(
-    data,
-    tria_2,
-    "RoeFlux",
-    &flux_roe,
-    1000,
-    1.0e-5,
-    true,
-    false,
-    [&elements_1st](auto& elements) {
-      ASSERT(elements.size() == elements_1st.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_1st.density[i];
-        elements.momentum_x[i] = elements_1st.momentum_x[i];
-        elements.momentum_y[i] = elements_1st.momentum_y[i];
-        elements.energy[i] = elements_1st.energy[i];
-      }
-    });
-
-  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
-
-  elements_1st = tria_1.get_elements();
-  steadystate_test<2, 2, double>(
-    data,
-    tria_2,
-    "RoeFlux",
-    &flux_roe,
-    1000,
-    1.0e-5,
-    true,
-    true,
-    [&elements_1st](auto& elements) {
-      ASSERT(elements.size() == elements_1st.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_1st.density[i];
-        elements.momentum_x[i] = elements_1st.momentum_x[i];
-        elements.momentum_y[i] = elements_1st.momentum_y[i];
-        elements.energy[i] = elements_1st.energy[i];
-      }
-    });
-
-  steadystate_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
-
-  elements_1st = tria_1.get_elements();
-  steadystate_test<2, 2, double>(
-    data,
-    tria_2,
-    "HLLEFlux",
-    &flux_hlle,
-    1000,
-    1.0e-5,
-    true,
-    false,
-    [&elements_1st](auto& elements) {
-      ASSERT(elements.size() == elements_1st.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_1st.density[i];
-        elements.momentum_x[i] = elements_1st.momentum_x[i];
-        elements.momentum_y[i] = elements_1st.momentum_y[i];
-        elements.energy[i] = elements_1st.energy[i];
-      }
-    });
-
-  steadystate_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
-
-  elements_1st = tria_1.get_elements();
-  steadystate_test<2, 2, double>(
-    data,
-    tria_2,
-    "HLLEFlux",
-    &flux_hlle,
-    50000,
-    1.0e-5,
-    true,
-    true,
-    [&elements_1st](auto& elements) {
-      ASSERT(elements.size() == elements_1st.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_1st.density[i];
-        elements.momentum_x[i] = elements_1st.momentum_x[i];
-        elements.momentum_y[i] = elements_1st.momentum_y[i];
-        elements.energy[i] = elements_1st.energy[i];
-      }
-    });
-  
-  // Unsteady
-  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
-
-  elements_1st = tria_1.get_elements();
-  unsteady_test<2, 1, double>(
-    data, tria_1, "RoeFlux", &flux_roe, 500, [&elements_1st](auto& elements) {
-      ASSERT(elements.size() == elements_1st.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_1st.density[i];
-        elements.momentum_x[i] = elements_1st.momentum_x[i];
-        elements.momentum_y[i] = elements_1st.momentum_y[i];
-        elements.energy[i] = elements_1st.energy[i];
-      }
-    });
-
-  steadystate_test<2, 1, double>(data, tria_1, "HLLEFlux", &flux_hlle);
-
-  elements_1st = tria_1.get_elements();
-  unsteady_test<2, 1, double>(
-    data, tria_1, "HLLEFlux", &flux_hlle, 500, [&elements_1st](auto& elements) {
-      ASSERT(elements.size() == elements_1st.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_1st.density[i];
-        elements.momentum_x[i] = elements_1st.momentum_x[i];
-        elements.momentum_y[i] = elements_1st.momentum_y[i];
-        elements.energy[i] = elements_1st.energy[i];
-      }
-    });
-
-  steadystate_test<2, 1, double>(data, tria_1, "RoeFlux", &flux_roe);
-
-  elements_1st = tria_1.get_elements();
-  steadystate_test<2, 2, double>(
-    data,
-    tria_2,
-    "RoeFlux",
-    &flux_roe,
-    50000,
-    1.0e-5,
-    true,
-    true,
-    [&elements_1st](auto& elements) {
-      ASSERT(elements.size() == elements_1st.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_1st.density[i];
-        elements.momentum_x[i] = elements_1st.momentum_x[i];
-        elements.momentum_y[i] = elements_1st.momentum_y[i];
-        elements.energy[i] = elements_1st.energy[i];
-      }
-    });
-  auto& elements_2nd = tria_2.get_elements();
-  unsteady_test<2, 2, double>(
-    data, tria_2, "RoeFlux", &flux_roe, 50000, [&elements_2nd](auto& elements) {
-      ASSERT(elements.size() == elements_2nd.size());
-      for (unsigned int i = 0; i < elements.size(); ++i) {
-        elements.density[i] = elements_2nd.density[i];
-        elements.momentum_x[i] = elements_2nd.momentum_x[i];
-        elements.momentum_y[i] = elements_2nd.momentum_y[i];
-        elements.energy[i] = elements_2nd.energy[i];
-      }
-    });
 
   // Cleanup
   Timer::instance().summary();

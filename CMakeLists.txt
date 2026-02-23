@@ -22,11 +22,13 @@ FetchContent_Declare(
   GIT_TAG v2.2.1
 )
 
-# Eigen
+# Kokkos
 FetchContent_Declare(
-  eigen
-  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-  GIT_TAG 5.0.1
+  Kokkos
+  URL
+    https://github.com/kokkos/kokkos/releases/download/4.5.01/kokkos-4.5.01.tar.gz
+  URL_HASH
+    SHA256=52d003ffbbe05f30c89966e4009c017efb1662b02b2b73190670d3418719564c
 )
 
 # Google Test suite
@@ -39,7 +41,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(
   libassert
-  eigen
+  Kokkos
   googletest
 )
 
@@ -65,7 +67,7 @@ target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE
     libassert::assert
-    Eigen3::Eigen
+    Kokkos::kokkos
 )
 
 # Tests
@@ -90,7 +92,7 @@ if(BUILD_TESTS)
     ${PROJECT_NAME}_tests
     PRIVATE
       libassert::assert
-      Eigen3::Eigen
+      Kokkos::kokkos
       GTest::gtest_main
   )
 

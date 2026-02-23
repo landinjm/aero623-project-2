@@ -659,7 +659,7 @@ public:
   }
 
   /**
-   * @brief Contruct state from element index.
+   * @brief Construct state from element index.
    */
   inline Tensor<1, 4, RealType> get_state(
     const ElementData<dim, degree, RealType>& element_scratch,
