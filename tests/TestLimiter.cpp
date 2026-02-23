@@ -4,8 +4,6 @@
 #include <solver.hpp>
 #include <triangulation.hpp>
 
-#include "limiters.hpp"
-
 // test to ensure a zero gradient returns the constant state
 TEST(Gradient, ZeroGradient)
 {
