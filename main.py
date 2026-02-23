@@ -24,7 +24,7 @@ def run_simulation():
 
 def render_frames():
     os.makedirs('frames', exist_ok=True)
-    files = glob.glob('Freestream.2ndOrder.RoeFlux.data.txt')
+    files = glob.glob('Steadystate.2ndOrder.HLLE.Residual.txt')
     #files.sort(key=lambda f: float(re.search(r'\.([0-9]+\.[0-9]+)\.data', f).group(1)))
 
     if not files:
@@ -35,7 +35,8 @@ def render_frames():
     for i, f in enumerate(files):
         outfile = f'frames/frame_{i:04d}.png'
         print(f'  [{i+1}/{len(files)}] {f} -> {outfile}')
-        plots.plotsolution(GRIFILE, f, SNAME, outfile)
+        #plots.plotsolution(GRIFILE, f, SNAME, outfile)
+        plots.ploterror(f, outfile)
 
 def make_movie():
     print('Running ffmpeg...')

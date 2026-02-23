@@ -117,7 +117,7 @@ def plotsolution(grifile,solutionfile,sname,outfile):
     plt.close(fig)
 
 #-----------------------------------------------------------
-def ploterror(errorfile,outfile):
+def ploterror(errorfile, outfile):
     # read error
     error = np.loadtxt(errorfile)
 
@@ -129,7 +129,7 @@ def ploterror(errorfile,outfile):
     plt.yscale('log')
     plt.title('Convergence of $L_1$')
     plt.savefig(outfile, dpi=300)
-    plt.close()
+
 
 #-----------------------------------------------------------#-----------------------------------------------------------
 def plotcoefficients(coefficientsfile,direction,outfile):
