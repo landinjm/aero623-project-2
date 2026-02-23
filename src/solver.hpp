@@ -489,8 +489,10 @@ public:
     if constexpr (degree == 2) {
       interior_face_gradient_prep(interior_face_scratch, element_scratch);
       periodic_face_gradient_prep(periodic_face_scratch, element_scratch);
-      boundary_face_gradient_prep(
-        boundary_face_scratch, element_scratch, cfg.is_freestream);
+      boundary_face_gradient_prep(boundary_face_scratch,
+                                  element_scratch,
+                                  cfg.is_freestream,
+                                  get_initial_state());
       finalize_gradient(element_scratch);
 
       apply_barth_jespersen_limiter(mesh_data,
@@ -539,7 +541,6 @@ public:
     }
   }
 
-private:
   RealType compute_update_local(
     const MeshData& mesh_data,
     ElementData<dim, degree, RealType>& element_scratch,
@@ -735,6 +736,58 @@ private:
         Parameters<RealType>::cfl_max * RealType(2.0) *
         element_scratch.area[i] / element_scratch.optimal_timestep[i];
       DEBUG_ASSERT(element_scratch.optimal_timestep[i] >= 0.0);
+    }
+  }
+
+  void accumulate_face_gradient(
+    ElementData<dim, degree, RealType>& element_scratch,
+    unsigned int e,
+    RealType avg_density,
+    RealType avg_momentum_x,
+    RealType avg_momentum_y,
+    RealType avg_energy,
+    RealType area,
+    RealType n_x,
+    RealType n_y,
+    RealType sign = 1.0) const
+  {
+    element_scratch.grad_x_density[e] += sign * avg_density * area * n_x;
+    element_scratch.grad_y_density[e] += sign * avg_density * area * n_y;
+    element_scratch.grad_x_momentum_x[e] += sign * avg_momentum_x * area * n_x;
+    element_scratch.grad_y_momentum_x[e] += sign * avg_momentum_x * area * n_y;
+    element_scratch.grad_x_momentum_y[e] += sign * avg_momentum_y * area * n_x;
+    element_scratch.grad_y_momentum_y[e] += sign * avg_momentum_y * area * n_y;
+    element_scratch.grad_x_energy[e] += sign * avg_energy * area * n_x;
+    element_scratch.grad_y_energy[e] += sign * avg_energy * area * n_y;
+  }
+
+  Tensor<1, 4, RealType> face_average(const Tensor<1, 4, RealType>& u_l,
+                                      const Tensor<1, 4, RealType>& u_r) const
+  {
+    return 0.5 * u_l + 0.5 * u_r;
+  }
+
+  Tensor<1, 4, RealType> get_boundary_state(
+    const Tensor<1, 4, RealType>& interior_state,
+    const Tensor<1, 2, RealType>& n,
+    unsigned int boundary_id,
+    bool is_freestream,
+    const Tensor<1, 4, RealType>& freestream_state) const
+  {
+    if (is_freestream) {
+      return freestream_state;
+    }
+    switch (boundary_id) {
+      case 4:
+        return subsonic_inflow_state(interior_state, n);
+      case 5:
+        return subsonic_outflow_state(interior_state, n);
+      case 6:
+      case 7:
+        return inviscid_wall_state(interior_state, n);
+      default:
+        DEBUG_ASSERT(false, "Unknown boundary");
+        return {};
     }
   }
 
@@ -962,41 +1015,29 @@ private:
       const auto n_y = interior_face_scratch.normal_y[i];
       const auto area = interior_face_scratch.face_area[i];
 
-      const auto avg_density =
-        0.5 * element_scratch.density[e_l] + 0.5 * element_scratch.density[e_r];
-      const auto avg_momentum_x = 0.5 * element_scratch.momentum_x[e_l] +
-                                  0.5 * element_scratch.momentum_x[e_r];
-      const auto avg_momentum_y = 0.5 * element_scratch.momentum_y[e_l] +
-                                  0.5 * element_scratch.momentum_y[e_r];
-      const auto avg_energy =
-        0.5 * element_scratch.energy[e_l] + 0.5 * element_scratch.energy[e_r];
+      const auto avg = face_average(get_state(element_scratch, e_l),
+                                    get_state(element_scratch, e_r));
 
-      const auto weight_density_x = avg_density * area * n_x;
-      const auto weight_density_y = avg_density * area * n_y;
-      const auto weight_momentum_x_x = avg_momentum_x * area * n_x;
-      const auto weight_momentum_x_y = avg_momentum_x * area * n_y;
-      const auto weight_momentum_y_x = avg_momentum_y * area * n_x;
-      const auto weight_momentum_y_y = avg_momentum_y * area * n_y;
-      const auto weight_energy_x = avg_energy * area * n_x;
-      const auto weight_energy_y = avg_energy * area * n_y;
-
-      element_scratch.grad_x_density[e_l] += weight_density_x;
-      element_scratch.grad_y_density[e_l] += weight_density_y;
-      element_scratch.grad_x_momentum_x[e_l] += weight_momentum_x_x;
-      element_scratch.grad_y_momentum_x[e_l] += weight_momentum_x_y;
-      element_scratch.grad_x_momentum_y[e_l] += weight_momentum_y_x;
-      element_scratch.grad_y_momentum_y[e_l] += weight_momentum_y_y;
-      element_scratch.grad_x_energy[e_l] += weight_energy_x;
-      element_scratch.grad_y_energy[e_l] += weight_energy_y;
-
-      element_scratch.grad_x_density[e_r] -= weight_density_x;
-      element_scratch.grad_y_density[e_r] -= weight_density_y;
-      element_scratch.grad_x_momentum_x[e_r] -= weight_momentum_x_x;
-      element_scratch.grad_y_momentum_x[e_r] -= weight_momentum_x_y;
-      element_scratch.grad_x_momentum_y[e_r] -= weight_momentum_y_x;
-      element_scratch.grad_y_momentum_y[e_r] -= weight_momentum_y_y;
-      element_scratch.grad_x_energy[e_r] -= weight_energy_x;
-      element_scratch.grad_y_energy[e_r] -= weight_energy_y;
+      accumulate_face_gradient(element_scratch,
+                               e_l,
+                               avg[0],
+                               avg[1],
+                               avg[2],
+                               avg[3],
+                               area,
+                               n_x,
+                               n_y,
+                               1.0);
+      accumulate_face_gradient(element_scratch,
+                               e_r,
+                               avg[0],
+                               avg[1],
+                               avg[2],
+                               avg[3],
+                               area,
+                               n_x,
+                               n_y,
+                               -1.0);
     }
   }
 
@@ -1014,41 +1055,29 @@ private:
       const auto n_y = periodic_face_scratch.normal_y[i];
       const auto area = periodic_face_scratch.face_area[i];
 
-      const auto avg_density =
-        0.5 * element_scratch.density[e_l] + 0.5 * element_scratch.density[e_r];
-      const auto avg_momentum_x = 0.5 * element_scratch.momentum_x[e_l] +
-                                  0.5 * element_scratch.momentum_x[e_r];
-      const auto avg_momentum_y = 0.5 * element_scratch.momentum_y[e_l] +
-                                  0.5 * element_scratch.momentum_y[e_r];
-      const auto avg_energy =
-        0.5 * element_scratch.energy[e_l] + 0.5 * element_scratch.energy[e_r];
+      const auto avg = face_average(get_state(element_scratch, e_l),
+                                    get_state(element_scratch, e_r));
 
-      const auto weight_density_x = avg_density * area * n_x;
-      const auto weight_density_y = avg_density * area * n_y;
-      const auto weight_momentum_x_x = avg_momentum_x * area * n_x;
-      const auto weight_momentum_x_y = avg_momentum_x * area * n_y;
-      const auto weight_momentum_y_x = avg_momentum_y * area * n_x;
-      const auto weight_momentum_y_y = avg_momentum_y * area * n_y;
-      const auto weight_energy_x = avg_energy * area * n_x;
-      const auto weight_energy_y = avg_energy * area * n_y;
-
-      element_scratch.grad_x_density[e_l] += weight_density_x;
-      element_scratch.grad_y_density[e_l] += weight_density_y;
-      element_scratch.grad_x_momentum_x[e_l] += weight_momentum_x_x;
-      element_scratch.grad_y_momentum_x[e_l] += weight_momentum_x_y;
-      element_scratch.grad_x_momentum_y[e_l] += weight_momentum_y_x;
-      element_scratch.grad_y_momentum_y[e_l] += weight_momentum_y_y;
-      element_scratch.grad_x_energy[e_l] += weight_energy_x;
-      element_scratch.grad_y_energy[e_l] += weight_energy_y;
-
-      element_scratch.grad_x_density[e_r] -= weight_density_x;
-      element_scratch.grad_y_density[e_r] -= weight_density_y;
-      element_scratch.grad_x_momentum_x[e_r] -= weight_momentum_x_x;
-      element_scratch.grad_y_momentum_x[e_r] -= weight_momentum_x_y;
-      element_scratch.grad_x_momentum_y[e_r] -= weight_momentum_y_x;
-      element_scratch.grad_y_momentum_y[e_r] -= weight_momentum_y_y;
-      element_scratch.grad_x_energy[e_r] -= weight_energy_x;
-      element_scratch.grad_y_energy[e_r] -= weight_energy_y;
+      accumulate_face_gradient(element_scratch,
+                               e_l,
+                               avg[0],
+                               avg[1],
+                               avg[2],
+                               avg[3],
+                               area,
+                               n_x,
+                               n_y,
+                               1.0);
+      accumulate_face_gradient(element_scratch,
+                               e_r,
+                               avg[0],
+                               avg[1],
+                               avg[2],
+                               avg[3],
+                               area,
+                               n_x,
+                               n_y,
+                               -1.0);
     }
   }
 
@@ -1058,7 +1087,8 @@ private:
   void boundary_face_gradient_prep(
     const BoundaryFaceData<dim, RealType>& boundary_face_scratch,
     ElementData<dim, degree, RealType>& element_scratch,
-    bool is_freestream) const
+    bool is_freestream,
+    const Tensor<1, 4, RealType>& freestream_state) const
   {
     for (unsigned int i = 0; i < boundary_face_scratch.size(); ++i) {
       const auto e = boundary_face_scratch.elem[i];
@@ -1071,62 +1101,22 @@ private:
       DEBUG_ASSERT(boundary_id != 0 && boundary_id != 1 && boundary_id != 2 &&
                    boundary_id != 3);
 
-      // For boundary faces, the avg values are simply the know boundary states.
-      // If we in a freestream test, simply take the average of the interior
-      // state with the freestream state (i.e., the initial condition).
-      const Tensor<1, 4, RealType> interior_state =
-        get_state(element_scratch, e);
       const Tensor<1, 2, RealType> n = { n_x, n_y };
-      Tensor<1, 4, RealType> boundary_state;
+      const auto interior = get_state(element_scratch, e);
+      const auto boundary = get_boundary_state(
+        interior, n, boundary_id, is_freestream, freestream_state);
+      const auto avg = boundary;
 
-      if (is_freestream) {
-        boundary_state = get_initial_state();
-      } else {
-        switch (boundary_id) {
-            // InletSide
-          case 4:
-            boundary_state = subsonic_inflow_state(interior_state, n);
-            break;
-            // OutletSide
-          case 5:
-            boundary_state = subsonic_outflow_state(interior_state, n);
-            break;
-            // BladeTop
-          case 6:
-            // BladeBottom
-          case 7:
-            boundary_state = inviscid_wall_state(interior_state, n);
-            break;
-          default:
-            DEBUG_ASSERT(false, "How did we get here? Probably hardcoding");
-        }
-      }
-
-      const auto avg_density =
-        0.5 * interior_state[0] + 0.5 * boundary_state[0];
-      const auto avg_momentum_x =
-        0.5 * interior_state[1] + 0.5 * boundary_state[1];
-      const auto avg_momentum_y =
-        0.5 * interior_state[2] + 0.5 * boundary_state[2];
-      const auto avg_energy = 0.5 * interior_state[3] + 0.5 * boundary_state[3];
-
-      const auto weight_density_x = avg_density * area * n_x;
-      const auto weight_density_y = avg_density * area * n_y;
-      const auto weight_momentum_x_x = avg_momentum_x * area * n_x;
-      const auto weight_momentum_x_y = avg_momentum_x * area * n_y;
-      const auto weight_momentum_y_x = avg_momentum_y * area * n_x;
-      const auto weight_momentum_y_y = avg_momentum_y * area * n_y;
-      const auto weight_energy_x = avg_energy * area * n_x;
-      const auto weight_energy_y = avg_energy * area * n_y;
-
-      element_scratch.grad_x_density[e] += weight_density_x;
-      element_scratch.grad_y_density[e] += weight_density_y;
-      element_scratch.grad_x_momentum_x[e] += weight_momentum_x_x;
-      element_scratch.grad_y_momentum_x[e] += weight_momentum_x_y;
-      element_scratch.grad_x_momentum_y[e] += weight_momentum_y_x;
-      element_scratch.grad_y_momentum_y[e] += weight_momentum_y_y;
-      element_scratch.grad_x_energy[e] += weight_energy_x;
-      element_scratch.grad_y_energy[e] += weight_energy_y;
+      accumulate_face_gradient(element_scratch,
+                               e,
+                               avg[0],
+                               avg[1],
+                               avg[2],
+                               avg[3],
+                               area,
+                               n_x,
+                               n_y,
+                               1.0);
     }
   }
 
