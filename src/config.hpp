@@ -31,15 +31,3 @@ using device_range_policy = Kokkos::RangePolicy<DeviceExecSpace>;
  * @brief Layout of views.
  */
 using Layout = Kokkos::LayoutLeft;
-
-/**
- * @brief Vector Host and Device views.
- */
-using ViewHostVectorType = Kokkos::View<double*, Layout, HostMemSpace>;
-using ViewDeviceVectorType = Kokkos::View<double*, Layout, DeviceMemSpace>;
-
-/**
- * @brief Matrix Host and Device views.
- */
-using ViewHostMatrixType = Kokkos::View<double**, Layout, HostMemSpace>;
-using ViewDeviceMatrixType = Kokkos::View<double**, Layout, DeviceMemSpace>;
