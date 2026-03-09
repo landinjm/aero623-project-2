@@ -23,10 +23,15 @@ FetchContent_Declare(
 )
 
 # Kokkos
-find_package(Kokkos QUIET HINTS ${Kokkos_DIR} $ENV{Kokkos_DIR})
+find_package(
+  Kokkos
+  QUIET
+  HINTS
+    ${Kokkos_DIR}
+    $ENV{Kokkos_DIR}
+)
 
 if(NOT ${Kokkos_FOUND})
-  message(FATAL_ERROR "sd")
   FetchContent_Declare(
     Kokkos
     URL
