@@ -29,6 +29,8 @@ find_package(
   HINTS
     ${Kokkos_DIR}
     $ENV{Kokkos_DIR}
+    ${KOKKOS_DIR}
+    $ENV{KOKKOS_DIR}
 )
 
 if(NOT ${Kokkos_FOUND})
