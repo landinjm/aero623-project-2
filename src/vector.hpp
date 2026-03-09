@@ -4,33 +4,6 @@
 #include <config.hpp>
 #include <iostream>
 
-template<typename RealType, typename MemorySpace>
-struct VectorViewTrait;
-
-template<>
-struct VectorViewTrait<double, HostMemSpace>
-{
-  using type = Kokkos::View<double*, Layout, HostMemSpace>;
-};
-
-template<>
-struct VectorViewTrait<double, DeviceMemSpace>
-{
-  using type = Kokkos::View<double*, Layout, DeviceMemSpace>;
-};
-
-template<>
-struct VectorViewTrait<float, HostMemSpace>
-{
-  using type = Kokkos::View<float*, Layout, HostMemSpace>;
-};
-
-template<>
-struct VectorViewTrait<float, DeviceMemSpace>
-{
-  using type = Kokkos::View<float*, Layout, DeviceMemSpace>;
-};
-
 enum class VectorOperation
 {
   insert,

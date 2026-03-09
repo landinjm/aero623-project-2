@@ -1,5 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <config.hpp>
+#include <data_out.hpp>
+#include <dof_handler.hpp>
 #include <timer.hpp>
 #include <vector.hpp>
 
@@ -8,12 +10,12 @@ main(int argc, char* argv[])
 {
   Kokkos::initialize(argc, argv);
   {
-    Vector<double, DeviceMemSpace> vec_1;
-    vec_1.reinit(10);
-    vec_1 = 10.0;
-    Vector<double, DeviceMemSpace> vec_2(vec_1);
+    Triangulation<2> tria;
+    tria.generate_hyper_cube();
+    tria.refine_global(4);
 
-    std::cout << (vec_1 == vec_2) << std::endl;
+    DataOut<2> data_out;
+    data_out.write(tria, "test.vtu");
   }
   Kokkos::finalize();
 
