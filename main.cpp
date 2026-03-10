@@ -1,8 +1,9 @@
 #include <Kokkos_Core.hpp>
 #include <config.hpp>
 #include <data_out.hpp>
-#include <dof_handler.hpp>
+#include <read_gri.hpp>
 #include <timer.hpp>
+#include <triangulation.hpp>
 #include <vector.hpp>
 
 int
@@ -10,9 +11,11 @@ main(int argc, char* argv[])
 {
   Kokkos::initialize(argc, argv);
   {
+    GriReader<2> gri;
     Triangulation<2> tria;
-    tria.generate_hyper_cube();
-    tria.refine_global(4);
+
+    gri.read_gri("../grids/coarse_local_refinement_2.gri");
+    gri.transfer_to_triangulation(tria);
 
     Vector<double, HostMemSpace> solution(tria.n_cells());
 
