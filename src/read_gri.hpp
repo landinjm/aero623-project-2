@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 
+template<unsigned int dim>
+class Triangulation;
+
 struct MeshData
 {
   unsigned int n_nodes;
@@ -71,7 +74,48 @@ public:
 
   void read_gri(const std::string& filename);
 
-  const MeshData& get_data() { return data; }
+  void transfer_to_triangulation(Triangulation<dim>& tria) const
+  {
+    using Topo = typename Triangulation<dim>::Topo;
+    auto& raw = tria.raw;
+
+    raw.vertices.resize(data.n_nodes);
+    for (unsigned int i = 0; i < data.n_nodes; ++i)
+      raw.vertices[i] = { data.x[i], data.y[i] };
+
+    raw.cell_verts.resize(data.n_elements);
+    for (unsigned int i = 0; i < data.n_elements; ++i)
+      raw.cell_verts[i] = { data.node_1[i], data.node_2[i], data.node_3[i] };
+
+    raw.cell_flags.assign(data.n_elements, CellFlags::Active);
+
+    tria.build_face_connectivity();
+
+    unsigned int face_offset = 0;
+    for (unsigned int g = 0; g < data.n_boundary_groups; ++g) {
+      unsigned int n_faces = data.boundary_group_n_faces[g];
+      for (unsigned int f = 0; f < n_faces; ++f) {
+        // Find the face in raw that matches these two boundary nodes
+        std::array<VertexIndexType, 2> key = {
+          data.boundary_node_1[face_offset + f],
+          data.boundary_node_2[face_offset + f]
+        };
+        std::sort(key.begin(), key.end());
+
+        for (unsigned int fi = 0; fi < raw.face_verts.size(); ++fi) {
+          auto fv = raw.face_verts[fi];
+          std::sort(fv.begin(), fv.end());
+          if (fv == key) {
+            raw.boundary_ids[fi] = static_cast<BoundaryIdType>(g);
+            break;
+          }
+        }
+      }
+      face_offset += n_faces;
+    }
+
+    tria.commit();
+  }
 
 private:
   MeshData data;
