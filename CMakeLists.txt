@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-set(PROJECT_NAME proj-2)
+set(PROJECT_NAME proj-3)
 project(${PROJECT_NAME} VERSION 1.0)
 
 # Config options
@@ -14,13 +14,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Vendor dependencies
 include(FetchContent)
-
-# libassert
-FetchContent_Declare(
-  libassert
-  GIT_REPOSITORY https://github.com/jeremy-rifkin/libassert.git
-  GIT_TAG v2.2.1
-)
 
 # Kokkos
 find_package(
@@ -51,11 +44,6 @@ FetchContent_Declare(
     https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 
-FetchContent_MakeAvailable(
-  libassert
-  googletest
-)
-
 # The source and header files
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 file(GLOB_RECURSE HEADERS "src/*.hpp")
@@ -74,16 +62,13 @@ target_include_directories(
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(
-  ${PROJECT_NAME}
-  PRIVATE
-    libassert::assert
-    Kokkos::kokkos
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE Kokkos::kokkos)
 
 # Tests
 if(BUILD_TESTS)
   enable_testing()
+
+  FetchContent_MakeAvailable(googletest)
 
   # Grab the test files
   file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
@@ -102,9 +87,8 @@ if(BUILD_TESTS)
   target_link_libraries(
     ${PROJECT_NAME}_tests
     PRIVATE
-      libassert::assert
       Kokkos::kokkos
-      GTest::gtest_main
+      GTest::gtest
   )
 
   include(GoogleTest)
