@@ -126,24 +126,6 @@ public:
     const RealType H_L = (rho_E_L + p_L) / rho_L;
     const RealType H_R = (rho_E_R + p_R) / rho_R;
 
-    // Grab the Roe averages
-    const RealType sqrt_rho_L = Kokkos::sqrt(rho_L);
-    const RealType sqrt_rho_R = Kokkos::sqrt(rho_R);
-    const RealType denom = RealType(1.0) / (sqrt_rho_L + sqrt_rho_R);
-
-    const RealType u_roe = (sqrt_rho_L * u_L + sqrt_rho_R * u_R) * denom;
-    const RealType v_roe = (sqrt_rho_L * v_L + sqrt_rho_R * v_R) * denom;
-    const RealType H_roe = (sqrt_rho_L * H_L + sqrt_rho_R * H_R) * denom;
-
-    const RealType c_roe_sq =
-      (Parameters<RealType>::gamma - RealType(1.0)) *
-      (H_roe - RealType(0.5) * (u_roe * u_roe + v_roe * v_roe));
-    ASSERT(c_roe_sq > 0,
-           "Roe-averaged speed of sound squared must be positive");
-    const RealType c_roe = Kokkos::sqrt(c_roe_sq);
-
-    const RealType v_n_roe = u_roe * n_x + v_roe * n_y;
-
     // Fluxes
     RealType FL_rho, FL_rho_u, FL_rho_v, FL_rho_E;
     RealType FR_rho, FR_rho_u, FR_rho_v, FR_rho_E;
@@ -178,6 +160,24 @@ public:
     const RealType jump_v_n = jump_u * n_x + jump_v * n_y;
     const RealType jump_v_t = jump_u * -n_y + jump_v * n_x;
 
+    // Grab the Roe averages
+    const RealType sqrt_rho_L = Kokkos::sqrt(rho_L);
+    const RealType sqrt_rho_R = Kokkos::sqrt(rho_R);
+    const RealType denom = RealType(1.0) / (sqrt_rho_L + sqrt_rho_R);
+
+    const RealType u_roe = (sqrt_rho_L * u_L + sqrt_rho_R * u_R) * denom;
+    const RealType v_roe = (sqrt_rho_L * v_L + sqrt_rho_R * v_R) * denom;
+    const RealType H_roe = (sqrt_rho_L * H_L + sqrt_rho_R * H_R) * denom;
+
+    const RealType c_roe_sq =
+      (Parameters<RealType>::gamma - RealType(1.0)) *
+      (H_roe - RealType(0.5) * (u_roe * u_roe + v_roe * v_roe));
+    ASSERT(c_roe_sq > 0,
+           "Roe-averaged speed of sound squared must be positive");
+    const RealType c_roe = Kokkos::sqrt(c_roe_sq);
+
+    const RealType v_n_roe = u_roe * n_x + v_roe * n_y;
+
     // Wave strengths
     const RealType rho_roe = Kokkos::sqrt(rho_L * rho_R);
     const RealType inv_c2 = RealType(1.0) / c_roe_sq;
@@ -198,8 +198,8 @@ public:
 
     const RealType eps = RealType(0.1) * c_roe;
     const RealType lambda_1 = entropy_fix(v_n_roe - c_roe, eps);
-    const RealType lambda_2 = Kokkos::abs(v_n_roe);
-    const RealType lambda_3 = Kokkos::abs(v_n_roe);
+    const RealType lambda_2 = entropy_fix(v_n_roe, eps);
+    const RealType lambda_3 = lambda_2;
     const RealType lambda_4 = entropy_fix(v_n_roe + c_roe, eps);
 
     // Dissipation
