@@ -282,3 +282,71 @@ TEST(Flux, roe_flux_conservation)
   EXPECT_NEAR(result(3), -result(8), tol);
   EXPECT_NEAR(result(4), result(9), tol);
 }
+
+TEST(Flux, roe_flux_basic)
+{
+  auto result = run_on_device(
+    5, KOKKOS_LAMBDA(auto& r) {
+      RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
+      Flux<RealType>::roe_flux(1.0,
+                               1.0,
+                               0.0,
+                               1.0,
+                               1.0,
+                               0.0,
+                               1.0,
+                               1.0,
+                               1.0 / Kokkos::sqrt(2.0),
+                               1.0 / Kokkos::sqrt(2.0),
+                               F_rho,
+                               F_rho_u,
+                               F_rho_v,
+                               F_rho_E,
+                               s_mag);
+      r(0) = F_rho;
+      r(1) = F_rho_u;
+      r(2) = F_rho_v;
+      r(3) = F_rho_E;
+      r(4) = s_mag;
+    });
+
+  EXPECT_NEAR(result(0), 0.707106781186547462, tol);
+  EXPECT_NEAR(result(1), 0.848528137423856910, tol);
+  EXPECT_NEAR(result(2), 0.141421356237309448, tol);
+  EXPECT_NEAR(result(3), 0.848528137423856910, tol);
+  EXPECT_NEAR(result(4), 1.323548181483444885, tol);
+}
+
+TEST(Flux, roe_flux_basic_2)
+{
+  auto result = run_on_device(
+    5, KOKKOS_LAMBDA(auto& r) {
+      RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
+      Flux<RealType>::roe_flux(1.0,
+                               0.1,
+                               0.1,
+                               1.0,
+                               1.0,
+                               0.2,
+                               0.3,
+                               1.0,
+                               1.0 / Kokkos::sqrt(2.0),
+                               1.0 / Kokkos::sqrt(2.0),
+                               F_rho,
+                               F_rho_u,
+                               F_rho_v,
+                               F_rho_E,
+                               s_mag);
+      r(0) = F_rho;
+      r(1) = F_rho_u;
+      r(2) = F_rho_v;
+      r(3) = F_rho_E;
+      r(4) = s_mag;
+    });
+
+  EXPECT_NEAR(result(0), 0.221736070823963460, tol);
+  EXPECT_NEAR(result(1), 0.264412956326837201, tol);
+  EXPECT_NEAR(result(2), 0.268428692056169871, tol);
+  EXPECT_NEAR(result(3), 0.294033357867632128, tol);
+  EXPECT_NEAR(result(4), 0.983354209194700735, tol);
+}
