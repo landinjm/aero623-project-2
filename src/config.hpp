@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <string>
 
 /**
  * @brief Host and Device memory spaces.
@@ -49,3 +50,52 @@ struct MatrixViewTrait
 {
   using type = Kokkos::View<RealType**, Layout, MemorySpace>;
 };
+
+/**
+ * @brief Assertion message
+ */
+struct AssertMessage
+{
+public:
+  AssertMessage(const char* m)
+    : msg(m) {};
+
+  AssertMessage(std::string m)
+    : msg(std::move(m)) {};
+
+  const char* c_str() const { return msg.c_str(); }
+
+private:
+  std::string msg;
+};
+
+/**
+ * @brief Assertion that always runs
+ */
+#define ASSERT_THROW(cond, msg)                                                \
+  do {                                                                         \
+    if (!bool(cond)) {                                                         \
+      KOKKOS_IF_ON_HOST(                                                       \
+        (::Kokkos::abort(                                                      \
+           (std::string("Kokkos contract violation:\n"                         \
+                        "  Asserted condition `" #cond "` evaluated false.\n"  \
+                        "  Message: ") +                                       \
+            AssertMessage(msg).c_str() +                                       \
+            "\n  Error at " __FILE__ ":" KOKKOS_IMPL_TOSTRING(__LINE__) "\n")  \
+             .c_str());))                                                      \
+      KOKKOS_IF_ON_DEVICE(                                                     \
+        (::Kokkos::abort("Kokkos contract violation:\n"                        \
+                         "  Asserted condition `" #cond "` evaluated false.\n" \
+                         "  Error at " __FILE__                                \
+                         ":" KOKKOS_IMPL_TOSTRING(__LINE__) "\n");))           \
+    }                                                                          \
+  } while (false)
+
+/**
+ * @brief Assertion that only runs in DEBUG mode
+ */
+#ifndef NDEBUG
+#define ASSERT(cond, msg) ASSERT_THROW(cond, msg)
+#else
+#define ASSERT(cond, msg) ((void)0)
+#endif

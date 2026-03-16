@@ -1,9 +1,9 @@
 #pragma once
 
 #include <chrono>
+#include <config.hpp>
 #include <iomanip>
 #include <iostream>
-#include <libassert/assert.hpp>
 #include <string>
 #include <unordered_map>
 
@@ -32,11 +32,10 @@ public:
   {
     auto& stats = sections[name];
 
-    DEBUG_ASSERT(
-      !stats.is_running,
-      "Timer section " + name +
-        " is already running. Make sure you call end_section() before "
-        "calling begin_section().");
+    ASSERT(!stats.is_running,
+           "Timer section " + name +
+             " is already running. Make sure you call end_section() before "
+             "calling begin_section().");
 
     stats.start_time = std::chrono::high_resolution_clock::now();
     stats.is_running = true;
@@ -46,7 +45,7 @@ public:
   {
     auto end_time = std::chrono::high_resolution_clock::now();
 
-    DEBUG_ASSERT(
+    ASSERT(
       sections.contains(name),
       "Timer section " + name +
         " does not contain an entry. Make sure you call end_section() before "

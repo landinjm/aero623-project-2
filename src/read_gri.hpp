@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cmath>
+#include <config.hpp>
 #include <cstddef>
 #include <fstream>
 #include <iostream>
-#include <libassert/assert.hpp>
 #include <string>
 #include <vector>
 
