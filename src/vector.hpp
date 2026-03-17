@@ -320,6 +320,24 @@ public:
   }
 
   /**
+   * @brief Index — device and host accessible.
+   */
+  KOKKOS_INLINE_FUNCTION
+  RealType operator()(const size_type i) const { return data(i); }
+
+  /**
+   * @brief Index with writeable reference — device and host accessible.
+   */
+  KOKKOS_INLINE_FUNCTION
+  RealType& operator()(const size_type i) { return data(i); }
+
+  KOKKOS_INLINE_FUNCTION
+  ViewType& view() { return data; }
+
+  KOKKOS_INLINE_FUNCTION
+  const ViewType& view() const { return data; }
+
+  /**
    * @brief Iterator to beginning of range.
    */
   iterator begin()
