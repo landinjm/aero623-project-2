@@ -157,6 +157,35 @@ TEST(Flux, euler_flux_zero_normal_velocity)
   EXPECT_NEAR(result(3), 0.0, tol);
 }
 
+TEST(Flux, inviscid_wall)
+{
+  auto result = run_on_device(
+    5, KOKKOS_LAMBDA(auto& r) {
+      RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
+      Flux<RealType>::inviscid_wall_flux(1.0,
+                                         0.5,
+                                         0.0,
+                                         1.91071428571,
+                                         -1.0,
+                                         0.0,
+                                         F_rho,
+                                         F_rho_u,
+                                         F_rho_v,
+                                         F_rho_E,
+                                         s_mag);
+      r(0) = F_rho;
+      r(1) = F_rho_u;
+      r(2) = F_rho_v;
+      r(3) = F_rho_E;
+      r(4) = s_mag;
+    });
+  EXPECT_NEAR(result(0), 0.0, tol);
+  EXPECT_NEAR(result(1), -1.0 / Parameters<RealType>::gamma, tol);
+  EXPECT_NEAR(result(2), 0.0, tol);
+  EXPECT_NEAR(result(3), 0.0, tol);
+  EXPECT_NEAR(result(4), Kokkos::sqrt(RealType(1.05)), tol);
+}
+
 TEST(Flux, roe_flux_consistency_x)
 {
   // With equal left and right states, we recover the euler flux.
