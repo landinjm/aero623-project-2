@@ -51,6 +51,15 @@ public:
     return eval_gradient(i, point);
   }
 
+  Tensor<1, dim, RealType> node(unsigned int i) const
+  {
+    ASSERT(i < n_dofs_, "Node index out of range");
+    Tensor<1, dim, RealType> x;
+    for (unsigned int d = 0; d < dim; ++d)
+      x(d) = nodes_[i][d];
+    return x;
+  }
+
   const RealType (&get_coeffs() const)[max_dofs_][max_dofs_] { return coeffs_; }
 
 private:
@@ -58,6 +67,7 @@ private:
   unsigned int n_dofs_;
 
   RealType coeffs_[max_dofs_][max_dofs_];
+  RealType nodes_[max_dofs_][dim];
 
   static void monomial_exponents(int k, int& r, int& s)
   {
@@ -81,12 +91,14 @@ private:
     const int N = n_dofs_;
 
     // Build nodes — same ordering as monomials: ix+iy <= p
-    RealType xi[max_dofs_], eta[max_dofs_];
     int idx = 0;
     for (int iy = 0; iy <= (int)p_; ++iy)
       for (int ix = 0; ix <= (int)p_ - iy; ++ix, ++idx) {
-        xi[idx] = (p_ > 0) ? RealType(ix) / RealType(p_) : RealType(0);
-        eta[idx] = (p_ > 0) ? RealType(iy) / RealType(p_) : RealType(0);
+        nodes_[idx][0] =
+          (p_ > 0) ? RealType(ix) / RealType(p_) : RealType(1) / 3;
+        if constexpr (dim > 1)
+          nodes_[idx][1] =
+            (p_ > 0) ? RealType(iy) / RealType(p_) : RealType(1) / 3;
       }
 
     // Build Vandermonde matrix
@@ -94,8 +106,10 @@ private:
     for (int i = 0; i < N; ++i) {
       int k = 0;
       for (int s = 0; s <= (int)p_; ++s)
-        for (int r = 0; r <= (int)p_ - s; ++r, ++k)
-          A[i][k] = fixed_pow(xi[i], r) * fixed_pow(eta[i], s);
+        for (int r = 0; r <= (int)p_ - s; ++r, ++k) {
+          const RealType eta = (dim > 1) ? nodes_[i][1] : RealType(0);
+          A[i][k] = fixed_pow(nodes_[i][0], r) * fixed_pow(eta, s);
+        }
     }
 
     // rhs starts as identity, becomes A^{-1} = coeffs after solve
