@@ -4,9 +4,140 @@
 using RealType = double;
 static constexpr RealType tol = 1.0e-12;
 
+static RealType
+exact_triangle_integral(unsigned int a, unsigned int b)
+{
+  auto factorial = [](unsigned int n) -> RealType {
+    RealType f = 1.0;
+    for (unsigned int i = 2; i <= n; ++i) {
+      f *= i;
+    }
+    return f;
+  };
+  return factorial(a) * factorial(b) / factorial(a + b + 2);
+}
+
+static RealType
+exact_line_integral(unsigned int a)
+{
+  return 1.0 / (a + 1.0);
+}
+
+TEST(FE_DGQLegendre, 1D_DoF_counts)
+{
+  for (unsigned int order = 0; order <= 3; ++order) {
+    FE_DGQLegendre<1, RealType> fe(order);
+    EXPECT_EQ(fe.n_dofs(), order + 1);
+  }
+}
+
+TEST(FE_DGQLegendre, 2D_DoF_counts)
+{
+  for (unsigned int order = 0; order <= 3; ++order) {
+    FE_DGQLegendre<2, RealType> fe(order);
+    EXPECT_EQ(fe.n_dofs(), (order + 1) * (order + 2) / 2);
+  }
+}
+
+TEST(FE_DGQLegendre, 2D_basis_value)
+{
+  for (unsigned int order = 0; order <= 3; ++order) {
+    FE_DGQLegendre<2, RealType> fe(order);
+
+    const auto n_dofs = fe.n_dofs();
+
+    switch (order) {
+      case 0: {
+        Tensor<1, 2, RealType> n0 = { RealType(0), RealType(0) };
+        EXPECT_NEAR(fe.shape_value(0, n0), 1.0, tol);
+        break;
+      }
+      case 1: {
+        Tensor<1, 2, RealType> n0 = { RealType(0), RealType(0) };
+        Tensor<1, 2, RealType> n1 = { RealType(1), RealType(0) };
+        Tensor<1, 2, RealType> n2 = { RealType(0), RealType(1) };
+        std::vector<Tensor<1, 2, RealType>> nodes = { n0, n1, n2 };
+
+        for (unsigned int i = 0; i < n_dofs; ++i)
+          for (unsigned int j = 0; j < n_dofs; ++j)
+            EXPECT_NEAR(fe.shape_value(j, nodes[i]), (i == j) ? 1.0 : 0.0, tol);
+        break;
+      }
+      case 2: {
+        Tensor<1, 2, RealType> n0 = { RealType(0), RealType(0) };
+        Tensor<1, 2, RealType> n1 = { RealType(0.5), RealType(0) };
+        Tensor<1, 2, RealType> n2 = { RealType(1), RealType(0) };
+        Tensor<1, 2, RealType> n3 = { RealType(0), RealType(0.5) };
+        Tensor<1, 2, RealType> n4 = { RealType(0.5), RealType(0.5) };
+        Tensor<1, 2, RealType> n5 = { RealType(0), RealType(1) };
+        std::vector<Tensor<1, 2, RealType>> nodes = { n0, n1, n2, n3, n4, n5 };
+
+        for (unsigned int i = 0; i < n_dofs; ++i)
+          for (unsigned int j = 0; j < n_dofs; ++j)
+            EXPECT_NEAR(fe.shape_value(j, nodes[i]), (i == j) ? 1.0 : 0.0, tol);
+        break;
+      }
+      case 3: {
+        Tensor<1, 2, RealType> n0 = { RealType(0), RealType(0) };
+        Tensor<1, 2, RealType> n1 = { RealType(1. / 3.), RealType(0) };
+        Tensor<1, 2, RealType> n2 = { RealType(2. / 3.), RealType(0) };
+        Tensor<1, 2, RealType> n3 = { RealType(1), RealType(0) };
+        Tensor<1, 2, RealType> n4 = { RealType(0), RealType(1. / 3.) };
+        Tensor<1, 2, RealType> n5 = { RealType(1. / 3.), RealType(1. / 3.) };
+        Tensor<1, 2, RealType> n6 = { RealType(2. / 3.), RealType(1. / 3.) };
+        Tensor<1, 2, RealType> n7 = { RealType(0), RealType(2. / 3.) };
+        Tensor<1, 2, RealType> n8 = { RealType(1. / 3.), RealType(2. / 3.) };
+        Tensor<1, 2, RealType> n9 = { RealType(0), RealType(1) };
+        std::vector<Tensor<1, 2, RealType>> nodes = { n0, n1, n2, n3, n4,
+                                                      n5, n6, n7, n8, n9 };
+
+        for (unsigned int i = 0; i < n_dofs; ++i)
+          for (unsigned int j = 0; j < n_dofs; ++j)
+            EXPECT_NEAR(fe.shape_value(j, nodes[i]), (i == j) ? 1.0 : 0.0, tol);
+        break;
+      }
+    }
+  }
+}
+
+TEST(FE_DGQLegendre, 2D_basis_gradient)
+{
+  for (unsigned int order = 0; order <= 3; ++order) {
+    FE_DGQLegendre<2, RealType> fe(order);
+
+    const auto n_dofs = fe.n_dofs();
+
+    switch (order) {
+      case 0:
+      case 1:
+      case 2:
+      case 3: {
+        // finite difference check at an interior point
+        const RealType h = 1e-6;
+        const RealType fd_tol = 1e-5;
+        Tensor<1, 2, RealType> pt = { RealType(0.2), RealType(0.3) };
+        Tensor<1, 2, RealType> pt_dx = { RealType(0.2) + h, RealType(0.3) };
+        Tensor<1, 2, RealType> pt_dy = { RealType(0.2), RealType(0.3) + h };
+
+        for (unsigned int j = 0; j < n_dofs; ++j) {
+          auto grad = fe.shape_gradient(j, pt);
+          RealType fd_x =
+            (fe.shape_value(j, pt_dx) - fe.shape_value(j, pt)) / h;
+          RealType fd_y =
+            (fe.shape_value(j, pt_dy) - fe.shape_value(j, pt)) / h;
+          EXPECT_NEAR(grad(0), fd_x, fd_tol);
+          EXPECT_NEAR(grad(1), fd_y, fd_tol);
+        }
+        break;
+        break;
+      }
+    }
+  }
+}
+
 TEST(QGaussSimplex, 1D_weight_sum)
 {
-  for (unsigned int order = 1; order <= 3; ++order) {
+  for (unsigned int order = 1; order <= 4; ++order) {
     QGaussSimplex<1, RealType> quad(order);
     auto wts = quad.weights_host();
     RealType sum = 0.0;
@@ -19,7 +150,7 @@ TEST(QGaussSimplex, 1D_weight_sum)
 
 TEST(QGaussSimplex, 2D_weight_sum)
 {
-  for (unsigned int order = 1; order <= 3; ++order) {
+  for (unsigned int order = 1; order <= 4; ++order) {
     QGaussSimplex<2, RealType> quad(order);
     auto wts = quad.weights_host();
     RealType sum = 0.0;
@@ -138,3 +269,64 @@ TEST(QGaussSimplex, 2D_weight_values)
     }
   }
 }
+
+class QGaussSimplexExactness1D : public ::testing::TestWithParam<unsigned int>
+{};
+class QGaussSimplexExactness2D
+  : public ::testing::TestWithParam<
+      std::tuple<unsigned int, unsigned int, unsigned int>>
+{};
+
+TEST_P(QGaussSimplexExactness1D, IntegratesMonomialsExactly)
+{
+  unsigned int order = GetParam();
+  QGaussSimplex<1, RealType> quad(order);
+  auto pts = quad.points_host();
+  auto wts = quad.weights_host();
+
+  for (unsigned int a = 0; a <= order; ++a) {
+    RealType numerical = 0.0;
+    for (unsigned int q = 0; q < quad.n_points(); ++q) {
+      numerical += wts(q) * std::pow(pts(q, 0), a);
+    }
+
+    EXPECT_NEAR(numerical, exact_line_integral(a), tol);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Orders,
+                         QGaussSimplexExactness1D,
+                         ::testing::Values(1u, 2u, 3u, 4u));
+
+TEST_P(QGaussSimplexExactness2D, IntegratesMonomialsExactly)
+{
+  auto [order, a, b] = GetParam();
+  QGaussSimplex<2, RealType> quad(order);
+  auto pts = quad.points_host();
+  auto wts = quad.weights_host();
+
+  RealType numerical = 0.0;
+  for (unsigned int q = 0; q < quad.n_points(); ++q) {
+    numerical += wts(q) * std::pow(pts(q, 0), a) * std::pow(pts(q, 1), b);
+  }
+
+  EXPECT_NEAR(numerical, exact_triangle_integral(a, b), tol);
+}
+
+static std::vector<std::tuple<unsigned int, unsigned int, unsigned int>>
+MakeTriangleMonomialCases()
+{
+  std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> cases;
+  for (unsigned int order = 1; order <= 4; ++order) {
+    for (unsigned int total = 0; total <= order; ++total) {
+      for (unsigned int b = 0; b <= total; ++b) {
+        cases.emplace_back(order, total - b, b);
+      }
+    }
+  }
+  return cases;
+}
+
+INSTANTIATE_TEST_SUITE_P(MonomialCases,
+                         QGaussSimplexExactness2D,
+                         ::testing::ValuesIn(MakeTriangleMonomialCases()));

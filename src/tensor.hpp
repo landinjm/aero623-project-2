@@ -28,6 +28,16 @@ public:
     }
   }
 
+  KOKKOS_INLINE_FUNCTION
+  Tensor(std::initializer_list<RealType> init)
+  {
+    ASSERT(init.size() == n_components, "Initializer list size mismatch");
+    unsigned int i = 0;
+    for (const RealType& v : init) {
+      data_[i++] = v;
+    }
+  }
+
   template<unsigned int R = rank, typename = std::enable_if_t<R == 1>>
   KOKKOS_INLINE_FUNCTION RealType& operator()(unsigned int i)
   {

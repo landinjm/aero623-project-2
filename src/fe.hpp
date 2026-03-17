@@ -5,13 +5,12 @@
 #include <tensor.hpp>
 
 /**
- * @brief Discontinuous Gauss-Legendre quadrature rule using full-order basis
- * for simplex elements.
+ * @brief Discontinuous full-order Langrange basis
  */
 template<unsigned int dim, typename RealType>
-class FE_DGP
+class FE_DGQLegendre
 {
-  KOKKOS_INLINE_FUNCTION
+public:
   static constexpr unsigned int n_dofs_per_cell(unsigned int p)
   {
     if constexpr (dim == 1) {
@@ -23,7 +22,10 @@ class FE_DGP
     return 0;
   }
 
-  explicit FE_DGP(const unsigned int p)
+  static constexpr unsigned int max_degree_ = 3;
+  static constexpr unsigned int max_dofs_ = 10;
+
+  explicit FE_DGQLegendre(const unsigned int p)
     : p_(p)
     , n_dofs_(n_dofs_per_cell(p))
   {
@@ -34,90 +36,147 @@ class FE_DGP
   unsigned int degree() const { return p_; }
   unsigned int n_dofs() const { return n_dofs_; }
 
-  KOKKOS_INLINE_FUNCTION
   RealType shape_value(unsigned int i,
                        const Tensor<1, dim, RealType>& point) const
   {
     ASSERT(i < n_dofs_, "Basis function index out of range");
-    return eval_monomial(i, point);
+    return eval(i, point);
   }
 
-  KOKKOS_INLINE_FUNCTION
   Tensor<1, dim, RealType> shape_gradient(
     unsigned int i,
     const Tensor<1, dim, RealType>& point) const
   {
     ASSERT(i < n_dofs_, "Basis function index out of range");
-    return eval_monomial_gradient(i, point);
+    return eval_gradient(i, point);
   }
 
-private:
-  static constexpr unsigned int max_degree_ = 3;
-  static constexpr unsigned int max_dofs_ = 10;
+  const RealType (&get_coeffs() const)[max_dofs_][max_dofs_] { return coeffs_; }
 
+private:
   unsigned int p_;
   unsigned int n_dofs_;
 
-  unsigned int exponents_[max_dofs_][dim];
+  RealType coeffs_[max_dofs_][max_dofs_];
+
+  static void monomial_exponents(int k, int& r, int& s)
+  {
+    int idx = 0;
+    for (s = 0; s <= (int)max_degree_; ++s)
+      for (r = 0; r <= (int)max_degree_ - s; ++r, ++idx)
+        if (idx == k)
+          return;
+  }
+
+  static RealType fixed_pow(RealType x, int n)
+  {
+    RealType r = RealType(1);
+    for (int i = 0; i < n; ++i)
+      r *= x;
+    return r;
+  }
 
   void build_monomial_table()
   {
-    unsigned int idx = 0;
-    if constexpr (dim == 1) {
-      for (unsigned int a = 0; a <= p_; ++a) {
-        exponents_[idx++][0] = a;
+    const int N = n_dofs_;
+
+    // Build nodes — same ordering as monomials: ix+iy <= p
+    RealType xi[max_dofs_], eta[max_dofs_];
+    int idx = 0;
+    for (int iy = 0; iy <= (int)p_; ++iy)
+      for (int ix = 0; ix <= (int)p_ - iy; ++ix, ++idx) {
+        xi[idx] = (p_ > 0) ? RealType(ix) / RealType(p_) : RealType(0);
+        eta[idx] = (p_ > 0) ? RealType(iy) / RealType(p_) : RealType(0);
       }
-    } else if constexpr (dim == 2) {
-      for (unsigned int deg = 0; deg <= p_; ++deg) {
-        for (unsigned int a = 0; a <= deg; ++a) {
-          exponents_[idx][0] = deg - a;
-          exponents_[idx][1] = a;
-          ++idx;
+
+    // Build Vandermonde matrix
+    RealType A[max_dofs_][max_dofs_];
+    for (int i = 0; i < N; ++i) {
+      int k = 0;
+      for (int s = 0; s <= (int)p_; ++s)
+        for (int r = 0; r <= (int)p_ - s; ++r, ++k)
+          A[i][k] = fixed_pow(xi[i], r) * fixed_pow(eta[i], s);
+    }
+
+    // rhs starts as identity, becomes A^{-1} = coeffs after solve
+    for (int i = 0; i < N; ++i)
+      for (int j = 0; j < N; ++j)
+        coeffs_[i][j] = (i == j) ? RealType(1) : RealType(0);
+
+    // LU with partial pivoting
+    int piv[max_dofs_];
+    for (int k = 0; k < N; ++k) {
+      // Find pivot
+      int maxrow = k;
+      RealType maxval = std::abs(A[k][k]);
+      for (int i = k + 1; i < N; ++i)
+        if (std::abs(A[i][k]) > maxval) {
+          maxval = std::abs(A[i][k]);
+          maxrow = i;
         }
+      piv[k] = maxrow;
+
+      for (int j = 0; j < N; ++j) {
+        std::swap(A[k][j], A[maxrow][j]);
+        std::swap(coeffs_[k][j], coeffs_[maxrow][j]);
+      }
+
+      for (int i = k + 1; i < N; ++i) {
+        A[i][k] /= A[k][k];
+        for (int j = k + 1; j < N; ++j)
+          A[i][j] -= A[i][k] * A[k][j];
+        for (int j = 0; j < N; ++j)
+          coeffs_[i][j] -= A[i][k] * coeffs_[k][j];
       }
     }
 
-    ASSERT(idx == n_dofs_, "Monomial table size mismatch");
+    // Back substitution
+    for (int k = N - 1; k >= 0; --k) {
+      for (int j = 0; j < N; ++j)
+        coeffs_[k][j] /= A[k][k];
+      for (int i = 0; i < k; ++i)
+        for (int j = 0; j < N; ++j)
+          coeffs_[i][j] -= A[i][k] * coeffs_[k][j];
+    }
+
+    // Tranpose for cache locality
+    RealType tmp[max_dofs_][max_dofs_];
+    for (int i = 0; i < N; ++i)
+      for (int j = 0; j < N; ++j)
+        tmp[j][i] = coeffs_[i][j];
+    for (int i = 0; i < N; ++i)
+      for (int j = 0; j < N; ++j)
+        coeffs_[i][j] = tmp[i][j];
   }
 
-  KOKKOS_INLINE_FUNCTION RealType
-  eval_monomial(unsigned int i, const Tensor<1, dim, RealType>& point) const
+  RealType eval(unsigned int i, const Tensor<1, dim, RealType>& point) const
   {
-    RealType val = RealType(1);
-    for (unsigned int d = 0; d < dim; ++d) {
-      const unsigned int exp = exponents_[i][d];
-      for (unsigned int k = 0; k < exp; ++k) {
-        val *= point(d);
-      }
-    }
+    const RealType x = point(0);
+    const RealType y = (dim > 1) ? point(1) : RealType(0);
+    RealType val = RealType(0);
+    int k = 0;
+    for (int s = 0; s <= (int)p_; ++s)
+      for (int r = 0; r <= (int)p_ - s; ++r, ++k)
+        val += coeffs_[i][k] * fixed_pow(x, r) * fixed_pow(y, s);
     return val;
   }
 
-  KOKKOS_INLINE_FUNCTION
-  Tensor<1, dim, RealType> eval_monomial_gradient(
+  Tensor<1, dim, RealType> eval_gradient(
     unsigned int i,
     const Tensor<1, dim, RealType>& point) const
   {
+    const RealType x = point(0);
+    const RealType y = (dim > 1) ? point(1) : RealType(0);
     Tensor<1, dim, RealType> grad;
-
-    for (unsigned int d = 0; d < dim; ++d) {
-      const unsigned int exp = exponents_[i][d];
-      if (exp == 0) {
-        grad(d) = RealType(0);
-        continue;
+    int k = 0;
+    for (int s = 0; s <= (int)p_; ++s) {
+      for (int r = 0; r <= (int)p_ - s; ++r, ++k) {
+        const RealType c = coeffs_[i][k];
+        if (r > 0)
+          grad(0) += c * RealType(r) * fixed_pow(x, r - 1) * fixed_pow(y, s);
+        if (dim > 1 && s > 0)
+          grad(1) += c * fixed_pow(x, r) * RealType(s) * fixed_pow(y, s - 1);
       }
-
-      RealType val = RealType(exp);
-      for (unsigned int d2 = 0; d2 < dim; ++d2) {
-        unsigned int e = exponents_[i][d2];
-        if (d2 == d) {
-          --e;
-        }
-        for (unsigned int k = 0; k < e; ++k) {
-          val *= point(d2);
-        }
-      }
-      grad(d) = val;
     }
     return grad;
   }
@@ -309,7 +368,7 @@ public:
   using ShapeValueView = VectorViewTrait<RealType, DeviceMemSpace>::type;
   using ShapeGradView = MatrixViewTrait<RealType, DeviceMemSpace>::type;
 
-  FEValues(const FE_DGP<dim, RealType>& fe,
+  FEValues(const FE_DGQLegendre<dim, RealType>& fe,
            const QGaussSimplex<dim, RealType>& quad)
     : n_dofs_(fe.n_dofs())
     , n_q_points_(quad.n_points())
