@@ -379,51 +379,510 @@ template<unsigned int dim, typename RealType>
 class FEValues
 {
 public:
-  using ShapeValueView = VectorViewTrait<RealType, DeviceMemSpace>::type;
-  using ShapeGradView = MatrixViewTrait<RealType, DeviceMemSpace>::type;
+  using PhiView = typename MatrixViewTrait<RealType, DeviceMemSpace>::type;
+  using GradView = Kokkos::View<RealType***, Layout, DeviceMemSpace>;
+  using JxWView = typename VectorViewTrait<RealType, DeviceMemSpace>::type;
+  using PointView = typename MatrixViewTrait<RealType, DeviceMemSpace>::type;
+
+  struct DeviceProxy
+  {
+    PhiView phi;
+    GradView grad_phi;
+    JxWView JxW;
+    PointView quadrature_points;
+
+    unsigned int n_dofs;
+    unsigned int n_q;
+
+    KOKKOS_INLINE_FUNCTION
+    RealType shape_value(unsigned int i, unsigned int q) const
+    {
+      return phi(i, q);
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    RealType shape_gradient(unsigned int i,
+                            unsigned int q,
+                            unsigned int d) const
+    {
+      return grad_phi(i, q, d);
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    RealType jxw(unsigned int q) const { return JxW(q); }
+
+    KOKKOS_INLINE_FUNCTION
+    RealType quadrature_point(unsigned int q, unsigned int d) const
+    {
+      return quadrature_points(q, d);
+    }
+  };
 
   FEValues(const FE_DGQLegendre<dim, RealType>& fe,
            const QGaussSimplex<dim, RealType>& quad)
-    : n_dofs_(fe.n_dofs())
-    , n_q_points_(quad.n_points())
+    : fe_(fe)
+    , quad_(quad)
+    , n_dofs_(fe.n_dofs())
+    , n_q_(quad.n_points())
   {
-    phi_ = ShapeValueView("phi", n_dofs_, n_q_points_);
-    grad_phi_ = ShapeGradView("grad_phi", n_dofs_, n_q_points_, dim);
+    // Allocate device views
+    phi_ref_ = PhiView("phi_ref", n_dofs_, n_q_);
+    grad_phi_ref_ = GradView("grad_phi_ref", n_dofs_, n_q_, dim);
+    grad_phi_phys_ = GradView("grad_phi_phys", n_dofs_, n_q_, dim);
+    JxW_ = JxWView("JxW", n_q_);
+    quad_points_ = PointView("quad_points", n_q_, dim);
 
-    auto phi_h = Kokkos::create_mirror_view(phi_);
-    auto grad_phi_h = Kokkos::create_mirror_view(grad_phi_);
-
-    auto points_h = quad.points_host();
+    // Precompute reference-space values — same for every cell
+    auto phi_h = Kokkos::create_mirror_view(phi_ref_);
+    auto grad_ref_h = Kokkos::create_mirror_view(grad_phi_ref_);
+    auto pts_h = quad_.points_host();
 
     for (unsigned int i = 0; i < n_dofs_; ++i) {
-      for (unsigned int q = 0; q < n_q_points_; ++q) {
+      for (unsigned int q = 0; q < n_q_; ++q) {
         Tensor<1, dim, RealType> xi;
+        for (unsigned int d = 0; d < dim; ++d)
+          xi(d) = pts_h(q, d);
+
+        phi_h(i, q) = fe_.shape_value(i, xi);
+
+        auto g = fe_.shape_gradient(i, xi);
+        for (unsigned int d = 0; d < dim; ++d)
+          grad_ref_h(i, q, d) = g(d);
+      }
+    }
+
+    Kokkos::deep_copy(phi_ref_, phi_h);
+    Kokkos::deep_copy(grad_phi_ref_, grad_ref_h);
+  }
+
+  template<typename CellAccessor>
+  void reinit(const CellAccessor& cell)
+  {
+    // Build Jacobian from cell vertices (affine map)
+    // x0 = vertex 0,  J[:,d] = vertex(d+1) - vertex(0)
+    RealType x0[dim], J[dim][dim], Jinv[dim][dim];
+
+    for (unsigned int d = 0; d < dim; ++d)
+      x0[d] = cell.vertex(0)[d];
+
+    for (unsigned int col = 0; col < dim; ++col) {
+      auto xv = cell.vertex(col + 1);
+      for (unsigned int d = 0; d < dim; ++d)
+        J[d][col] = xv[d] - x0[d];
+    }
+
+    const RealType detJ = compute_det(J);
+    ASSERT(detJ > RealType(0), "Negative Jacobian — check cell orientation");
+    compute_inv(J, detJ, Jinv);
+
+    // Fill JxW and quadrature points — host mirrors then deep_copy
+    auto JxW_h = Kokkos::create_mirror_view(JxW_);
+    auto qpts_h = Kokkos::create_mirror_view(quad_points_);
+    auto wts_h = quad_.weights_host();
+    auto pts_h = quad_.points_host();
+
+    for (unsigned int q = 0; q < n_q_; ++q) {
+      JxW_h(q) = detJ * wts_h(q);
+      for (unsigned int d = 0; d < dim; ++d) {
+        RealType xd = x0[d];
+        for (unsigned int d2 = 0; d2 < dim; ++d2)
+          xd += J[d][d2] * pts_h(q, d2);
+        qpts_h(q, d) = xd;
+      }
+    }
+
+    Kokkos::deep_copy(JxW_, JxW_h);
+    Kokkos::deep_copy(quad_points_, qpts_h);
+
+    // Physical gradients: grad_phys(i,q,d) = sum_{d2} Jinv(d2,d) *
+    // grad_ref(i,q,d2) Do this on device to avoid a large host-side loop
+    auto grad_ref = grad_phi_ref_; // device view, captured by value
+    auto grad_phys = grad_phi_phys_;
+    const unsigned int ndofs = n_dofs_;
+    const unsigned int nq = n_q_;
+
+    // Copy Jinv into a flat array for capture
+    RealType Jinv_flat[dim * dim];
+    for (unsigned int d = 0; d < dim; ++d)
+      for (unsigned int d2 = 0; d2 < dim; ++d2)
+        Jinv_flat[d * dim + d2] = Jinv[d][d2];
+
+    Kokkos::parallel_for(
+      "grad_transform",
+      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({ 0, 0 }, { (int)ndofs, (int)nq }),
+      KOKKOS_LAMBDA(int i, int q) {
         for (unsigned int d = 0; d < dim; ++d) {
-          xi(d) = points_h(q, d);
+          RealType val = RealType(0);
+          for (unsigned int d2 = 0; d2 < dim; ++d2)
+            // J^{-T}_{d,d2} = Jinv[d2][d]
+            val += Jinv_flat[d2 * dim + d] * grad_ref(i, q, d2);
+          grad_phys(i, q, d) = val;
         }
+      });
+    Kokkos::fence();
+  }
 
-        phi_h(i, q) = fe.shape_value(i, xi);
+  DeviceProxy device_proxy() const
+  {
+    return { phi_ref_, grad_phi_phys_, JxW_, quad_points_, n_dofs_, n_q_ };
+  }
 
-        auto grad = fe.shape_gradient(i, xi);
+  unsigned int n_dofs() const { return n_dofs_; }
+  unsigned int n_q_points() const { return n_q_; }
+
+private:
+  const FE_DGQLegendre<dim, RealType>& fe_;
+  const QGaussSimplex<dim, RealType>& quad_;
+
+  unsigned int n_dofs_;
+  unsigned int n_q_;
+
+  PhiView phi_ref_;
+  GradView grad_phi_ref_;
+  GradView grad_phi_phys_;
+  JxWView JxW_;
+  PointView quad_points_;
+
+  // Plain C array Jacobian helpers — no virtual, no std::
+  static RealType compute_det(const RealType J[dim][dim])
+  {
+    if constexpr (dim == 1)
+      return J[0][0];
+    if constexpr (dim == 2)
+      return J[0][0] * J[1][1] - J[0][1] * J[1][0];
+    if constexpr (dim == 3)
+      return J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) -
+             J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
+             J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
+  }
+
+  static void compute_inv(const RealType J[dim][dim],
+                          RealType detJ,
+                          RealType Jinv[dim][dim])
+  {
+    const RealType inv = RealType(1) / detJ;
+    if constexpr (dim == 1) {
+      Jinv[0][0] = inv;
+    }
+    if constexpr (dim == 2) {
+      Jinv[0][0] = J[1][1] * inv;
+      Jinv[0][1] = -J[0][1] * inv;
+      Jinv[1][0] = -J[1][0] * inv;
+      Jinv[1][1] = J[0][0] * inv;
+    }
+    if constexpr (dim == 3) {
+      Jinv[0][0] = (J[1][1] * J[2][2] - J[1][2] * J[2][1]) * inv;
+      Jinv[0][1] = (J[0][2] * J[2][1] - J[0][1] * J[2][2]) * inv;
+      Jinv[0][2] = (J[0][1] * J[1][2] - J[0][2] * J[1][1]) * inv;
+      Jinv[1][0] = (J[1][2] * J[2][0] - J[1][0] * J[2][2]) * inv;
+      Jinv[1][1] = (J[0][0] * J[2][2] - J[0][2] * J[2][0]) * inv;
+      Jinv[1][2] = (J[0][2] * J[1][0] - J[0][0] * J[1][2]) * inv;
+      Jinv[2][0] = (J[1][0] * J[2][1] - J[1][1] * J[2][0]) * inv;
+      Jinv[2][1] = (J[0][1] * J[2][0] - J[0][0] * J[2][1]) * inv;
+      Jinv[2][2] = (J[0][0] * J[1][1] - J[0][1] * J[1][0]) * inv;
+    }
+  }
+};
+
+template<unsigned int dim, typename RealType>
+class FEFaceValues
+{
+public:
+  using PhiView = typename MatrixViewTrait<RealType, DeviceMemSpace>::type;
+  using GradView = Kokkos::View<RealType***, Layout, DeviceMemSpace>;
+  using JxWView = typename VectorViewTrait<RealType, DeviceMemSpace>::type;
+  using PointView = typename MatrixViewTrait<RealType, DeviceMemSpace>::type;
+  using NormalView = typename MatrixViewTrait<RealType, DeviceMemSpace>::type;
+
+  struct DeviceProxy
+  {
+    PhiView phi;
+    GradView grad_phi;
+    JxWView JxW;
+    PointView quadrature_points;
+    NormalView normals;
+
+    unsigned int n_dofs;
+    unsigned int n_q;
+
+    KOKKOS_INLINE_FUNCTION
+    RealType shape_value(unsigned int i, unsigned int q) const
+    {
+      return phi(i, q);
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    RealType shape_gradient(unsigned int i,
+                            unsigned int q,
+                            unsigned int d) const
+    {
+      return grad_phi(i, q, d);
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    RealType jxw(unsigned int q) const { return JxW(q); }
+
+    KOKKOS_INLINE_FUNCTION
+    RealType quadrature_point(unsigned int q, unsigned int d) const
+    {
+      return quadrature_points(q, d);
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    RealType normal(unsigned int q, unsigned int d) const
+    {
+      return normals(q, d);
+    }
+  };
+
+  // face_quad is a (dim-1)-dimensional rule
+  FEFaceValues(const FE_DGQLegendre<dim, RealType>& fe,
+               const QGaussSimplex<dim - 1, RealType>& face_quad)
+    : fe_(fe)
+    , face_quad_(face_quad)
+    , n_dofs_(fe.n_dofs())
+    , n_q_(face_quad.n_points())
+  {
+    phi_ = PhiView("fev_face_phi", n_dofs_, n_q_);
+    grad_phi_ = GradView("fev_face_grad", n_dofs_, n_q_, dim);
+    JxW_ = JxWView("fev_face_JxW", n_q_);
+    points_ = PointView("fev_face_pts", n_q_, dim);
+    normals_ = NormalView("fev_face_nrm", n_q_, dim);
+  }
+
+  // Call on host once per (cell, face_no) pair before launching kernel
+  template<typename CellAccessor>
+  void reinit(const CellAccessor& cell, unsigned int face_no)
+  {
+    ASSERT(face_no < dim + 1, "Face index out of range");
+
+    // ----------------------------------------------------------------
+    // Build cell Jacobian (same as FEValues::reinit)
+    // ----------------------------------------------------------------
+    RealType x0[dim], J[dim][dim], Jinv[dim][dim];
+
+    for (unsigned int d = 0; d < dim; ++d)
+      x0[d] = cell.vertex(0)[d];
+
+    for (unsigned int col = 0; col < dim; ++col) {
+      auto xv = cell.vertex(col + 1);
+      for (unsigned int d = 0; d < dim; ++d)
+        J[d][col] = xv[d] - x0[d];
+    }
+
+    const RealType detJ = compute_det(J);
+    ASSERT(detJ > RealType(0), "Negative Jacobian — check cell orientation");
+    compute_inv(J, detJ, Jinv);
+
+    // ----------------------------------------------------------------
+    // Map (dim-1) face quad points -> cell reference coords -> physical
+    // ----------------------------------------------------------------
+    auto face_pts_h = face_quad_.points_host();
+    auto face_wts_h = face_quad_.weights_host();
+
+    // Cell-reference coords of each face quad point
+    RealType cell_ref[/* n_q_ */ 10][dim]; // bounded by max quad points
+    for (unsigned int q = 0; q < n_q_; ++q)
+      face_to_cell_ref(face_no, face_pts_h, q, cell_ref[q]);
+
+    // ----------------------------------------------------------------
+    // Compute outward normal and face Jacobian (|tangent| in 2D)
+    // These are constant along a face for an affine map
+    // ----------------------------------------------------------------
+    RealType normal[dim];
+    RealType face_jac;
+    compute_face_normal_and_jac(face_no, J, normal, face_jac);
+
+    // ----------------------------------------------------------------
+    // Fill host mirrors and deep_copy
+    // ----------------------------------------------------------------
+    auto phi_h = Kokkos::create_mirror_view(phi_);
+    auto grad_h = Kokkos::create_mirror_view(grad_phi_);
+    auto JxW_h = Kokkos::create_mirror_view(JxW_);
+    auto pts_h = Kokkos::create_mirror_view(points_);
+    auto normals_h = Kokkos::create_mirror_view(normals_);
+
+    for (unsigned int q = 0; q < n_q_; ++q) {
+      // Physical coords of this face quad point
+      for (unsigned int d = 0; d < dim; ++d) {
+        RealType xd = x0[d];
+        for (unsigned int d2 = 0; d2 < dim; ++d2)
+          xd += J[d][d2] * cell_ref[q][d2];
+        pts_h(q, d) = xd;
+      }
+
+      JxW_h(q) = face_jac * face_wts_h(q);
+
+      for (unsigned int d = 0; d < dim; ++d)
+        normals_h(q, d) = normal[d];
+
+      // Shape values and physical gradients at this face point
+      Tensor<1, dim, RealType> xi;
+      for (unsigned int d = 0; d < dim; ++d)
+        xi(d) = cell_ref[q][d];
+
+      for (unsigned int i = 0; i < n_dofs_; ++i) {
+        phi_h(i, q) = fe_.shape_value(i, xi);
+
+        auto g_ref = fe_.shape_gradient(i, xi);
         for (unsigned int d = 0; d < dim; ++d) {
-          grad_phi_h(i, q, d) = grad(d);
+          RealType val = RealType(0);
+          for (unsigned int d2 = 0; d2 < dim; ++d2)
+            val += Jinv[d2][d] * g_ref(d2); // J^{-T} * grad_ref
+          grad_h(i, q, d) = val;
         }
       }
     }
 
     Kokkos::deep_copy(phi_, phi_h);
-    Kokkos::deep_copy(grad_phi_, grad_phi_h);
+    Kokkos::deep_copy(grad_phi_, grad_h);
+    Kokkos::deep_copy(JxW_, JxW_h);
+    Kokkos::deep_copy(points_, pts_h);
+    Kokkos::deep_copy(normals_, normals_h);
+  }
+
+  DeviceProxy device_proxy() const
+  {
+    return { phi_, grad_phi_, JxW_, points_, normals_, n_dofs_, n_q_ };
   }
 
   unsigned int n_dofs() const { return n_dofs_; }
-  unsigned int n_q_points() const { return n_q_points_; }
-
-  ShapeValueView phi() const { return phi_; }
-  ShapeGradView grad_phi() const { return grad_phi_; }
+  unsigned int n_q_points() const { return n_q_; }
 
 private:
+  const FE_DGQLegendre<dim, RealType>& fe_;
+  const QGaussSimplex<dim - 1, RealType>& face_quad_;
+
   unsigned int n_dofs_;
-  unsigned int n_q_points_;
-  ShapeValueView phi_;
-  ShapeGradView grad_phi_;
+  unsigned int n_q_;
+
+  PhiView phi_;
+  GradView grad_phi_;
+  JxWView JxW_;
+  PointView points_;
+  NormalView normals_;
+
+  // ----------------------------------------------------------------
+  // Map a (dim-1) face quad point to dim cell reference coordinates.
+  //
+  // 2D simplex face numbering (outward normals in reference space):
+  //   face 0: v0=(0,0) -> v1=(1,0)   param: (t, 0)
+  //   face 1: v1=(1,0) -> v2=(0,1)   param: (1-t, t)
+  //   face 2: v2=(0,1) -> v0=(0,0)   param: (0, 1-t)
+  // ----------------------------------------------------------------
+  static void face_to_cell_ref(unsigned int face_no,
+                               const auto& face_pts_h,
+                               unsigned int q,
+                               RealType cell_ref_q[dim])
+  {
+    static_assert(dim == 2, "Only implemented for dim=2");
+    const RealType t = face_pts_h(q, 0);
+    switch (face_no) {
+      case 0:
+        cell_ref_q[0] = t;
+        cell_ref_q[1] = RealType(0);
+        break;
+      case 1:
+        cell_ref_q[0] = RealType(1) - t;
+        cell_ref_q[1] = t;
+        break;
+      case 2:
+        cell_ref_q[0] = RealType(0);
+        cell_ref_q[1] = RealType(1) - t;
+        break;
+      default:
+        ASSERT(false, "Invalid face number");
+    }
+  }
+
+  // Physical tangent -> face length and outward unit normal
+  static void compute_face_normal_and_jac(unsigned int face_no,
+                                          const RealType J[dim][dim],
+                                          RealType normal[dim],
+                                          RealType& face_jac)
+  {
+    static_assert(dim == 2, "Only implemented for dim=2");
+
+    // Tangent in physical space for each reference face
+    // face 0: d/dt (t, 0)    -> J * (1, 0)^T = J[:,0]
+    // face 1: d/dt (1-t, t)  -> J * (-1, 1)^T
+    // face 2: d/dt (0, 1-t)  -> J * (0, -1)^T = -J[:,1]
+    RealType tangent[2];
+    switch (face_no) {
+      case 0:
+        tangent[0] = J[0][0];
+        tangent[1] = J[1][0];
+        break;
+      case 1:
+        tangent[0] = -J[0][0] + J[0][1];
+        tangent[1] = -J[1][0] + J[1][1];
+        break;
+      case 2:
+        tangent[0] = -J[0][1];
+        tangent[1] = -J[1][1];
+        break;
+      default:
+        ASSERT(false, "Invalid face number");
+    }
+
+    face_jac = Kokkos::sqrt(tangent[0] * tangent[0] + tangent[1] * tangent[1]);
+
+    // Rotate 90 degrees to get normal
+    normal[0] = tangent[1] / face_jac;
+    normal[1] = -tangent[0] / face_jac;
+
+    // Flip if not outward — reference outward normals:
+    // face 0: (0,-1), face 1: (1,1)/sqrt(2), face 2: (-1,0)
+    const RealType ref_nx = (face_no == 0)   ? RealType(0)
+                            : (face_no == 1) ? RealType(1)
+                                             : -RealType(1);
+    const RealType ref_ny = (face_no == 0)   ? -RealType(1)
+                            : (face_no == 1) ? RealType(1)
+                                             : RealType(0);
+    if (normal[0] * ref_nx + normal[1] * ref_ny < RealType(0)) {
+      normal[0] = -normal[0];
+      normal[1] = -normal[1];
+    }
+  }
+
+  // Identical helpers to FEValues — factor into a shared header
+  // if they diverge from each other
+  static RealType compute_det(const RealType J[dim][dim])
+  {
+    if constexpr (dim == 1)
+      return J[0][0];
+    if constexpr (dim == 2)
+      return J[0][0] * J[1][1] - J[0][1] * J[1][0];
+    if constexpr (dim == 3)
+      return J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) -
+             J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
+             J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
+  }
+
+  static void compute_inv(const RealType J[dim][dim],
+                          RealType detJ,
+                          RealType Jinv[dim][dim])
+  {
+    const RealType inv = RealType(1) / detJ;
+    if constexpr (dim == 1) {
+      Jinv[0][0] = inv;
+    }
+    if constexpr (dim == 2) {
+      Jinv[0][0] = J[1][1] * inv;
+      Jinv[0][1] = -J[0][1] * inv;
+      Jinv[1][0] = -J[1][0] * inv;
+      Jinv[1][1] = J[0][0] * inv;
+    }
+    if constexpr (dim == 3) {
+      Jinv[0][0] = (J[1][1] * J[2][2] - J[1][2] * J[2][1]) * inv;
+      Jinv[0][1] = (J[0][2] * J[2][1] - J[0][1] * J[2][2]) * inv;
+      Jinv[0][2] = (J[0][1] * J[1][2] - J[0][2] * J[1][1]) * inv;
+      Jinv[1][0] = (J[1][2] * J[2][0] - J[1][0] * J[2][2]) * inv;
+      Jinv[1][1] = (J[0][0] * J[2][2] - J[0][2] * J[2][0]) * inv;
+      Jinv[1][2] = (J[0][2] * J[1][0] - J[0][0] * J[1][2]) * inv;
+      Jinv[2][0] = (J[1][0] * J[2][1] - J[1][1] * J[2][0]) * inv;
+      Jinv[2][1] = (J[0][1] * J[2][0] - J[0][0] * J[2][1]) * inv;
+      Jinv[2][2] = (J[0][0] * J[1][1] - J[0][1] * J[1][0]) * inv;
+    }
+  }
 };

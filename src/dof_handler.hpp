@@ -26,14 +26,30 @@ public:
     // Forward all geometry queries to the triangulation accessor
     CellIndexType index() const { return tria_cell.index; }
     bool is_active() const { return tria_cell.is_active(); }
+    double measure() const { return tria_cell.measure(); }
+    double diameter() const { return tria_cell.diameter(); }
 
     // Vertex coordinates, face accessors, etc. — all delegated
     auto vertex(unsigned int v) const { return tria_cell.vertex(v); }
-    auto face(unsigned int f) const { return tria_cell.face(f); }
-    auto n_vertices() const { return tria_cell.n_vertices(); }
+    bool face_at_boundary(uint8_t local_f) const
+    {
+      return tria_cell.face_at_boundary(local_f);
+    }
+    BoundaryIdType face_boundary_id(uint8_t local_f) const
+    {
+      return tria_cell.face_boundary_id(local_f);
+    }
+    CellIndexType neighbor_index(uint8_t local_f) const
+    {
+      FaceIndexType fi = tria_cell.face_index(local_f);
+      auto c0 = tria_cell.tria->face_cells(fi, 0);
+      auto c1 = tria_cell.tria->face_cells(fi, 1);
+      // Return whichever side is not this cell
+      return (c0 == tria_cell.index) ? c1 : c0;
+    }
 
     // DOF query — the only thing DoFHandler adds
-    void get_dof_indices(std::vector<size_type>& indices) const
+    void get_dof_indices(std::vector<uint32_t>& indices) const
     {
       const size_type k = tria_cell.index;
       const size_type ndpc = handler->n_dofs_per_cell_;
@@ -42,9 +58,9 @@ public:
         indices[i] = handler->cell_dof_indices_host_(k, i);
     }
 
-    size_type dof_index(unsigned int local) const
+    uint32_t dof_index(unsigned int local) const
     {
-      return handler->cell_dof_indices_host_(tria_cell.index(), local);
+      return handler->cell_dof_indices_host_(tria_cell.index, local);
     }
   };
 
@@ -129,6 +145,11 @@ public:
 
   const FE_DGQLegendre<dim, RealType>& fe() const { return fe_; }
   const Triangulation<dim>& tria() const { return tria_; }
+
+  CellAccessor cell(CellIndexType k) const
+  {
+    return { tria_.get_cell(k), this };
+  }
 
   IndexView cell_dof_indices() const { return cell_dof_indices_device_; }
 

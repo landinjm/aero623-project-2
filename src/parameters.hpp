@@ -41,12 +41,12 @@ struct Parameters
   /**
    * @brief x-component of inlet flow normal.
    */
-  static constexpr RealType n_x_0 = Kokkos::cos(alpha / 180.0 * M_PI);
+  static RealType n_x_0() { return Kokkos::cos(alpha / 180.0 * M_PI); }
 
   /**
    * @brief y-component of inlet flow normal.
    */
-  static constexpr RealType n_y_0 = Kokkos::sin(alpha / 180.0 * M_PI);
+  static RealType n_y_0() { return Kokkos::sin(alpha / 180.0 * M_PI); }
 
   /**
    * @brief Outflow static pressure.
