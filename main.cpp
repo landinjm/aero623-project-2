@@ -25,21 +25,30 @@ public:
 
   EulerSolver(const DoFHandler<dim, RealType>& dof_handler,
               FEValues<dim, RealType>& fe_values,
-              FEFaceValues<dim, RealType>& fe_face_values)
+              FEFaceValues<dim, RealType>& fe_face_values,
+              unsigned int degree)
     : dof_handler_(dof_handler)
     , fe_values_(fe_values)
     , fe_face_values_(fe_face_values)
     , n_dofs_(dof_handler.n_dofs())
+    , degree_(degree)
   {
 
-    // Allocate the vectors for the conservative state and its residual along
-    // with the timestep
-    rho_ = VecDevice(n_dofs_);
+    // 1. Allocate Current State Vectors
+    rho_   = VecDevice(n_dofs_);
     rho_u_ = VecDevice(n_dofs_);
     rho_v_ = VecDevice(n_dofs_);
     rho_E_ = VecDevice(n_dofs_);
 
-    res_rho_ = VecDevice(n_dofs_);
+    // 2. Allocate "Old" State Vectors for SSP-RK3 Stages
+    // These store u^n to perform the convex combinations required by the scheme.
+    rho_old_   = VecDevice(n_dofs_);
+    rho_u_old_ = VecDevice(n_dofs_);
+    rho_v_old_ = VecDevice(n_dofs_);
+    rho_E_old_ = VecDevice(n_dofs_);
+
+    // 3. Allocate Residual Vectors
+    res_rho_   = VecDevice(n_dofs_);
     res_rho_u_ = VecDevice(n_dofs_);
     res_rho_v_ = VecDevice(n_dofs_);
     res_rho_E_ = VecDevice(n_dofs_);
@@ -83,32 +92,44 @@ public:
     Kokkos::deep_copy(rho_E_.view(), rho_E_h);
   }
 
-  void solve(unsigned int max_iter = 10000,
-             RealType tol = RealType(1e-10),
-             RealType cfl = Parameters<RealType>::cfl_max)
-  {
+  void solve(unsigned int max_iter = 10000, RealType cfl = Parameters<RealType>::cfl_max) {
     for (unsigned int iter = 0; iter < max_iter; ++iter) {
+      // 1. Store u^n (the values at the start of the entire RK3 cycle)
+      Kokkos::deep_copy(rho_old_.view(), rho_.view());
+      Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
+      Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
+      Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
+
+      // Compute Local Time Step once per iteration 
+      compute_local_dt(cfl);
+
+      // --- Stage 1 ---
       zero_residuals();
       compute_volume_residual();
       compute_face_residual();
-      compute_local_dt(cfl);
-      update();
+      update(RealType(0.0), RealType(1.0)); 
 
-      const RealType res_norm = residual_norm();
-      if (iter % 100 == 0)
-        std::cout << "iter " << iter << "  ||R|| = " << res_norm << "\n";
-      /*
-            if (res_norm < tol) {
-              std::cout << "Converged at iter " << iter << "  ||R|| = " <<
-         res_norm
-                        << "\n";
-              return;
-            }*/
+      // --- Stage 2 ---
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(0.75), RealType(0.25));
+
+      // --- Stage 3 ---
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(1.0/3.0), RealType(2.0/3.0));
+
+      // Convergence check [cite: 18, 19]
+      if (iter % 100 == 0) {
+          std::cout << "Iteration " << iter << " Residual: " << residual_norm() << std::endl;
+      }
     }
-    std::cout << "Max iterations reached\n";
   }
 
 private:
+  const unsigned int degree_;
   const DoFHandler<dim, RealType>& dof_handler_;
   FEValues<dim, RealType>& fe_values_;
   FEFaceValues<dim, RealType>& fe_face_values_;
@@ -119,7 +140,13 @@ private:
   Kokkos::View<RealType***, Layout, DeviceMemSpace> phi_;
   Kokkos::View<RealType****, Layout, DeviceMemSpace> grad_phi_;
 
+  // Current State (u_current)
   VecDevice rho_, rho_u_, rho_v_, rho_E_;
+
+  // Storage for start-of-step state (u^n)
+  VecDevice rho_old_, rho_u_old_, rho_v_old_, rho_E_old_;
+
+  // Residuals and Timesteps
   VecDevice res_rho_, res_rho_u_, res_rho_v_, res_rho_E_;
   VecDevice dt_;
 
@@ -173,7 +200,72 @@ private:
     Kokkos::deep_copy(grad_phi_, grad_phi_h);
   }
 
-  void compute_local_dt(RealType cfl) {}
+  void compute_local_dt(RealType cfl)
+  {
+    auto d_rho = rho_.view();
+    auto d_rho_u = rho_u_.view();
+    auto d_rho_v = rho_v_.view();
+    auto d_rho_E = rho_E_.view();
+    auto d_dt = dt_.view();
+    
+    auto indices = dof_handler_.cell_dof_indices();
+    auto JxW = JxW_; // Use precomputed Jacobian weights to find area
+
+    const auto n_cells = dof_handler_.n_cells();
+    const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
+    const auto n_q_points = fe_values_.n_q_points();
+    const RealType gamma = Parameters<RealType>::gamma;
+
+    // Problem degree is used to scale the DG time step for stability
+    // Typically dt_dg ~ dt_fv / (2p + 1)
+    const RealType p_order = static_cast<RealType>(degree_);
+    const RealType dg_scaling = RealType(1.0) / (RealType(2.0) * p_order + RealType(1.0));
+
+    Kokkos::parallel_for(
+      "compute_local_dt", n_cells, KOKKOS_LAMBDA(int k) {
+        // 1. Compute Cell-Averaged State
+        // We use the arithmetic mean of the DoFs as a simple approximation for the cell state
+        RealType rho_avg = 0, rhou_avg = 0, rhov_avg = 0, rhoE_avg = 0;
+        for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
+          const uint32_t idx = indices(k, i);
+          rho_avg += d_rho(idx);
+          rhou_avg += d_rho_u(idx);
+          rhov_avg += d_rho_v(idx);
+          rhoE_avg += d_rho_E(idx);
+        }
+        rho_avg /= n_dofs_per_cell;
+        rhou_avg /= n_dofs_per_cell;
+        rhov_avg /= n_dofs_per_cell;
+        rhoE_avg /= n_dofs_per_cell;
+
+        // 2. Compute Velocity and Speed of Sound
+        const RealType u = rhou_avg / rho_avg;
+        const RealType v = rhov_avg / rho_avg;
+        const RealType vel_mag = Kokkos::sqrt(u * u + v * v);
+        
+        const RealType p = (gamma - 1.0) * (rhoE_avg - 0.5 * rho_avg * (u * u + v * v));
+        const RealType a = Kokkos::sqrt(gamma * p / rho_avg);
+
+        // 3. Determine Characteristic Length h
+        // A robust estimate for triangles is h = sqrt(Area). 
+        // Area is the integral of JxW over the element.
+        RealType area = 0;
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+          area += JxW(k, q);
+        }
+        const RealType h = Kokkos::sqrt(area);
+
+        // 4. Calculate Local dt
+        // The wave speed is |u| + a. 
+        const RealType dt_cell = cfl * dg_scaling * (h / (vel_mag + a));
+
+        // 5. Assign dt to all DoFs in this cell
+        for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
+          d_dt(indices(k, i)) = dt_cell;
+        }
+      });
+    Kokkos::fence();
+  }
 
   void compute_volume_residual()
   {
@@ -285,29 +377,33 @@ private:
 
   void compute_face_residual() {}
 
-  void update()
+  void update(RealType alpha, RealType beta)
   {
-    // TODO: Add a different time-stepping here
-    auto d_rho = rho_.view();
+    auto d_rho = rho_.view(); 
     auto d_rho_u = rho_u_.view();
     auto d_rho_v = rho_v_.view();
     auto d_rho_E = rho_E_.view();
+    
+    auto d_rho_old = rho_old_.view(); 
+    auto d_rho_u_old = rho_u_old_.view();
+    auto d_rho_v_old = rho_v_old_.view();
+    auto d_rho_E_old = rho_E_old_.view();
+
     auto d_res_rho = res_rho_.view();
     auto d_res_rho_u = res_rho_u_.view();
     auto d_res_rho_v = res_rho_v_.view();
     auto d_res_rho_E = res_rho_E_.view();
+
     auto d_dt = dt_.view();
 
-    const uint32_t n_dofs = dof_handler_.n_dofs();
-
-    Kokkos::parallel_for(
-      "update", Kokkos::RangePolicy<>(0, n_dofs), KOKKOS_LAMBDA(int i) {
-        const RealType dt = d_dt(i);
-        d_rho(i) += dt * d_res_rho(i);
-        d_rho_u(i) += dt * d_res_rho_u(i);
-        d_rho_v(i) += dt * d_res_rho_v(i);
-        d_rho_E(i) += dt * d_res_rho_E(i);
-      });
+    Kokkos::parallel_for("update_rk_stage", n_dofs_, KOKKOS_LAMBDA(int i) {
+      const RealType dt = d_dt(i);
+      // SSP-RK3 Convex Combination: u_new = alpha*u_old + beta*(u_curr + dt*R)
+      d_rho(i) = alpha * d_rho_old(i) + beta * (d_rho(i) + dt * d_res_rho(i));
+      d_rho_u(i) = alpha * d_rho_u_old(i) + beta * (d_rho_u(i) + dt * d_res_rho_u(i));
+      d_rho_v(i) = alpha * d_rho_v_old(i) + beta * (d_rho_v(i) + dt * d_res_rho_v(i));
+      d_rho_E(i) = alpha * d_rho_E_old(i) + beta * (d_rho_E(i) + dt * d_res_rho_E(i));
+    });
     Kokkos::fence();
   }
 
@@ -359,7 +455,7 @@ main(int argc, char* argv[])
     FEFaceValues<2, double> fe_face_values(fe, face_quad);
 
     // Create solver
-    EulerSolver<2, double> solver(dof_handler, fe_values, fe_face_values);
+    EulerSolver<2, double> solver(dof_handler, fe_values, fe_face_values, problem_degree);
 
     solver.set_initial_condition([](double x, double y) {
       // freestream init
@@ -374,10 +470,9 @@ main(int argc, char* argv[])
       return std::make_tuple(rho, u, v, p);
     });
 
-    solver.solve(10000, 1e-10, Parameters<double>::cfl_max);
+    solver.solve(10000, Parameters<double>::cfl_max);
   }
 
   Kokkos::finalize();
-
   return 0;
 }
