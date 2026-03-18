@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <Kokkos_Macros.hpp>
 
 /**
  * @brief Simple structure for the parameters in the simulation.
@@ -41,11 +42,13 @@ struct Parameters
   /**
    * @brief x-component of inlet flow normal.
    */
+  KOKKOS_INLINE_FUNCTION
   static RealType n_x_0() { return Kokkos::cos(alpha / 180.0 * M_PI); }
 
   /**
    * @brief y-component of inlet flow normal.
    */
+  KOKKOS_INLINE_FUNCTION
   static RealType n_y_0() { return Kokkos::sin(alpha / 180.0 * M_PI); }
 
   /**

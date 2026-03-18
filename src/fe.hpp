@@ -379,44 +379,10 @@ template<unsigned int dim, typename RealType>
 class FEValues
 {
 public:
-  using PhiView = typename MatrixViewTrait<RealType, DeviceMemSpace>::type;
-  using GradView = Kokkos::View<RealType***, Layout, DeviceMemSpace>;
-  using JxWView = typename VectorViewTrait<RealType, DeviceMemSpace>::type;
-  using PointView = typename MatrixViewTrait<RealType, DeviceMemSpace>::type;
-
-  struct DeviceProxy
-  {
-    PhiView phi;
-    GradView grad_phi;
-    JxWView JxW;
-    PointView quadrature_points;
-
-    unsigned int n_dofs;
-    unsigned int n_q;
-
-    KOKKOS_INLINE_FUNCTION
-    RealType shape_value(unsigned int i, unsigned int q) const
-    {
-      return phi(i, q);
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    RealType shape_gradient(unsigned int i,
-                            unsigned int q,
-                            unsigned int d) const
-    {
-      return grad_phi(i, q, d);
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    RealType jxw(unsigned int q) const { return JxW(q); }
-
-    KOKKOS_INLINE_FUNCTION
-    RealType quadrature_point(unsigned int q, unsigned int d) const
-    {
-      return quadrature_points(q, d);
-    }
-  };
+  using PhiView = typename MatrixViewTrait<RealType, HostMemSpace>::type;
+  using GradView = Kokkos::View<RealType***, Layout, HostMemSpace>;
+  using JxWView = typename VectorViewTrait<RealType, HostMemSpace>::type;
+  using PointView = typename MatrixViewTrait<RealType, HostMemSpace>::type;
 
   FEValues(const FE_DGQLegendre<dim, RealType>& fe,
            const QGaussSimplex<dim, RealType>& quad)
@@ -440,35 +406,36 @@ public:
     for (unsigned int i = 0; i < n_dofs_; ++i) {
       for (unsigned int q = 0; q < n_q_; ++q) {
         Tensor<1, dim, RealType> xi;
-        for (unsigned int d = 0; d < dim; ++d)
+        for (unsigned int d = 0; d < dim; ++d) {
           xi(d) = pts_h(q, d);
+        }
 
         phi_h(i, q) = fe_.shape_value(i, xi);
 
         auto g = fe_.shape_gradient(i, xi);
-        for (unsigned int d = 0; d < dim; ++d)
+        for (unsigned int d = 0; d < dim; ++d) {
           grad_ref_h(i, q, d) = g(d);
+        }
       }
     }
-
-    Kokkos::deep_copy(phi_ref_, phi_h);
-    Kokkos::deep_copy(grad_phi_ref_, grad_ref_h);
   }
 
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell)
   {
     // Build Jacobian from cell vertices (affine map)
-    // x0 = vertex 0,  J[:,d] = vertex(d+1) - vertex(0)
     RealType x0[dim], J[dim][dim], Jinv[dim][dim];
 
-    for (unsigned int d = 0; d < dim; ++d)
-      x0[d] = cell.vertex(0)[d];
+    auto v0 = cell.vertex(0);
+    for (unsigned int d = 0; d < dim; ++d) {
+      x0[d] = v0(d);
+    }
 
     for (unsigned int col = 0; col < dim; ++col) {
-      auto xv = cell.vertex(col + 1);
-      for (unsigned int d = 0; d < dim; ++d)
-        J[d][col] = xv[d] - x0[d];
+      auto vc = cell.vertex(col + 1);
+      for (unsigned int d = 0; d < dim; ++d) {
+        J[d][col] = vc(d) - x0[d];
+      }
     }
 
     const RealType detJ = compute_det(J);
@@ -476,55 +443,43 @@ public:
     compute_inv(J, detJ, Jinv);
 
     // Fill JxW and quadrature points — host mirrors then deep_copy
-    auto JxW_h = Kokkos::create_mirror_view(JxW_);
-    auto qpts_h = Kokkos::create_mirror_view(quad_points_);
     auto wts_h = quad_.weights_host();
     auto pts_h = quad_.points_host();
-
     for (unsigned int q = 0; q < n_q_; ++q) {
-      JxW_h(q) = detJ * wts_h(q);
+      JxW_(q) = detJ * wts_h(q);
       for (unsigned int d = 0; d < dim; ++d) {
         RealType xd = x0[d];
         for (unsigned int d2 = 0; d2 < dim; ++d2)
           xd += J[d][d2] * pts_h(q, d2);
-        qpts_h(q, d) = xd;
+        quad_points_(q, d) = xd;
       }
     }
 
-    Kokkos::deep_copy(JxW_, JxW_h);
-    Kokkos::deep_copy(quad_points_, qpts_h);
-
-    // Physical gradients: grad_phys(i,q,d) = sum_{d2} Jinv(d2,d) *
-    // grad_ref(i,q,d2) Do this on device to avoid a large host-side loop
-    auto grad_ref = grad_phi_ref_; // device view, captured by value
-    auto grad_phys = grad_phi_phys_;
-    const unsigned int ndofs = n_dofs_;
-    const unsigned int nq = n_q_;
-
-    // Copy Jinv into a flat array for capture
-    RealType Jinv_flat[dim * dim];
-    for (unsigned int d = 0; d < dim; ++d)
-      for (unsigned int d2 = 0; d2 < dim; ++d2)
-        Jinv_flat[d * dim + d2] = Jinv[d][d2];
-
-    Kokkos::parallel_for(
-      "grad_transform",
-      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({ 0, 0 }, { (int)ndofs, (int)nq }),
-      KOKKOS_LAMBDA(int i, int q) {
+    // Physical gradients — plain loop, no parallel_for needed
+    for (unsigned int i = 0; i < n_dofs_; ++i) {
+      for (unsigned int q = 0; q < n_q_; ++q) {
         for (unsigned int d = 0; d < dim; ++d) {
           RealType val = RealType(0);
           for (unsigned int d2 = 0; d2 < dim; ++d2)
-            // J^{-T}_{d,d2} = Jinv[d2][d]
-            val += Jinv_flat[d2 * dim + d] * grad_ref(i, q, d2);
-          grad_phys(i, q, d) = val;
+            val += Jinv[d2][d] * grad_phi_ref_(i, q, d2);
+          grad_phi_phys_(i, q, d) = val;
         }
-      });
-    Kokkos::fence();
+      }
+    }
   }
 
-  DeviceProxy device_proxy() const
+  RealType jxw(unsigned int q) const { return JxW_(q); }
+  RealType shape_value(unsigned int i, unsigned int q) const
   {
-    return { phi_ref_, grad_phi_phys_, JxW_, quad_points_, n_dofs_, n_q_ };
+    return phi_ref_(i, q);
+  }
+  RealType shape_gradient(unsigned int i, unsigned int q, unsigned int d) const
+  {
+    return grad_phi_phys_(i, q, d);
+  }
+  RealType quadrature_point(unsigned int q, unsigned int d) const
+  {
+    return quad_points_(q, d);
   }
 
   unsigned int n_dofs() const { return n_dofs_; }
@@ -546,14 +501,17 @@ private:
   // Plain C array Jacobian helpers — no virtual, no std::
   static RealType compute_det(const RealType J[dim][dim])
   {
-    if constexpr (dim == 1)
+    if constexpr (dim == 1) {
       return J[0][0];
-    if constexpr (dim == 2)
+    }
+    if constexpr (dim == 2) {
       return J[0][0] * J[1][1] - J[0][1] * J[1][0];
-    if constexpr (dim == 3)
+    }
+    if constexpr (dim == 3) {
       return J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) -
              J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
              J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
+    }
   }
 
   static void compute_inv(const RealType J[dim][dim],

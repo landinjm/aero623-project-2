@@ -3,6 +3,7 @@
 #include <Kokkos_Core.hpp>
 #include <config.hpp>
 #include <fe.hpp>
+#include <iostream>
 #include <triangulation.hpp>
 
 /**
@@ -20,45 +21,50 @@ public:
 
   struct CellAccessor
   {
-    ::CellAccessor<dim> tria_cell; // your existing accessor
+    ::CellAccessor<dim> tria_cell;
     const DoFHandler* handler;
 
-    // Forward all geometry queries to the triangulation accessor
     CellIndexType index() const { return tria_cell.index; }
-    bool is_active() const { return tria_cell.is_active(); }
     double measure() const { return tria_cell.measure(); }
-    double diameter() const { return tria_cell.diameter(); }
 
-    // Vertex coordinates, face accessors, etc. — all delegated
-    auto vertex(unsigned int v) const { return tria_cell.vertex(v); }
-    bool face_at_boundary(uint8_t local_f) const
+    auto vertex(LocalIndexType v) const { return tria_cell.vertex(v); }
+
+    ::FaceAccessor<dim> face(LocalIndexType local_f) const
+    {
+      return tria_cell.face(local_f);
+    }
+
+    bool face_at_boundary(LocalIndexType local_f) const
     {
       return tria_cell.face_at_boundary(local_f);
     }
-    BoundaryIdType face_boundary_id(uint8_t local_f) const
+
+    bool face_is_periodic(LocalIndexType local_f) const
+    {
+      return tria_cell.face_is_periodic(local_f);
+    }
+
+    BoundaryIdType face_boundary_id(LocalIndexType local_f) const
     {
       return tria_cell.face_boundary_id(local_f);
     }
-    CellIndexType neighbor_index(uint8_t local_f) const
+
+    CellIndexType neighbor_index(LocalIndexType local_f) const
     {
-      FaceIndexType fi = tria_cell.face_index(local_f);
-      auto c0 = tria_cell.tria->face_cells(fi, 0);
-      auto c1 = tria_cell.tria->face_cells(fi, 1);
-      // Return whichever side is not this cell
-      return (c0 == tria_cell.index) ? c1 : c0;
+      return tria_cell.neighbor_index(local_f);
     }
 
-    // DOF query — the only thing DoFHandler adds
-    void get_dof_indices(std::vector<uint32_t>& indices) const
+    void get_dof_indices(std::vector<size_type>& indices) const
     {
       const size_type k = tria_cell.index;
       const size_type ndpc = handler->n_dofs_per_cell_;
       indices.resize(ndpc);
-      for (size_type i = 0; i < ndpc; ++i)
+      for (size_type i = 0; i < ndpc; ++i) {
         indices[i] = handler->cell_dof_indices_host_(k, i);
+      }
     }
 
-    uint32_t dof_index(unsigned int local) const
+    size_type dof_index(size_type local) const
     {
       return handler->cell_dof_indices_host_(tria_cell.index, local);
     }
@@ -98,7 +104,7 @@ public:
              const FE_DGQLegendre<dim, RealType>& fe)
     : tria_(tria)
     , fe_(fe)
-    , n_cells_(tria.n_cells())
+    , n_cells_(0)
     , n_dofs_per_cell_(fe.n_dofs())
     , n_dofs_total_(0)
   {
@@ -111,42 +117,45 @@ public:
     n_cells_ = tria_.n_cells();
     n_dofs_total_ = n_cells_ * n_dofs_per_cell_;
 
+    const size_type total_cells = tria_.n_cells();
+
     cell_dof_indices_device_ =
-      IndexView("cell_dof_indices", tria_.n_cells(), n_dofs_per_cell_);
+      IndexView("cell_dof_indices", total_cells, n_dofs_per_cell_);
     cell_dof_indices_host_ =
       Kokkos::create_mirror_view(cell_dof_indices_device_);
 
-    // DG: each active cell gets a contiguous block of global DOF indices.
-    // Inactive cells (refined away) are assigned invalid sentinel values.
+    // Fill all entries with invalid entry first
+    constexpr size_type invalid = std::numeric_limits<size_type>::max();
+    for (size_type k = 0; k < total_cells; ++k) {
+      for (size_type i = 0; i < n_dofs_per_cell_; ++i) {
+        cell_dof_indices_host_(k, i) = static_cast<size_t>(-1);
+      }
+    }
+
+    // Assign contiguous DOF blocks to active cells only
     size_type next_dof = 0;
     for (auto cell : tria_.active_cell_range()) {
       const size_type k = cell.index;
-      for (size_type i = 0; i < n_dofs_per_cell_; ++i)
+      for (size_type i = 0; i < n_dofs_per_cell_; ++i) {
         cell_dof_indices_host_(k, i) = next_dof++;
+      }
     }
-
-    // Fill inactive cells with sentinel so bugs surface immediately
-    constexpr size_type invalid = std::numeric_limits<size_type>::max();
-    for (size_type k = 0; k < tria_.n_cells(); ++k) {
-      auto c = tria_.get_cell(k);
-      for (size_type i = 0; i < n_dofs_per_cell_; ++i)
-        cell_dof_indices_host_(k, i) = invalid;
-    }
-
-    Kokkos::deep_copy(cell_dof_indices_device_, cell_dof_indices_host_);
 
     ASSERT(next_dof == n_dofs_total_, "DOF count mismatch after distribution");
+
+    Kokkos::deep_copy(cell_dof_indices_device_, cell_dof_indices_host_);
   }
 
-  unsigned int n_cells() const { return n_cells_; }
-  unsigned int n_dofs_per_cell() const { return n_dofs_per_cell_; }
-  unsigned int n_dofs() const { return n_dofs_total_; }
+  size_type n_cells() const { return n_cells_; }
+  size_type n_dofs_per_cell() const { return n_dofs_per_cell_; }
+  size_type n_dofs() const { return n_dofs_total_; }
 
   const FE_DGQLegendre<dim, RealType>& fe() const { return fe_; }
   const Triangulation<dim>& tria() const { return tria_; }
 
   CellAccessor cell(CellIndexType k) const
   {
+    ASSERT(k < tria_.n_cells(), "Cell index out of range");
     return { tria_.get_cell(k), this };
   }
 

@@ -165,8 +165,8 @@ public:
     constexpr RealType two_over_gm1 = RealType(2.0) * inv_gm1;
 
     // Inflow direction
-    constexpr RealType nx_in = Parameters<RealType>::n_x_0;
-    constexpr RealType ny_in = Parameters<RealType>::n_y_0;
+    const RealType nx_in = Parameters<RealType>::n_x_0();
+    const RealType ny_in = Parameters<RealType>::n_y_0();
 
     // Stagnation speed of sound
     constexpr RealType a_0 = Parameters<RealType>::a_0;
