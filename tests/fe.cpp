@@ -139,10 +139,9 @@ TEST(QGaussSimplex, 1D_weight_sum)
 {
   for (unsigned int order = 1; order <= 4; ++order) {
     QGaussSimplex<1, RealType> quad(order);
-    auto wts = quad.weights_host();
     RealType sum = 0.0;
     for (unsigned int q = 0; q < quad.n_points(); ++q) {
-      sum += wts(q);
+      sum += quad.weight(q);
     }
     EXPECT_NEAR(sum, 1.0, tol);
   }
@@ -152,10 +151,9 @@ TEST(QGaussSimplex, 2D_weight_sum)
 {
   for (unsigned int order = 1; order <= 4; ++order) {
     QGaussSimplex<2, RealType> quad(order);
-    auto wts = quad.weights_host();
     RealType sum = 0.0;
     for (unsigned int q = 0; q < quad.n_points(); ++q) {
-      sum += wts(q);
+      sum += quad.weight(q);
     }
     EXPECT_NEAR(sum, 0.5, tol);
   }

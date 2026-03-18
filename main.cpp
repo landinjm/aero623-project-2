@@ -6,6 +6,7 @@
 #include <flux.hpp>
 #include <parameters.hpp>
 #include <read_gri.hpp>
+#include <solve.hpp>
 #include <timer.hpp>
 #include <triangulation.hpp>
 #include <vector.hpp>
@@ -35,20 +36,21 @@ public:
   {
 
     // 1. Allocate Current State Vectors
-    rho_   = VecDevice(n_dofs_);
+    rho_ = VecDevice(n_dofs_);
     rho_u_ = VecDevice(n_dofs_);
     rho_v_ = VecDevice(n_dofs_);
     rho_E_ = VecDevice(n_dofs_);
 
     // 2. Allocate "Old" State Vectors for SSP-RK3 Stages
-    // These store u^n to perform the convex combinations required by the scheme.
-    rho_old_   = VecDevice(n_dofs_);
+    // These store u^n to perform the convex combinations required by the
+    // scheme.
+    rho_old_ = VecDevice(n_dofs_);
     rho_u_old_ = VecDevice(n_dofs_);
     rho_v_old_ = VecDevice(n_dofs_);
     rho_E_old_ = VecDevice(n_dofs_);
 
     // 3. Allocate Residual Vectors
-    res_rho_   = VecDevice(n_dofs_);
+    res_rho_ = VecDevice(n_dofs_);
     res_rho_u_ = VecDevice(n_dofs_);
     res_rho_v_ = VecDevice(n_dofs_);
     res_rho_E_ = VecDevice(n_dofs_);
@@ -92,7 +94,9 @@ public:
     Kokkos::deep_copy(rho_E_.view(), rho_E_h);
   }
 
-  void solve(unsigned int max_iter = 10000, RealType cfl = Parameters<RealType>::cfl_max) {
+  void solve(unsigned int max_iter = 10000,
+             RealType cfl = Parameters<RealType>::cfl_max)
+  {
     for (unsigned int iter = 0; iter < max_iter; ++iter) {
       // 1. Store u^n (the values at the start of the entire RK3 cycle)
       Kokkos::deep_copy(rho_old_.view(), rho_.view());
@@ -100,14 +104,14 @@ public:
       Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
       Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
 
-      // Compute Local Time Step once per iteration 
+      // Compute Local Time Step once per iteration
       compute_local_dt(cfl);
 
       // --- Stage 1 ---
       zero_residuals();
       compute_volume_residual();
       compute_face_residual();
-      update(RealType(0.0), RealType(1.0)); 
+      update(RealType(0.0), RealType(1.0));
 
       // --- Stage 2 ---
       zero_residuals();
@@ -119,11 +123,12 @@ public:
       zero_residuals();
       compute_volume_residual();
       compute_face_residual();
-      update(RealType(1.0/3.0), RealType(2.0/3.0));
+      update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
 
       // Convergence check [cite: 18, 19]
       if (iter % 100 == 0) {
-          std::cout << "Iteration " << iter << " Residual: " << residual_norm() << std::endl;
+        std::cout << "Iteration " << iter << " Residual: " << residual_norm()
+                  << std::endl;
       }
     }
   }
@@ -184,13 +189,14 @@ private:
       fe_values_.reinit(cell);
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
-        JxW_h(k, q) = fe_values_.jxw(q);
+        // JxW_h(k, q) = fe_values_.jxw(q);
 
         for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
-          phi_h(k, i, q) = fe_values_.shape_value(i, q);
+          // phi_h(k, i, q) = fe_values_.shape_value(i, q);
 
           for (unsigned int d = 0; d < dim; ++d)
-            grad_phi_h(k, i, q, d) = fe_values_.shape_gradient(i, q, d);
+            continue;
+          // grad_phi_h(k, i, q, d) = fe_values_.shape_gradient(i, q, d);
         }
       }
     }
@@ -207,7 +213,7 @@ private:
     auto d_rho_v = rho_v_.view();
     auto d_rho_E = rho_E_.view();
     auto d_dt = dt_.view();
-    
+
     auto indices = dof_handler_.cell_dof_indices();
     auto JxW = JxW_; // Use precomputed Jacobian weights to find area
 
@@ -219,12 +225,14 @@ private:
     // Problem degree is used to scale the DG time step for stability
     // Typically dt_dg ~ dt_fv / (2p + 1)
     const RealType p_order = static_cast<RealType>(degree_);
-    const RealType dg_scaling = RealType(1.0) / (RealType(2.0) * p_order + RealType(1.0));
+    const RealType dg_scaling =
+      RealType(1.0) / (RealType(2.0) * p_order + RealType(1.0));
 
     Kokkos::parallel_for(
       "compute_local_dt", n_cells, KOKKOS_LAMBDA(int k) {
         // 1. Compute Cell-Averaged State
-        // We use the arithmetic mean of the DoFs as a simple approximation for the cell state
+        // We use the arithmetic mean of the DoFs as a simple approximation for
+        // the cell state
         RealType rho_avg = 0, rhou_avg = 0, rhov_avg = 0, rhoE_avg = 0;
         for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
           const uint32_t idx = indices(k, i);
@@ -242,12 +250,13 @@ private:
         const RealType u = rhou_avg / rho_avg;
         const RealType v = rhov_avg / rho_avg;
         const RealType vel_mag = Kokkos::sqrt(u * u + v * v);
-        
-        const RealType p = (gamma - 1.0) * (rhoE_avg - 0.5 * rho_avg * (u * u + v * v));
+
+        const RealType p =
+          (gamma - 1.0) * (rhoE_avg - 0.5 * rho_avg * (u * u + v * v));
         const RealType a = Kokkos::sqrt(gamma * p / rho_avg);
 
         // 3. Determine Characteristic Length h
-        // A robust estimate for triangles is h = sqrt(Area). 
+        // A robust estimate for triangles is h = sqrt(Area).
         // Area is the integral of JxW over the element.
         RealType area = 0;
         for (unsigned int q = 0; q < n_q_points; ++q) {
@@ -256,7 +265,7 @@ private:
         const RealType h = Kokkos::sqrt(area);
 
         // 4. Calculate Local dt
-        // The wave speed is |u| + a. 
+        // The wave speed is |u| + a.
         const RealType dt_cell = cfl * dg_scaling * (h / (vel_mag + a));
 
         // 5. Assign dt to all DoFs in this cell
@@ -379,12 +388,12 @@ private:
 
   void update(RealType alpha, RealType beta)
   {
-    auto d_rho = rho_.view(); 
+    auto d_rho = rho_.view();
     auto d_rho_u = rho_u_.view();
     auto d_rho_v = rho_v_.view();
     auto d_rho_E = rho_E_.view();
-    
-    auto d_rho_old = rho_old_.view(); 
+
+    auto d_rho_old = rho_old_.view();
     auto d_rho_u_old = rho_u_old_.view();
     auto d_rho_v_old = rho_v_old_.view();
     auto d_rho_E_old = rho_E_old_.view();
@@ -396,14 +405,19 @@ private:
 
     auto d_dt = dt_.view();
 
-    Kokkos::parallel_for("update_rk_stage", n_dofs_, KOKKOS_LAMBDA(int i) {
-      const RealType dt = d_dt(i);
-      // SSP-RK3 Convex Combination: u_new = alpha*u_old + beta*(u_curr + dt*R)
-      d_rho(i) = alpha * d_rho_old(i) + beta * (d_rho(i) + dt * d_res_rho(i));
-      d_rho_u(i) = alpha * d_rho_u_old(i) + beta * (d_rho_u(i) + dt * d_res_rho_u(i));
-      d_rho_v(i) = alpha * d_rho_v_old(i) + beta * (d_rho_v(i) + dt * d_res_rho_v(i));
-      d_rho_E(i) = alpha * d_rho_E_old(i) + beta * (d_rho_E(i) + dt * d_res_rho_E(i));
-    });
+    Kokkos::parallel_for(
+      "update_rk_stage", n_dofs_, KOKKOS_LAMBDA(int i) {
+        const RealType dt = d_dt(i);
+        // SSP-RK3 Convex Combination: u_new = alpha*u_old + beta*(u_curr +
+        // dt*R)
+        d_rho(i) = alpha * d_rho_old(i) + beta * (d_rho(i) + dt * d_res_rho(i));
+        d_rho_u(i) =
+          alpha * d_rho_u_old(i) + beta * (d_rho_u(i) + dt * d_res_rho_u(i));
+        d_rho_v(i) =
+          alpha * d_rho_v_old(i) + beta * (d_rho_v(i) + dt * d_res_rho_v(i));
+        d_rho_E(i) =
+          alpha * d_rho_E_old(i) + beta * (d_rho_E(i) + dt * d_res_rho_E(i));
+      });
     Kokkos::fence();
   }
 
@@ -428,7 +442,7 @@ private:
   }
 };
 
-static constexpr unsigned int problem_degree = 0;
+static constexpr unsigned int problem_degree = 3;
 
 int
 main(int argc, char* argv[])
@@ -441,7 +455,7 @@ main(int argc, char* argv[])
     QGaussSimplex<2, double> quad(problem_degree + 1);
     QGaussSimplex<1, double> face_quad(problem_degree + 1);
 
-    gri.read_gri("../grids/coarse_local_refinement_2.gri");
+    gri.read_gri("../tests/test.gri");
     gri.transfer_to_triangulation(tria);
 
     DoFHandler<2, double> dof_handler(tria, fe);
@@ -454,23 +468,22 @@ main(int argc, char* argv[])
     FEValues<2, double> fe_values(fe, quad);
     FEFaceValues<2, double> fe_face_values(fe, face_quad);
 
-    // Create solver
-    EulerSolver<2, double> solver(dof_handler, fe_values, fe_face_values, problem_degree);
+    for (auto cell : dof_handler.active_cell_range()) {
+      fe_values.reinit(cell);
+      double area = 0;
+      for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
+        double sum = 0;
+        area += fe_values.JxW(q);
+        for (unsigned int i = 0; i < fe_values.n_dofs(); ++i) {
+          sum += fe_values.shape_value(i, q);
+        }
 
-    solver.set_initial_condition([](double x, double y) {
-      // freestream init
-      const double gamma = Parameters<double>::gamma;
-      const double rho = Parameters<double>::rho_0;
-      const double mach = 0.5;
-      const double a = Parameters<double>::a_0;
-      const double u = mach * a * Parameters<double>::n_x_0();
-      const double v = mach * a * Parameters<double>::n_y_0();
-      const double p = Parameters<double>::p_0 *
-                       std::pow(1.0 / (1.0 + 0.2 * mach * mach), gamma / 0.4);
-      return std::make_tuple(rho, u, v, p);
-    });
+        std::cout << "Sum for q " << q << " " << sum << std::endl;
+      }
 
-    solver.solve(10000, Parameters<double>::cfl_max);
+      std::cout << "Area " << area << " cell measure " << cell.measure()
+                << std::endl;
+    }
   }
 
   Kokkos::finalize();

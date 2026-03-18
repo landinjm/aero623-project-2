@@ -214,6 +214,7 @@ struct FaceAccessor
    */
   VertexIndexType vertex_index(LocalIndexType local_v) const
   {
+    ASSERT(local_v < Topo::verts_per_cell, "Invalid local vertex");
     return tria->face_vertices(index, local_v);
   }
 

@@ -17,7 +17,7 @@ class DoFHandler
 public:
   using size_type = uint32_t;
   using IndexView = typename MatrixViewTrait<size_type, DeviceMemSpace>::type;
-  using HostIndexView = typename IndexView::HostMirror;
+  using HostIndexView = typename IndexView::host_mirror_type;
 
   struct CellAccessor
   {
@@ -26,6 +26,8 @@ public:
 
     CellIndexType index() const { return tria_cell.index; }
     double measure() const { return tria_cell.measure(); }
+
+    auto n_vertices() const { return tria_cell.n_vertices(); }
 
     auto vertex(LocalIndexType v) const { return tria_cell.vertex(v); }
 
@@ -128,7 +130,7 @@ public:
     constexpr size_type invalid = std::numeric_limits<size_type>::max();
     for (size_type k = 0; k < total_cells; ++k) {
       for (size_type i = 0; i < n_dofs_per_cell_; ++i) {
-        cell_dof_indices_host_(k, i) = static_cast<size_t>(-1);
+        cell_dof_indices_host_(k, i) = invalid;
       }
     }
 
