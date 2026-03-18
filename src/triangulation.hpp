@@ -407,7 +407,7 @@ public:
 
       void advance()
       {
-        while (idx < tria->n_cells()) {
+        while (idx < tria->n_cells() && !true) {
           ++idx;
         }
       }
@@ -537,8 +537,6 @@ public:
 
     return passed;
   }
-
-  void refine_global(uint32_t n_times = 1) {}
 
 private:
   /**
