@@ -108,7 +108,7 @@ public:
 
   void distribute_dofs()
   {
-    n_cells_ = tria_.n_active_cells();
+    n_cells_ = tria_.n_cells();
     n_dofs_total_ = n_cells_ * n_dofs_per_cell_;
 
     cell_dof_indices_device_ =
@@ -129,9 +129,8 @@ public:
     constexpr size_type invalid = std::numeric_limits<size_type>::max();
     for (size_type k = 0; k < tria_.n_cells(); ++k) {
       auto c = tria_.get_cell(k);
-      if (!c.is_active())
-        for (size_type i = 0; i < n_dofs_per_cell_; ++i)
-          cell_dof_indices_host_(k, i) = invalid;
+      for (size_type i = 0; i < n_dofs_per_cell_; ++i)
+        cell_dof_indices_host_(k, i) = invalid;
     }
 
     Kokkos::deep_copy(cell_dof_indices_device_, cell_dof_indices_host_);
