@@ -9,9 +9,9 @@ cmake .. && make
 ```
 Run the proj
 ```
-./proj-2
+./proj-3
 ```
 Run the unit tests
 ```
-./proj-2_tests
+./proj-3_tests
 ```
