@@ -52,6 +52,20 @@ public:
     return data_[i];
   }
 
+  template<unsigned int R = rank, typename = std::enable_if_t<R == 1>>
+  KOKKOS_INLINE_FUNCTION RealType& operator[](unsigned int i)
+  {
+    ASSERT(i >= 0 && i < dim, "Index out of bounds");
+    return data_[i];
+  }
+
+  template<unsigned int R = rank, typename = std::enable_if_t<R == 1>>
+  KOKKOS_INLINE_FUNCTION const RealType& operator[](unsigned int i) const
+  {
+    ASSERT(i >= 0 && i < dim, "Index out of bounds");
+    return data_[i];
+  }
+
   template<unsigned int R = rank, typename = std::enable_if_t<R == 2>>
   KOKKOS_INLINE_FUNCTION RealType& operator()(unsigned int i, unsigned int j)
   {
@@ -132,6 +146,16 @@ public:
     Tensor result;
     for (int i = 0; i < n_components; ++i) {
       result.data_[i] = data_[i] * scalar;
+    }
+    return result;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  Tensor operator/(const RealType scalar) const
+  {
+    Tensor result;
+    for (int i = 0; i < n_components; ++i) {
+      result.data_[i] = data_[i] / scalar;
     }
     return result;
   }
