@@ -17,7 +17,7 @@ using LocalIndexType = uint32_t;
 using CellIndexType = uint32_t;
 using FaceIndexType = int32_t;
 using VertexIndexType = uint32_t;
-using BoundaryIdType = uint8_t;
+using BoundaryIdType = uint32_t;
 using NeighborIndexType = int32_t;
 
 constexpr NeighborIndexType NO_NEIGHBOR = -1;
@@ -113,7 +113,7 @@ public:
    */
   FaceIndexType face_index(LocalIndexType local_f) const
   {
-    return tria->face_vertices(index, local_f);
+    return tria->cell_faces(index, local_f);
   }
 
   /**
@@ -214,7 +214,7 @@ struct FaceAccessor
    */
   VertexIndexType vertex_index(LocalIndexType local_v) const
   {
-    ASSERT(local_v < Topo::verts_per_cell, "Invalid local vertex");
+    ASSERT(local_v < Topo::verts_per_face, "Invalid local vertex");
     return tria->face_vertices(index, local_v);
   }
 
@@ -234,7 +234,20 @@ struct FaceAccessor
   /**
    * @brief Grab the owner cell of this face
    */
-  CellIndexType owner_index() const { return tria->face_cells(index, 0); }
+  CellIndexType owner_index() const
+  {
+    const auto global_cell = tria->face_cells(index, 0);
+
+    // If the face is periodic we must determine an owner so we don't double
+    // count. For this we assume the owner is the minimum global cell index.
+    if (is_periodic()) {
+      const auto neighbor = tria->face_cells(index, 1);
+
+      return std::min(global_cell, neighbor);
+    }
+
+    return global_cell;
+  }
 
   /**
    * @brief Grab the neighbor cell of this face
@@ -305,7 +318,7 @@ struct FaceAccessor
     return 0.0;
   }
 
-  Tensor<1, dim, double> normal() const
+  Tensor<1, dim, double> normal(CellIndexType cell) const
   {
     Tensor<1, dim, double> n;
 
@@ -321,7 +334,12 @@ struct FaceAccessor
     }
 
     // Orient away from owner cell center
-    const auto owner_center = tria->get_cell(owner_index()).center();
+    auto owner_center = tria->get_cell(owner_index()).center();
+
+    // If periodic subtract the displacement if not the owner cell
+    if (is_periodic() && (owner_index() != cell)) {
+      owner_center -= periodic_offset();
+    }
     const auto face_center = center();
     const auto d = face_center - owner_center;
 
@@ -334,6 +352,10 @@ struct FaceAccessor
       for (unsigned int i = 0; i < dim; ++i) {
         n(i) = -n(i);
       }
+    }
+
+    if (cell != owner_index()) {
+      return -n;
     }
 
     return n;
@@ -518,24 +540,11 @@ public:
 
     for (auto cell : active_cell_range()) {
       Tensor<1, dim, double> sum;
-
-      std::cout << "Cell Index " << cell.index << std::endl;
       for (LocalIndexType lf = 0; lf < Topo::faces_per_cell; ++lf) {
-        std::cout << "Local face " << lf << std::endl;
         const auto face = cell.face(lf);
 
-        std::cout << "Face owner " << face.owner_index() << std::endl;
-
-        const auto n = face.normal();
+        const auto n = face.normal(cell.index);
         const double len = face.measure();
-
-        std::cout << "Normal " << n(0) << " " << n(1) << std::endl;
-
-        // Skip if the face if the cell doesn't own it
-        if (face.owner_index() != cell.index) {
-          continue;
-        }
-
         sum += n * len;
       }
 
@@ -572,7 +581,7 @@ private:
   /**
    * @brief Global vertex indices for each face.
    *
-   * Array size is n_faces, Topo<dim>::verts_per_cell
+   * Array size is n_faces, Topo<dim>::verts_per_face
    */
   HostMat<VertexIndexType> face_vertices;
 
