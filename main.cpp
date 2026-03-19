@@ -8,6 +8,7 @@
 #include <parameters.hpp>
 #include <read_gri.hpp>
 #include <solve.hpp>
+#include <stdexcept>
 #include <timer.hpp>
 #include <triangulation.hpp>
 #include <vector.hpp>
@@ -134,7 +135,6 @@ public:
     }
   }
 
-private:
   const unsigned int degree_;
   const DoFHandler<dim, RealType>& dof_handler_;
   FEValues<dim, RealType>& fe_values_;
@@ -456,8 +456,12 @@ main(int argc, char* argv[])
     QGaussSimplex<2, double> quad(problem_degree + 1);
     QGaussSimplex<1, double> face_quad(problem_degree + 1);
 
-    gri.read_gri("../tests/test.gri");
+    gri.read_gri("../tests/test_1.gri");
     gri.transfer_to_triangulation(tria);
+
+    if (!tria.verify_mesh()) {
+      std::runtime_error("Verify mesh failed");
+    }
 
     DoFHandler<2, double> dof_handler(tria, fe);
     const unsigned int n_dofs = dof_handler.n_dofs();
@@ -485,11 +489,6 @@ main(int argc, char* argv[])
       std::cout << "Area " << area << " cell measure " << cell.measure()
                 << std::endl;
     }
-
-    // Create mass matrix
-    MassMatrix<2, double> matrix(fe_values);
-    matrix.assemble(dof_handler);
-    matrix.spy();
   }
 
   Kokkos::finalize();
