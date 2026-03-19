@@ -1,6 +1,7 @@
-#include <gtest/gtest.h>
 #include <read_gri.hpp>
 #include <triangulation.hpp>
+
+#include <gtest/gtest.h>
 
 TEST(ReadGri, basic)
 {

@@ -197,7 +197,7 @@ public:
       const auto a = rf.v0;
       const auto b = rf.v1;
 
-      // Grab the verticies of the periodic nodes if they exist
+      // Grab the vertices of the periodic nodes if they exist
       if (periodic_nodes.contains(a) && periodic_nodes.contains(b)) {
         const auto c = periodic_nodes[a];
         const auto d = periodic_nodes[b];

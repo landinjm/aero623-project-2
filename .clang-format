@@ -145,14 +145,12 @@ IfMacros:
   - KJ_IF_MAYBE
 IncludeBlocks:   Regroup
 IncludeCategories:
-  - Regex:           '<deal.II.*>'
-    Priority:        1
-  - Regex:           '<boost.*>'
-    Priority:        2
-  - Regex:           '<.*>'
-    Priority:        10
-  - Regex:           '".*"'
-    Priority:        100
+  - Regex: '^<gtest/'        # GTest headers → priority 3 (sorted last)
+    Priority: 3
+  - Regex: '^<'              # Other system headers → priority 1
+    Priority: 1
+  - Regex: '^"'              # Your project headers → priority 2
+    Priority: 2
 IncludeIsMainRegex: '(Test)?$'
 IncludeIsMainSourceRegex: ''
 IndentAccessModifiers: false

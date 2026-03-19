@@ -1,4 +1,8 @@
+#include <dof_handler.hpp>
 #include <fe.hpp>
+#include <read_gri.hpp>
+#include <triangulation.hpp>
+
 #include <gtest/gtest.h>
 
 using RealType = double;
@@ -328,3 +332,60 @@ MakeTriangleMonomialCases()
 INSTANTIATE_TEST_SUITE_P(MonomialCases,
                          QGaussSimplexExactness2D,
                          ::testing::ValuesIn(MakeTriangleMonomialCases()));
+
+class FEValuesTest : public ::testing::TestWithParam<unsigned int>
+{};
+
+TEST_P(FEValuesTest, basic)
+{
+  unsigned int problem_degree = GetParam();
+
+  GriReader<2> gri;
+  Triangulation<2> tria;
+  FE_DGQLegendre<2, double> fe(problem_degree);
+  QGaussSimplex<2, double> quad(problem_degree + 1);
+  QGaussSimplex<1, double> face_quad(problem_degree + 1);
+
+  gri.read_gri("../tests/test_2.gri");
+  gri.transfer_to_triangulation(tria);
+
+  DoFHandler<2, double> dof_handler(tria, fe);
+
+  FEValues<2, double> fe_values(fe, quad);
+  FEFaceValues<2, double> fe_face_values(fe, face_quad);
+
+  double tol = 1.0e-12;
+  for (auto cell : dof_handler.active_cell_range()) {
+    // For the cell FEValues check that the sum of the JxW equates to the cell
+    // volume and the shape values sum to unity.
+    fe_values.reinit(cell);
+    double area = 0;
+    for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
+      double sum = 0;
+      area += fe_values.JxW(q);
+      for (unsigned int i = 0; i < fe_values.n_dofs(); ++i) {
+        sum += fe_values.shape_value(i, q);
+      }
+      EXPECT_NEAR(sum, 1.0, tol);
+    }
+    EXPECT_NEAR(area, cell.measure(), tol);
+
+    // For the face FEValues check that the face lengths equal the actual and
+    // the normals are correct.
+    for (unsigned int lf = 0; lf < 3; ++lf) {
+      fe_face_values.reinit(cell, lf);
+      double length = 0;
+      for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+        length += fe_face_values.JxW(q);
+
+        auto n = fe_face_values.normal(q);
+        EXPECT_NEAR(n.norm(), 1.0, tol);
+      }
+      EXPECT_NEAR(length, cell.face(lf).measure(), tol);
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Orders,
+                         FEValuesTest,
+                         ::testing::Values(0u, 1u, 2u, 3u));
