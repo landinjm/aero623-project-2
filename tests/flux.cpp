@@ -1,5 +1,6 @@
 #include <config.hpp>
 #include <flux.hpp>
+
 #include <gtest/gtest.h>
 
 using RealType = double;

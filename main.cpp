@@ -443,7 +443,7 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 1;
+static constexpr unsigned int problem_degree = 3;
 
 int
 main(int argc, char* argv[])
@@ -456,7 +456,7 @@ main(int argc, char* argv[])
     QGaussSimplex<2, double> quad(problem_degree + 1);
     QGaussSimplex<1, double> face_quad(problem_degree + 1);
 
-    gri.read_gri("../tests/test_1.gri");
+    gri.read_gri("../tests/test_2.gri");
     gri.transfer_to_triangulation(tria);
 
     if (!tria.verify_mesh()) {
@@ -472,23 +472,6 @@ main(int argc, char* argv[])
     // Create the FEValues objects
     FEValues<2, double> fe_values(fe, quad);
     FEFaceValues<2, double> fe_face_values(fe, face_quad);
-
-    for (auto cell : dof_handler.active_cell_range()) {
-      fe_values.reinit(cell);
-      double area = 0;
-      for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
-        double sum = 0;
-        area += fe_values.JxW(q);
-        for (unsigned int i = 0; i < fe_values.n_dofs(); ++i) {
-          sum += fe_values.shape_value(i, q);
-        }
-
-        std::cout << "Sum for q " << q << " " << sum << std::endl;
-      }
-
-      std::cout << "Area " << area << " cell measure " << cell.measure()
-                << std::endl;
-    }
   }
 
   Kokkos::finalize();

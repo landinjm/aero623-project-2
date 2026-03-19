@@ -155,7 +155,7 @@ private:
           coeffs_[i][j] -= A[i][k] * coeffs_[k][j];
     }
 
-    // Tranpose for cache locality
+    // Transpose for cache locality
     RealType tmp[max_dofs_][max_dofs_];
     for (int i = 0; i < N; ++i)
       for (int j = 0; j < N; ++j)
@@ -446,7 +446,7 @@ public:
 
         const auto tmp = fe_.shape_gradient(i, xi);
         for (unsigned int d = 0; d < dim; ++d) {
-          grad_phi_(i, q, d) = tmp(d);
+          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[1][d] * tmp(1);
         }
       }
 
@@ -529,9 +529,122 @@ public:
     ASSERT(face < SimplexTopology<dim>::faces_per_cell,
            "Local face number must be less than the number of faces per cell");
 
+    // The challenge with this class is that we have the quadrature rule defined
+    // along the face, but the basis functions defined along the cell. As such,
+    // we must map from reference line to reference triangle.
+
     // Build a Jacobian from the vertices of the cell.
     RealType J[dim][dim];
     RealType x0[dim];
+
+    for (unsigned int d = 0; d < dim; ++d) {
+      x0[d] = cell.vertex(0)(d);
+    }
+
+    // J columns are edge vectors from vertex 0
+    for (unsigned int d = 0; d < dim; ++d) {
+      J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
+      J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
+    }
+
+    // Take the inverse and determinant
+    const RealType det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+    const RealType J_inv[dim][dim] = { { J[1][1] / det_J, -J[0][1] / det_J },
+                                       { -J[1][0] / det_J, J[0][0] / det_J } };
+
+    // Here is where things become a little different than FEValues.
+    // 1. Each face maps a 1D quad point to the 2D coordinates on the reference
+    // triangle.
+    // 2. Each face maps to a reference normal vector.
+    // 3. The edge length in reference space gives the face Jacobian.
+
+    RealType ref_tangent[dim];
+    RealType ref_origin[dim];
+    RealType ref_normal[dim];
+
+    switch (face) {
+      case 0: {
+        // Face 0 -> v1=(1,0) and v2=(0,1)
+        ref_origin[0] = 1.0;
+        ref_origin[1] = 0.0;
+        ref_tangent[0] = -1.0;
+        ref_tangent[1] = 1.0;
+        ref_normal[0] = 1.0;
+        ref_normal[1] = 1.0;
+        break;
+      }
+      case 1: {
+        // Face 1 -> v2=(0,1) and v0=(0,0)
+        ref_origin[0] = 0.0;
+        ref_origin[1] = 1.0;
+        ref_tangent[0] = 0.0;
+        ref_tangent[1] = -1.0;
+        ref_normal[0] = -1.0;
+        ref_normal[1] = 0.0;
+        break;
+      }
+      case 2: {
+        // Face 2 -> v0=(0,0) and v1=(1,0)
+        ref_origin[0] = 0.0;
+        ref_origin[1] = 0.0;
+        ref_tangent[0] = 1.0;
+        ref_tangent[1] = 0.0;
+        ref_normal[0] = 0.0;
+        ref_normal[1] = -1.0;
+        break;
+      }
+    }
+
+    // Now grab the physical normal and tangent
+    RealType n_phys[dim];
+    n_phys[0] = J_inv[0][0] * ref_normal[0] + J_inv[1][0] * ref_normal[1];
+    n_phys[1] = J_inv[0][1] * ref_normal[0] + J_inv[1][1] * ref_normal[1];
+
+    RealType t_phys[dim];
+    t_phys[0] = J[0][0] * ref_tangent[0] + J[0][1] * ref_tangent[1];
+    t_phys[1] = J[1][0] * ref_tangent[0] + J[1][1] * ref_tangent[1];
+
+    const RealType phys_edge_len =
+      std::sqrt(t_phys[0] * t_phys[0] + t_phys[1] * t_phys[1]);
+
+    // Normalize physical normal
+    const RealType n_phys_norm =
+      std::sqrt(n_phys[0] * n_phys[0] + n_phys[1] * n_phys[1]);
+
+    for (unsigned int q = 0; q < n_q_; ++q) {
+      // Grab the 1D quad points
+      const auto xi_face = quad_.point(q);
+      const RealType t = xi_face(0);
+
+      // Map to 2D reference coords
+      RealType xi_ref[dim];
+      xi_ref[0] = ref_origin[0] + t * ref_tangent[0];
+      xi_ref[1] = ref_origin[1] + t * ref_tangent[1];
+
+      // Wrap in a Tensor
+      Tensor<1, dim, RealType> xi;
+      xi(0) = xi_ref[0];
+      xi(1) = xi_ref[1];
+
+      JxW_(q) = phys_edge_len * quad_.weight(q);
+
+      for (unsigned int d = 0; d < dim; ++d) {
+        q_point_(q, d) = x0[d] + J[d][0] * xi_ref[0] + J[d][1] * xi_ref[1];
+      }
+
+      for (unsigned int d = 0; d < dim; ++d) {
+        normal_(q, d) = n_phys[d] / n_phys_norm;
+      }
+
+      for (unsigned int i = 0; i < n_dofs_; ++i) {
+        phi_(i, q) = fe_.shape_value(i, xi);
+
+        const auto tmp = fe_.shape_gradient(i, xi);
+        for (unsigned int d = 0; d < dim; ++d) {
+          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[1][d] * tmp(1);
+        }
+      }
+    }
   }
 
   unsigned int n_dofs() const { return n_dofs_; }
@@ -548,7 +661,7 @@ public:
     return p;
   }
 
-  Tensor<1, dim, RealType> normal_vector(unsigned int q) const
+  Tensor<1, dim, RealType> normal(unsigned int q) const
   {
     Tensor<1, dim, RealType> n;
     for (unsigned int d = 0; d < dim; ++d) {
