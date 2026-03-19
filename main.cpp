@@ -4,6 +4,7 @@
 #include <dof_handler.hpp>
 #include <fe.hpp>
 #include <flux.hpp>
+#include <matrix.hpp>
 #include <parameters.hpp>
 #include <read_gri.hpp>
 #include <solve.hpp>
@@ -442,7 +443,7 @@ private:
   }
 };
 
-static constexpr unsigned int problem_degree = 3;
+static constexpr unsigned int problem_degree = 1;
 
 int
 main(int argc, char* argv[])
@@ -484,6 +485,11 @@ main(int argc, char* argv[])
       std::cout << "Area " << area << " cell measure " << cell.measure()
                 << std::endl;
     }
+
+    // Create mass matrix
+    MassMatrix<2, double> matrix(fe_values);
+    matrix.assemble(dof_handler);
+    matrix.spy();
   }
 
   Kokkos::finalize();
