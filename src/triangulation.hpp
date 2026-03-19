@@ -13,7 +13,7 @@ class GriReader;
 template<unsigned int dim>
 class Triangulation;
 
-using LocalIndexType = uint8_t;
+using LocalIndexType = uint32_t;
 using CellIndexType = uint32_t;
 using FaceIndexType = int32_t;
 using VertexIndexType = uint32_t;
@@ -313,6 +313,7 @@ struct FaceAccessor
       const auto v0 = vertex(0);
       const auto v1 = vertex(1);
       const auto e = v1 - v0;
+
       const double len = Kokkos::sqrt(e(0) * e(0) + e(1) * e(1));
       // Rotate tangent 90 degrees to get a candidate normal
       n(0) = e(1) / len;
@@ -518,10 +519,17 @@ public:
     for (auto cell : active_cell_range()) {
       Tensor<1, dim, double> sum;
 
+      std::cout << "Cell Index " << cell.index << std::endl;
       for (LocalIndexType lf = 0; lf < Topo::faces_per_cell; ++lf) {
+        std::cout << "Local face " << lf << std::endl;
         const auto face = cell.face(lf);
+
+        std::cout << "Face owner " << face.owner_index() << std::endl;
+
         const auto n = face.normal();
         const double len = face.measure();
+
+        std::cout << "Normal " << n(0) << " " << n(1) << std::endl;
 
         // Skip if the face if the cell doesn't own it
         if (face.owner_index() != cell.index) {

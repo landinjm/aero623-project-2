@@ -85,29 +85,57 @@ public:
 
   void transfer_to_triangulation(Triangulation<dim>& tria) const
   {
-    // First build the face map
+    // Grab the number of cells
+    const unsigned int n_cells = data_.n_elements;
+
+    // Build a face map
     using EdgeKey = std::pair<unsigned int, unsigned int>;
 
     struct RawFace
     {
-      unsigned int v0, v1;
+      // Global vertex indices
+      uint v0, v1;
+
+      // Neighboring global cell indices. The first index is always the owner
+      // and the second is the neighbor.
       CellIndexType cells[2] = { CellIndexType(-1), CellIndexType(-1) };
+
+      // Whether the face is at a boundary. Note that this is false for periodic
+      // faces.
       bool is_boundary = false;
       BoundaryIdType boundary_id = 0;
+
+      // Whether the face is periodic
+      bool is_periodic = false;
+
+      // Neighbor global face index
+      unsigned int neighbor = unsigned(-1);
     };
 
     std::map<EdgeKey, FaceIndexType> edge_to_face;
     std::vector<RawFace> raw_faces;
 
-    // face i of a triangle is opposite vertex i:
-    //   face 0: v1-v2,  face 1: v2-v0,  face 2: v0-v1
+    // Each local face id corresponds to an opposite vertex with the same id.
+    // For example face 0: v1-v2, face 1: v2-v0, and face 2:v0-v1
     constexpr unsigned int edge_v0[3] = { 1, 2, 0 };
     constexpr unsigned int edge_v1[3] = { 2, 0, 1 };
+    constexpr unsigned int edge_v2[3] = { 0, 1, 2 };
 
-    const unsigned int nc = data_.n_elements;
-    std::vector<std::array<FaceIndexType, 3>> cell_face_ids(nc);
+    // Allocate an array for the total number of faces
+    std::vector<std::array<FaceIndexType, 3>> cell_face_ids(n_cells);
 
-    for (unsigned int c = 0; c < nc; ++c) {
+    // For each cell fill out the face information.
+    for (unsigned int c = 0; c < n_cells; ++c) {
+      const unsigned int vertex_indices[3] = { data_.node_1[c],
+                                               data_.node_2[c],
+                                               data_.node_3[c] };
+
+      for (unsigned int f = 0; f < 3; ++f) {
+        // Grab the vertex indices from the local face number and make a key.
+      }
+    }
+
+    for (unsigned int c = 0; c < n_cells; ++c) {
       const unsigned int verts[3] = { data_.node_1[c],
                                       data_.node_2[c],
                                       data_.node_3[c] };
@@ -156,7 +184,7 @@ public:
     const unsigned int nf = static_cast<unsigned int>(raw_faces.size());
     const unsigned int nv = data_.n_nodes;
 
-    tria.internal_reinit(nc, nf, nv);
+    tria.internal_reinit(n_cells, nf, nv);
 
     // Fill in the vertices
     for (unsigned int v = 0; v < data_.n_nodes; ++v) {

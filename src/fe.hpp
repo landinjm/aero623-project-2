@@ -529,9 +529,9 @@ public:
     ASSERT(face < SimplexTopology<dim>::faces_per_cell,
            "Local face number must be less than the number of faces per cell");
 
-    // NOTE: Since our quadrature has one less dimension that our finite element
-    // basis functions, we need to map that dim - 1 quadrature point back onto
-    // the reference triangle to evaluate all the basis functions at that point.
+    // Build a Jacobian from the vertices of the cell.
+    RealType J[dim][dim];
+    RealType x0[dim];
   }
 
   unsigned int n_dofs() const { return n_dofs_; }
