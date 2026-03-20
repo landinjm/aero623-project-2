@@ -571,7 +571,20 @@ public:
     return passed;
   }
 
+  void remap_boundary_ids(const std::unordered_map<uint32_t, uint32_t>& id_map)
+  {
+    for (size_t f = 0; f < n_faces(); ++f) {
+      if (face_flags(f) & FaceFlags::Boundary) {
+        auto it = id_map.find(boundary_ids(f));
+        if (it != id_map.end())
+          boundary_ids(f) = it->second;
+      }
+    }
+  }
+
+  // TODO: Undo this
   // private:
+
   /**
    * @brief Vertex positions.
    *

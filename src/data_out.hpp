@@ -57,17 +57,71 @@ public:
     std::ofstream out(filename);
     ASSERT(out.is_open(), "Could not open output file");
 
-    const uint32_t ndpc = dh_->n_dofs_per_cell();
     const uint32_t n_cells = dh_->n_cells();
-    const uint32_t n_points = n_cells * ndpc;
+    const uint32_t ndpc = dh_->n_dofs_per_cell();
+    // For degree 0: write 3 vertices per cell as points
+    const uint32_t verts_per_cell = Topo::verts_per_cell;
+    const uint32_t n_points = n_cells * verts_per_cell;
 
     write_header(out);
     out << "    <Piece NumberOfPoints=\"" << n_points << "\" NumberOfCells=\""
         << n_cells << "\">\n";
 
-    write_dg_points(out, ndpc);
-    write_dg_cells(out, ndpc, n_cells);
-    write_dg_point_data(out, ndpc);
+    // Points: use actual cell vertices
+    out << "      <Points>\n"
+        << "        <DataArray type=\"Float64\""
+        << " NumberOfComponents=\"3\" format=\"ascii\">\n";
+    std::vector<uint32_t> local_dof_indices;
+    for (auto cell : dh_->active_cell_range()) {
+      for (unsigned int v = 0; v < verts_per_cell; ++v) {
+        auto x = cell.vertex(v);
+        for (unsigned int d = 0; d < dim; ++d)
+          out << x(d) << " ";
+        for (unsigned int d = dim; d < 3; ++d)
+          out << "0.0 ";
+        out << "\n";
+      }
+    }
+    out << "        </DataArray>\n"
+        << "      </Points>\n";
+
+    // Cells: one VTK_TRIANGLE per DG cell
+    out << "      <Cells>\n";
+
+    out << "        <DataArray type=\"UInt32\" Name=\"connectivity\""
+        << " format=\"ascii\">\n";
+    for (uint32_t k = 0; k < n_cells; ++k)
+      out << k * verts_per_cell + 0 << " " << k * verts_per_cell + 1 << " "
+          << k * verts_per_cell + 2 << "\n";
+    out << "        </DataArray>\n";
+
+    out << "        <DataArray type=\"UInt32\" Name=\"offsets\""
+        << " format=\"ascii\">\n";
+    for (uint32_t k = 0; k < n_cells; ++k)
+      out << (k + 1) * verts_per_cell << " ";
+    out << "\n        </DataArray>\n";
+
+    out << "        <DataArray type=\"UInt8\" Name=\"types\""
+        << " format=\"ascii\">\n";
+    for (uint32_t k = 0; k < n_cells; ++k)
+      out << "5 ";
+    out << "\n        </DataArray>\n";
+
+    out << "      </Cells>\n";
+
+    // Cell data: one value per cell (constant per element for degree 0)
+    out << "      <CellData>\n";
+    for (const auto& e : entries_) {
+      out << "        <DataArray type=\"Float64\" Name=\"" << e.name
+          << "\" format=\"ascii\">\n";
+      for (auto cell : dh_->active_cell_range()) {
+        cell.get_dof_indices(local_dof_indices);
+        // degree 0: one DOF per cell
+        out << e.data[local_dof_indices[0]] << "\n";
+      }
+      out << "        </DataArray>\n";
+    }
+    out << "      </CellData>\n";
 
     write_piece_close(out);
     write_footer(out);

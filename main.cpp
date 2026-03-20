@@ -14,10 +14,11 @@
 #include <triangulation.hpp>
 #include <vector.hpp>
 
-enum BoundaryId
+struct BoundaryId
 {
-  inflow = 10,
-  wall = 10,
+  static constexpr uint32_t InviscidWall = 1;
+  static constexpr uint32_t SubsonicInflow = 2;
+  static constexpr uint32_t SubsonicOutflow = 3;
 };
 
 template<unsigned int dim, typename RealType>
@@ -59,6 +60,158 @@ public:
     precompute_geometry();
   }
 
+  void write_solution(const std::string& filename, unsigned int cycle = 0)
+  {
+    constexpr RealType gamma = Parameters<RealType>::gamma;
+    constexpr RealType gm1 = gamma - RealType(1);
+
+    // Pull state to host
+    VecHost rho_h(n_dofs_);
+    VecHost rho_u_h(n_dofs_);
+    VecHost rho_v_h(n_dofs_);
+    VecHost rho_E_h(n_dofs_);
+
+    Kokkos::deep_copy(rho_h.view(), rho_.view());
+    Kokkos::deep_copy(rho_u_h.view(), rho_u_.view());
+    Kokkos::deep_copy(rho_v_h.view(), rho_v_.view());
+    Kokkos::deep_copy(rho_E_h.view(), rho_E_.view());
+
+    // Pull residuals to host
+    VecHost res_rho_h(n_dofs_);
+    VecHost res_rho_u_h(n_dofs_);
+    VecHost res_rho_v_h(n_dofs_);
+    VecHost res_rho_E_h(n_dofs_);
+
+    Kokkos::deep_copy(res_rho_h.view(), res_rho_.view());
+    Kokkos::deep_copy(res_rho_u_h.view(), res_rho_u_.view());
+    Kokkos::deep_copy(res_rho_v_h.view(), res_rho_v_.view());
+    Kokkos::deep_copy(res_rho_E_h.view(), res_rho_E_.view());
+
+    // Compute derived quantities
+    VecHost u_h(n_dofs_);
+    VecHost v_h(n_dofs_);
+    VecHost p_h(n_dofs_);
+    VecHost mach_h(n_dofs_);
+
+    for (unsigned int i = 0; i < n_dofs_; ++i) {
+      const RealType rho = rho_h[i];
+      const RealType rho_u = rho_u_h[i];
+      const RealType rho_v = rho_v_h[i];
+      const RealType rho_E = rho_E_h[i];
+
+      const RealType u = rho_u / rho;
+      const RealType v = rho_v / rho;
+      const RealType p = gm1 * (rho_E - RealType(0.5) * rho * (u * u + v * v));
+      const RealType a = std::sqrt(gamma * p / rho);
+
+      u_h[i] = u;
+      v_h[i] = v;
+      p_h[i] = p;
+      mach_h[i] = std::sqrt(u * u + v * v) / a;
+    }
+
+    DataOut<dim> data_out;
+    data_out.attach_dof_handler(dof_handler_);
+    data_out.set_cycle(cycle);
+
+    data_out.add_data_vector(rho_h, "density");
+    data_out.add_data_vector(rho_u_h, "momentum_x");
+    data_out.add_data_vector(rho_v_h, "momentum_y");
+    data_out.add_data_vector(rho_E_h, "total_energy");
+    data_out.add_data_vector(u_h, "velocity_x");
+    data_out.add_data_vector(v_h, "velocity_y");
+    data_out.add_data_vector(p_h, "pressure");
+    data_out.add_data_vector(mach_h, "mach");
+    data_out.add_data_vector(res_rho_h, "res_density");
+    data_out.add_data_vector(res_rho_u_h, "res_momentum_x");
+    data_out.add_data_vector(res_rho_v_h, "res_momentum_y");
+    data_out.add_data_vector(res_rho_E_h, "res_total_energy");
+
+    data_out.write_vtu(filename);
+    data_out.clear();
+  }
+
+  // Before solve, check inflow BC consistency
+  void check_inflow_consistency()
+  {
+    auto bnd_normal_h = Kokkos::create_mirror_view(boundary_normal_);
+    auto bnd_phi_h = Kokkos::create_mirror_view(boundary_phi_);
+    auto bnd_dofs_h = Kokkos::create_mirror_view(boundary_dofs_);
+    auto bnd_id_h = Kokkos::create_mirror_view(boundary_id_);
+    auto bnd_qpt_h = Kokkos::create_mirror_view(boundary_q_point_);
+    Kokkos::deep_copy(bnd_normal_h, boundary_normal_);
+    Kokkos::deep_copy(bnd_phi_h, boundary_phi_);
+    Kokkos::deep_copy(bnd_dofs_h, boundary_dofs_);
+    Kokkos::deep_copy(bnd_id_h, boundary_id_);
+    Kokkos::deep_copy(bnd_qpt_h, boundary_q_point_);
+
+    auto rho_h = Kokkos::create_mirror_view(rho_.view());
+    auto rho_u_h = Kokkos::create_mirror_view(rho_u_.view());
+    auto rho_v_h = Kokkos::create_mirror_view(rho_v_.view());
+    auto rho_E_h = Kokkos::create_mirror_view(rho_E_.view());
+    Kokkos::deep_copy(rho_h, rho_.view());
+    Kokkos::deep_copy(rho_u_h, rho_u_.view());
+    Kokkos::deep_copy(rho_v_h, rho_v_.view());
+    Kokkos::deep_copy(rho_E_h, rho_E_.view());
+
+    constexpr double gamma = Parameters<double>::gamma;
+    constexpr double gm1 = gamma - 1.0;
+
+    for (unsigned int f = 0; f < n_boundary_faces_; ++f) {
+      if (bnd_id_h(f) != BoundaryId::SubsonicInflow)
+        continue;
+
+      const unsigned int n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
+      const unsigned int n_q_face = fe_face_values_.n_q_points();
+
+      for (unsigned int q = 0; q < n_q_face; ++q) {
+        const double nx = bnd_normal_h(f, q, 0);
+        const double ny = bnd_normal_h(f, q, 1);
+        const double px = bnd_qpt_h(f, q, 0);
+        const double py = bnd_qpt_h(f, q, 1);
+
+        // Reconstruct interior state
+        double rho_L = 0, rho_u_L = 0, rho_v_L = 0, rho_E_L = 0;
+        for (unsigned int j = 0; j < n_dofs_per_cell; ++j) {
+          const double phi_j = bnd_phi_h(f, q, j);
+          const uint32_t dof_j = bnd_dofs_h(f, j);
+          rho_L += rho_h(dof_j) * phi_j;
+          rho_u_L += rho_u_h(dof_j) * phi_j;
+          rho_v_L += rho_v_h(dof_j) * phi_j;
+          rho_E_L += rho_E_h(dof_j) * phi_j;
+        }
+
+        const double u_L = rho_u_L / rho_L;
+        const double v_L = rho_v_L / rho_L;
+        const double p_L =
+          gm1 * (rho_E_L - 0.5 * rho_L * (u_L * u_L + v_L * v_L));
+        const double a_L = std::sqrt(gamma * p_L / rho_L);
+        const double M_L = std::sqrt(u_L * u_L + v_L * v_L) / a_L;
+
+        // Compute ghost state
+        double F_rho, F_rho_u, F_rho_v, F_rho_E, smag;
+        Flux<double>::subsonic_inflow_flux(rho_L,
+                                           rho_u_L,
+                                           rho_v_L,
+                                           rho_E_L,
+                                           nx,
+                                           ny,
+                                           F_rho,
+                                           F_rho_u,
+                                           F_rho_v,
+                                           F_rho_E,
+                                           smag);
+
+        std::cout << "Inflow face " << f << " q=" << q << " p=(" << px << ","
+                  << py << ")"
+                  << " M_interior=" << M_L << " p_interior=" << p_L
+                  << " rho_interior=" << rho_L << " flux_rho=" << F_rho
+                  << std::endl;
+      }
+      break; // just check first inflow face
+    }
+  }
+
   template<typename InitFunc>
   void set_initial_condition(InitFunc&& f)
   {
@@ -79,10 +232,12 @@ public:
       const RealType rhoE0 =
         p0 / gm1 + RealType(0.5) * rho0 * (u0 * u0 + v0 * v0);
 
-      rho_h(dof_ids[0]) = rho0;
-      rho_u_h(dof_ids[0]) = rho0 * u0;
-      rho_v_h(dof_ids[0]) = rho0 * v0;
-      rho_E_h(dof_ids[0]) = rhoE0;
+      for (auto dof : dof_ids) {
+        rho_h(dof) = rho0;
+        rho_u_h(dof) = rho0 * u0;
+        rho_v_h(dof) = rho0 * v0;
+        rho_E_h(dof) = rhoE0;
+      }
     }
 
     Kokkos::deep_copy(rho_.view(), rho_h);
@@ -112,8 +267,7 @@ public:
     grad_phi_; // [n_cells, n_dofs_per_cell, n_q, dim]
   Kokkos::View<uint32_t**, Layout, DeviceMemSpace>
     cell_dofs_; // [n_cells, n_dofs_per_cell]
-
-  // NOTE: Do we want to precompute cell area here?
+  Kokkos::View<RealType*, Layout, DeviceMemSpace> cell_area_; // [n_cells]
 
   // Interior face geometry
   Kokkos::View<RealType**, Layout, DeviceMemSpace> interior_JxW_; // [face, q]
@@ -243,6 +397,8 @@ public:
       "grad_phi_h", n_cells, n_dofs_per_cell, n_q_points, dim);
     auto cell_dofs_h = Kokkos::View<uint32_t**, Layout, HostMemSpace>(
       "cell_dofs_h", n_cells, n_dofs_per_cell);
+    auto cell_area_h =
+      Kokkos::View<RealType*, Layout, HostMemSpace>("cell_area_h", n_cells);
 
     std::vector<uint32_t> dof_indices;
     for (auto cell : dof_handler_.active_cell_range()) {
@@ -250,8 +406,10 @@ public:
       fe_values_.reinit(cell);
       cell.get_dof_indices(dof_indices);
 
+      RealType area = 0;
       for (unsigned int q = 0; q < n_q_points; ++q) {
         JxW_h(k, q) = fe_values_.JxW(q);
+        area += fe_values_.JxW(q);
 
         auto p = fe_values_.q_point(q);
         for (unsigned int d = 0; d < dim; ++d)
@@ -264,6 +422,7 @@ public:
             grad_phi_h(k, i, q, d) = grad(d);
         }
       }
+      cell_area_h(k) = area;
 
       for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
         cell_dofs_h(k, i) = dof_indices[i];
@@ -279,12 +438,15 @@ public:
       "grad_phi", n_cells, n_dofs_per_cell, n_q_points, dim);
     cell_dofs_ = Kokkos::View<uint32_t**, Layout, DeviceMemSpace>(
       "cell_dofs", n_cells, n_dofs_per_cell);
+    cell_area_ =
+      Kokkos::View<RealType*, Layout, DeviceMemSpace>("cell_area", n_cells);
 
     Kokkos::deep_copy(JxW_, JxW_h);
     Kokkos::deep_copy(q_point_, q_point_h);
     Kokkos::deep_copy(phi_, phi_h);
     Kokkos::deep_copy(grad_phi_, grad_phi_h);
     Kokkos::deep_copy(cell_dofs_, cell_dofs_h);
+    Kokkos::deep_copy(cell_area_, cell_area_h);
 
     // Allocate the face geometry and copy to device
     auto interior_JxW_h = Kokkos::View<RealType**, Layout, HostMemSpace>(
@@ -605,6 +767,230 @@ public:
     }
   }
 
+  void solve(unsigned int max_iter = 10000,
+             RealType cfl = Parameters<RealType>::cfl_max,
+             unsigned int write_interval = 100)
+  {
+    std::cout << "Starting solve with " << max_iter << " iterations"
+              << std::endl;
+
+    // Compute initial residual norm for normalization
+    zero_residuals();
+    compute_volume_residual();
+    compute_face_residual();
+    const RealType res0 = residual_norm();
+    std::cout << "Initial residual: " << res0 << std::endl;
+
+    check_inflow_consistency();
+
+    // Write initial solution
+    write_solution("solution_0000.vtu", 0);
+
+    for (unsigned int iter = 0; iter < max_iter; ++iter) {
+      // Store u^n
+      Kokkos::deep_copy(rho_old_.view(), rho_.view());
+      Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
+      Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
+      Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
+
+      // Compute local timestep once per iteration
+      compute_local_dt(cfl);
+
+      // --- SSP-RK3 Stage 1: u^(1) = u^n + dt*R(u^n) ---
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(0.0), RealType(1.0));
+
+      // --- SSP-RK3 Stage 2: u^(2) = 3/4*u^n + 1/4*(u^(1) + dt*R(u^(1))) ---
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(0.75), RealType(0.25));
+
+      // --- SSP-RK3 Stage 3: u^(n+1) = 1/3*u^n + 2/3*(u^(2) + dt*R(u^(2))) ---
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
+
+      // Compute residual for convergence check
+      if (iter % write_interval == 0 || iter == max_iter - 1) {
+        zero_residuals();
+        compute_volume_residual();
+        compute_face_residual();
+        const RealType res = residual_norm();
+        const RealType rel_res = (res0 > RealType(0)) ? res / res0 : res;
+
+        std::cout << "Iter " << std::setw(6) << iter
+                  << "  abs_res=" << std::scientific << std::setprecision(6)
+                  << res << "  rel_res=" << rel_res << std::endl;
+
+        // Write solution
+        std::ostringstream fname;
+        fname << "solution_" << std::setw(4) << std::setfill('0') << iter
+              << ".vtu";
+        write_solution(fname.str(), iter);
+
+        // Check for NaN/divergence
+        if (std::isnan(res) || std::isinf(res)) {
+          std::cout << "Solution diverged at iter " << iter << std::endl;
+          break;
+        }
+
+        // Convergence check
+        if (rel_res < Parameters<RealType>::convergence_tol) {
+          std::cout << "Converged at iter " << iter << " rel_res=" << rel_res
+                    << std::endl;
+          write_solution("solution_final.vtu", iter);
+          break;
+        }
+      }
+    }
+
+    write_solution("solution_final.vtu", max_iter);
+  }
+
+  void test_freestream_preservation(unsigned int n_steps = 10)
+  {
+    // Store initial state
+    auto rho_init = Kokkos::create_mirror_view(rho_.view());
+    auto rho_u_init = Kokkos::create_mirror_view(rho_u_.view());
+    auto rho_v_init = Kokkos::create_mirror_view(rho_v_.view());
+    auto rho_E_init = Kokkos::create_mirror_view(rho_E_.view());
+    Kokkos::deep_copy(rho_init, rho_.view());
+    Kokkos::deep_copy(rho_u_init, rho_u_.view());
+    Kokkos::deep_copy(rho_v_init, rho_v_.view());
+    Kokkos::deep_copy(rho_E_init, rho_E_.view());
+
+    // Run n_steps of SSP-RK3
+    for (unsigned int step = 0; step < n_steps; ++step) {
+      // Store u^n
+      Kokkos::deep_copy(rho_old_.view(), rho_.view());
+      Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
+      Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
+      Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
+
+      compute_local_dt(Parameters<RealType>::cfl_max);
+
+      // Stage 1
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(0.0), RealType(1.0));
+
+      // Stage 2
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(0.75), RealType(0.25));
+
+      // Stage 3
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
+
+      // Check residual is still zero after this step
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+
+      auto res_rho_h = Kokkos::create_mirror_view(res_rho_.view());
+      auto res_rho_u_h = Kokkos::create_mirror_view(res_rho_u_.view());
+      auto res_rho_v_h = Kokkos::create_mirror_view(res_rho_v_.view());
+      auto res_rho_E_h = Kokkos::create_mirror_view(res_rho_E_.view());
+      Kokkos::deep_copy(res_rho_h, res_rho_.view());
+      Kokkos::deep_copy(res_rho_u_h, res_rho_u_.view());
+      Kokkos::deep_copy(res_rho_v_h, res_rho_v_.view());
+      Kokkos::deep_copy(res_rho_E_h, res_rho_E_.view());
+
+      RealType max_res = 0;
+      for (unsigned int i = 0; i < n_dofs_; ++i) {
+        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_h(i)));
+        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_u_h(i)));
+        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_v_h(i)));
+        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_E_h(i)));
+      }
+      std::cout << "Step " << step << " max_residual=" << max_res << std::endl;
+
+      // Also check state hasn't changed from initial
+      auto rho_h = Kokkos::create_mirror_view(rho_.view());
+      auto rho_u_h = Kokkos::create_mirror_view(rho_u_.view());
+      auto rho_v_h = Kokkos::create_mirror_view(rho_v_.view());
+      auto rho_E_h = Kokkos::create_mirror_view(rho_E_.view());
+      Kokkos::deep_copy(rho_h, rho_.view());
+      Kokkos::deep_copy(rho_u_h, rho_u_.view());
+      Kokkos::deep_copy(rho_v_h, rho_v_.view());
+      Kokkos::deep_copy(rho_E_h, rho_E_.view());
+
+      RealType max_state_change = 0;
+      for (unsigned int i = 0; i < n_dofs_; ++i) {
+        max_state_change =
+          Kokkos::max(max_state_change, Kokkos::abs(rho_h(i) - rho_init(i)));
+        max_state_change = Kokkos::max(max_state_change,
+                                       Kokkos::abs(rho_u_h(i) - rho_u_init(i)));
+        max_state_change = Kokkos::max(max_state_change,
+                                       Kokkos::abs(rho_v_h(i) - rho_v_init(i)));
+        max_state_change = Kokkos::max(max_state_change,
+                                       Kokkos::abs(rho_E_h(i) - rho_E_init(i)));
+      }
+      std::cout << "Step " << step << " max_state_change=" << max_state_change
+                << std::endl;
+    }
+  }
+
+  void compute_local_dt(RealType cfl)
+  {
+    auto d_rho = rho_.view();
+    auto d_rho_u = rho_u_.view();
+    auto d_rho_v = rho_v_.view();
+    auto d_rho_E = rho_E_.view();
+    auto d_dt = dt_.view();
+    auto indices = cell_dofs_;
+    auto areas = cell_area_;
+
+    const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
+    const RealType gamma = Parameters<RealType>::gamma;
+    const RealType p_order = static_cast<RealType>(degree_);
+    const RealType dg_scaling =
+      RealType(1) / (RealType(2) * p_order + RealType(1));
+
+    Kokkos::parallel_for(
+      "compute_local_dt", n_cells_, KOKKOS_LAMBDA(int k) {
+        // Cell-averaged state
+        RealType rho_avg = 0, rhou_avg = 0, rhov_avg = 0, rhoE_avg = 0;
+        for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
+          const uint32_t idx = indices(k, i);
+          rho_avg += d_rho(idx);
+          rhou_avg += d_rho_u(idx);
+          rhov_avg += d_rho_v(idx);
+          rhoE_avg += d_rho_E(idx);
+        }
+        rho_avg /= n_dofs_per_cell;
+        rhou_avg /= n_dofs_per_cell;
+        rhov_avg /= n_dofs_per_cell;
+        rhoE_avg /= n_dofs_per_cell;
+
+        // Velocity and speed of sound
+        const RealType u = rhou_avg / rho_avg;
+        const RealType v = rhov_avg / rho_avg;
+        const RealType vel_mag = Kokkos::sqrt(u * u + v * v);
+        const RealType p =
+          (gamma - RealType(1)) *
+          (rhoE_avg - RealType(0.5) * rho_avg * (u * u + v * v));
+        const RealType a = Kokkos::sqrt(gamma * p / rho_avg);
+
+        // Characteristic length from precomputed area
+        const RealType h = Kokkos::sqrt(areas(k));
+        const RealType dt = cfl * dg_scaling * h / (vel_mag + a);
+
+        for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
+          d_dt(indices(k, i)) = dt;
+      });
+    Kokkos::fence();
+  }
+
   void compute_volume_residual()
   {
     const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
@@ -700,6 +1086,40 @@ public:
         Kokkos::atomic_add(&d_res_rho_u(dof_i), local_res_rho_u);
         Kokkos::atomic_add(&d_res_rho_v(dof_i), local_res_rho_v);
         Kokkos::atomic_add(&d_res_rho_E(dof_i), local_res_rho_E);
+      });
+    Kokkos::fence();
+  }
+
+  void update(RealType alpha, RealType beta)
+  {
+    auto d_rho = rho_.view();
+    auto d_rho_u = rho_u_.view();
+    auto d_rho_v = rho_v_.view();
+    auto d_rho_E = rho_E_.view();
+
+    auto d_rho_old = rho_old_.view();
+    auto d_rho_u_old = rho_u_old_.view();
+    auto d_rho_v_old = rho_v_old_.view();
+    auto d_rho_E_old = rho_E_old_.view();
+
+    auto d_res_rho = res_rho_.view();
+    auto d_res_rho_u = res_rho_u_.view();
+    auto d_res_rho_v = res_rho_v_.view();
+    auto d_res_rho_E = res_rho_E_.view();
+
+    auto d_dt = dt_.view();
+
+    Kokkos::parallel_for(
+      "update_rk_stage", n_dofs_, KOKKOS_LAMBDA(int i) {
+        const RealType dt = d_dt(i);
+        // SSP-RK3: u_new = alpha*u_old + beta*(u_curr + dt*R)
+        d_rho(i) = alpha * d_rho_old(i) + beta * (d_rho(i) + dt * d_res_rho(i));
+        d_rho_u(i) =
+          alpha * d_rho_u_old(i) + beta * (d_rho_u(i) + dt * d_res_rho_u(i));
+        d_rho_v(i) =
+          alpha * d_rho_v_old(i) + beta * (d_rho_v(i) + dt * d_res_rho_v(i));
+        d_rho_E(i) =
+          alpha * d_rho_E_old(i) + beta * (d_rho_E(i) + dt * d_res_rho_E(i));
       });
     Kokkos::fence();
   }
@@ -936,29 +1356,71 @@ public:
             rho_E_L += d_rho_E(dof_j) * phi_j;
           }
 
-          // For freestream, exterior state is the same
-          RealType rho_R = rho_L;
-          RealType rho_u_R = rho_u_L;
-          RealType rho_v_R = rho_v_L;
-          RealType rho_E_R = rho_E_L;
-
           // Numerical flux
           RealType flux_rho, flux_rho_u, flux_rho_v, flux_rho_E, smag;
-          Flux<RealType>::roe_flux(rho_L,
-                                   rho_u_L,
-                                   rho_v_L,
-                                   rho_E_L,
-                                   rho_R,
-                                   rho_u_R,
-                                   rho_v_R,
-                                   rho_E_R,
-                                   nx,
-                                   ny,
-                                   flux_rho,
-                                   flux_rho_u,
-                                   flux_rho_v,
-                                   flux_rho_E,
-                                   smag);
+          switch (id) {
+            case BoundaryId::InviscidWall: {
+              Flux<RealType>::inviscid_wall_flux(rho_L,
+                                                 rho_u_L,
+                                                 rho_v_L,
+                                                 rho_E_L,
+                                                 nx,
+                                                 ny,
+                                                 flux_rho,
+                                                 flux_rho_u,
+                                                 flux_rho_v,
+                                                 flux_rho_E,
+                                                 smag);
+              break;
+            }
+            case BoundaryId::SubsonicInflow: {
+              Flux<RealType>::subsonic_inflow_flux(rho_L,
+                                                   rho_u_L,
+                                                   rho_v_L,
+                                                   rho_E_L,
+                                                   nx,
+                                                   ny,
+                                                   flux_rho,
+                                                   flux_rho_u,
+                                                   flux_rho_v,
+                                                   flux_rho_E,
+                                                   smag);
+              break;
+            }
+            case BoundaryId::SubsonicOutflow: {
+              Flux<RealType>::subsonic_outflow_flux(rho_L,
+                                                    rho_u_L,
+                                                    rho_v_L,
+                                                    rho_E_L,
+                                                    nx,
+                                                    ny,
+                                                    flux_rho,
+                                                    flux_rho_u,
+                                                    flux_rho_v,
+                                                    flux_rho_E,
+                                                    smag);
+              break;
+            }
+            default: {
+              // Freestream / do-nothing
+              Flux<RealType>::roe_flux(rho_L,
+                                       rho_u_L,
+                                       rho_v_L,
+                                       rho_E_L,
+                                       rho_L,
+                                       rho_u_L,
+                                       rho_v_L,
+                                       rho_E_L,
+                                       nx,
+                                       ny,
+                                       flux_rho,
+                                       flux_rho_u,
+                                       flux_rho_v,
+                                       flux_rho_E,
+                                       smag);
+              break;
+            }
+          }
 
           // Scatter to interior cell only (no neighbor)
           for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
@@ -1009,11 +1471,33 @@ main(int argc, char* argv[])
     QGaussSimplex<2, double> quad(problem_degree + 1);
     QGaussSimplex<1, double> face_quad(problem_degree + 1);
 
-    gri.read_gri("../tests/test_2.gri");
+    gri.read_gri("../grids/coarse_local_refinement.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
     }
+
+    // Print one point per boundary face to check the IDs
+    std::cout << "=== Boundary Face IDs ===" << std::endl;
+    for (auto cell : tria.active_cell_range()) {
+      for (unsigned int lf = 0; lf < SimplexTopology<2>::faces_per_cell; ++lf) {
+        if (cell.face_at_boundary(lf)) {
+          auto face = cell.face(lf);
+          auto center = face.center();
+          std::cout << "id=" << face.boundary_id() << " center=(" << center(0)
+                    << "," << center(1) << ")" << std::endl;
+        }
+      }
+    }
+
+    // Renumber boundary ids so they match above.
+    std::unordered_map<uint32_t, uint32_t> id_map = {
+      { 7, BoundaryId::InviscidWall },
+      { 8, BoundaryId::InviscidWall },
+      { 5, BoundaryId::SubsonicInflow },
+      { 6, BoundaryId::SubsonicOutflow },
+    };
+    tria.remap_boundary_ids(id_map);
 
     DoFHandler<2, double> dof_handler(tria, fe);
 
@@ -1025,15 +1509,40 @@ main(int argc, char* argv[])
       dof_handler, fe_values, fe_face_values, problem_degree);
 
     // Set uniform freestream state
-    solver.set_initial_condition([&](double x, double y) {
-      return std::make_tuple(1.0, 1.0, 0.0, 1.0 / Parameters<double>::gamma);
+    solver.set_initial_condition([](double x, double y) {
+      constexpr double gamma = Parameters<double>::gamma;
+      constexpr double gm1 = gamma - 1.0;
+      constexpr double p_0 = Parameters<double>::p_0;
+      constexpr double rho_0 = Parameters<double>::rho_0;
+      constexpr double a_0 = Parameters<double>::a_0;
+      constexpr double p_out = Parameters<double>::p_out;
+
+      // Use outflow pressure as the static pressure (consistent with outflow
+      // BC)
+      const double p = p_out;
+
+      // Isentropic relations from stagnation to static
+      const double ratio = p / p_0;
+      const double rho = rho_0 * std::pow(ratio, 1.0 / gamma);
+      const double a = std::sqrt(gamma * p / rho);
+      const double a_sq = a * a;
+      const double a_0sq = a_0 * a_0;
+
+      // Velocity magnitude from energy: a^2 + 0.5*gm1*V^2 = a_0^2
+      const double V = std::sqrt(2.0 / gm1 * (a_0sq - a_sq));
+
+      // Split into components using inflow direction
+      const double nx = Parameters<double>::n_x_0();
+      const double ny = Parameters<double>::n_y_0();
+      const double u = V * nx;
+      const double v = V * ny;
+
+      return std::make_tuple(rho, u, v, p);
     });
 
-    // Compute one residual
-    solver.zero_residuals();
-    solver.compute_volume_residual();
-    solver.compute_face_residual();
-    std::cout << "Residual " << solver.residual_norm() << std::endl;
+    // solver.test_freestream_preservation(100);
+
+    solver.solve();
   }
 
   Kokkos::finalize();
