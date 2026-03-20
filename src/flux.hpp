@@ -188,7 +188,7 @@ public:
     // Compute the normal velocity and speed of sound for the Riemann invariant
     const RealType c_L = speed_of_sound(rho_L, p_L);
     const RealType v_n_L = u_L * n_x + v_L * n_y;
-    const RealType R_minus = v_n_L - two_over_gm1 * c_L;
+    const RealType R_minus = v_n_L + two_over_gm1 * c_L;
 
     // Solve for the boundary mach number using the quadratic formula
     const RealType A = RealType(1.0) + two_over_gm1;
