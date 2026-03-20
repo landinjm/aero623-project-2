@@ -298,6 +298,21 @@ struct FaceAccessor
     return p;
   }
 
+  LocalIndexType periodic_neighbor_face_index() const
+  {
+    ASSERT(is_periodic(), "Face is not periodic");
+    const auto neighbor_face_idx = periodic_neighbor_index();
+    const auto neighbor_cell_idx = tria->face_cells(neighbor_face_idx, 0);
+    const auto neighbor_cell = tria->get_cell(neighbor_cell_idx);
+
+    for (LocalIndexType lf = 0; lf < Topo::faces_per_cell; ++lf)
+      if (neighbor_cell.face_index(lf) == neighbor_face_idx)
+        return lf;
+
+    ASSERT(false, "Could not find periodic neighbor face index");
+    return 0;
+  }
+
   Tensor<1, dim, double> center() const
   {
     Tensor<1, dim, double> c;
@@ -556,7 +571,7 @@ public:
     return passed;
   }
 
-private:
+  // private:
   /**
    * @brief Vertex positions.
    *

@@ -56,6 +56,33 @@ public:
       return tria_cell.neighbor_index(local_f);
     }
 
+    CellAccessor neighbor(LocalIndexType local_f) const
+    {
+      return CellAccessor{ tria_cell.neighbor(local_f), handler };
+    }
+
+    LocalIndexType neighbor_face_index(LocalIndexType local_f) const
+    {
+      const auto global_f = tria_cell.face_index(local_f);
+      const auto neighbor = tria_cell.neighbor(local_f);
+      for (LocalIndexType lf = 0; lf < ::SimplexTopology<dim>::faces_per_cell;
+           ++lf)
+        if (neighbor.face_index(lf) == global_f)
+          return lf;
+      ASSERT(false, "Could not find neighbor face index");
+      return 0;
+    }
+
+    CellAccessor periodic_neighbor(LocalIndexType local_f) const
+    {
+      ASSERT(tria_cell.face_is_periodic(local_f), "Face is not periodic");
+      const auto neighbor_face = tria_cell.face(local_f).periodic_neighbor();
+      const auto neighbor_cell_idx =
+        tria_cell.tria->face_cells(neighbor_face.index, 0);
+      return CellAccessor{ tria_cell.tria->get_cell(neighbor_cell_idx),
+                           handler };
+    }
+
     void get_dof_indices(std::vector<size_type>& indices) const
     {
       const size_type k = tria_cell.index;

@@ -66,29 +66,6 @@ public:
   }
 
   KOKKOS_INLINE_FUNCTION
-  static void lax_friedrich_flux(RealType u_L,
-                                 RealType u_R,
-                                 RealType a_x,
-                                 RealType a_y,
-                                 RealType n_x,
-                                 RealType n_y,
-                                 RealType& flux)
-  {
-    // Normal velocity
-    const RealType a_n = a_x * n_x + a_y * n_y;
-
-    // Physical fluxes
-    const RealType F_L = u_L * a_n;
-    const RealType F_R = u_R * a_n;
-
-    // Wave speed
-    const RealType alpha = Kokkos::abs(a_n);
-
-    // Lax-Friedrichs flux
-    flux = 0.5 * (F_L + F_R) - 0.5 * alpha * (u_R - u_L);
-  }
-
-  KOKKOS_INLINE_FUNCTION
   static void euler_flux(RealType rho,
                          RealType u,
                          RealType v,
