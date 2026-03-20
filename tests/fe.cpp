@@ -386,6 +386,80 @@ TEST_P(FEValuesTest, basic)
   }
 }
 
+TEST_P(FEValuesTest, advection_residual)
+{
+  unsigned int problem_degree = GetParam();
+  GriReader<2> gri;
+  Triangulation<2> tria;
+  FE_DGQLegendre<2, double> fe(problem_degree);
+  QGaussSimplex<2, double> quad(problem_degree + 1);
+  QGaussSimplex<1, double> face_quad(problem_degree + 1);
+  gri.read_gri("../tests/test_2.gri");
+  gri.transfer_to_triangulation(tria);
+  DoFHandler<2, double> dof_handler(tria, fe);
+  FEValues<2, double> fe_values(fe, quad);
+  FEFaceValues<2, double> fe_face_values(fe, face_quad);
+
+  struct TestCase
+  {
+    double a[2];
+    std::function<double(double, double)> u;
+    std::string name;
+  };
+
+  // Each case chosen so a·∇u = 0, meaning no source term needed
+  std::vector<TestCase> cases = {
+    { { 1.0, 0.0 }, [](double x, double y) { return y; }, "a=(1,0) u=y" },
+    { { 0.0, 1.0 }, [](double x, double y) { return x; }, "a=(0,1) u=x" },
+    { { 1.0, 1.0 }, [](double x, double y) { return x - y; }, "a=(1,1) u=x-y" },
+    { { 1.0, -1.0 },
+      [](double x, double y) { return x + y; },
+      "a=(1,-1) u=x+y" },
+  };
+
+  std::vector<uint32_t> dof_indices;
+
+  for (auto& tc : cases) {
+    std::vector<double> residual(dof_handler.n_dofs(), 0.0);
+
+    for (auto cell : dof_handler.active_cell_range()) {
+      fe_values.reinit(cell);
+      cell.get_dof_indices(dof_indices);
+
+      // Volume term
+      for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
+        auto p = fe_values.q_point(q);
+        double u_h = tc.u(p(0), p(1));
+        for (unsigned int i = 0; i < fe_values.n_dofs(); ++i) {
+          auto grad_v = fe_values.shape_gradient(i, q);
+          double a_dot_grad_v = tc.a[0] * grad_v(0) + tc.a[1] * grad_v(1);
+          residual[dof_indices[i]] += a_dot_grad_v * u_h * fe_values.JxW(q);
+        }
+      }
+
+      // Face terms
+      for (unsigned int lf = 0; lf < 3; ++lf) {
+        fe_face_values.reinit(cell, lf);
+        for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+          auto p = fe_face_values.q_point(q);
+          auto n = fe_face_values.normal(q);
+          double a_dot_n = tc.a[0] * n(0) + tc.a[1] * n(1);
+          double u_h = tc.u(p(0), p(1));
+          for (unsigned int i = 0; i < fe_face_values.n_dofs(); ++i)
+            residual[dof_indices[i]] -= fe_face_values.shape_value(i, q) *
+                                        a_dot_n * u_h * fe_face_values.JxW(q);
+        }
+      }
+    }
+
+    double max_res = 0.0;
+    for (unsigned int i = 0; i < dof_handler.n_dofs(); ++i)
+      max_res = std::max(max_res, std::abs(residual[i]));
+
+    EXPECT_NEAR(max_res, 0.0, tol);
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(Orders,
                          FEValuesTest,
                          ::testing::Values(0u, 1u, 2u, 3u));

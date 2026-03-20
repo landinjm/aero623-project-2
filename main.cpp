@@ -1,5 +1,6 @@
 #include <Kokkos_Core.hpp>
 #include <config.hpp>
+#include <cstdint>
 #include <data_out.hpp>
 #include <dof_handler.hpp>
 #include <fe.hpp>
@@ -443,7 +444,7 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 3;
+static constexpr unsigned int problem_degree = 1;
 
 int
 main(int argc, char* argv[])

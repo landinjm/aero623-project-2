@@ -641,7 +641,7 @@ public:
 
         const auto tmp = fe_.shape_gradient(i, xi);
         for (unsigned int d = 0; d < dim; ++d) {
-          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[1][d] * tmp(1);
+          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[0][d] * tmp(1);
         }
       }
     }
