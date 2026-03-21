@@ -1488,7 +1488,7 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 1;
+static constexpr unsigned int problem_degree = 0;
 
 int
 main(int argc, char* argv[])

@@ -414,44 +414,59 @@ public:
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell)
   {
-    // I don't want to deal with other dimensions
     static_assert(dim == 2);
 
-    // Build a Jacobian from the vertices of the cell.
-    RealType J[dim][dim];
-    RealType x0[dim];
-
-    for (unsigned int d = 0; d < dim; ++d) {
-      x0[d] = cell.vertex(0)(d);
-    }
-
-    // J columns are edge vectors from vertex 0
-    for (unsigned int d = 0; d < dim; ++d) {
-      J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
-      J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
-    }
-
-    // Take the inverse and determinant
-    const RealType det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
-    const RealType J_inv[dim][dim] = { { J[1][1] / det_J, -J[0][1] / det_J },
-                                       { -J[1][0] / det_J, J[0][0] / det_J } };
+    const unsigned int n_vertices = cell.n_vertices();
 
     for (unsigned int q = 0; q < n_q_; ++q) {
-      JxW_(q) = std::abs(det_J) * quad_.weight(q);
 
       const auto xi = quad_.point(q);
 
-      for (unsigned int i = 0; i < n_dofs_; ++i) {
-        phi_(i, q) = fe_.shape_value(i, xi);
+      // compute geometry using FE basis
+      RealType x[dim] = {0,0};
+      RealType J[dim][dim] = {{0,0},{0,0}};
 
-        const auto tmp = fe_.shape_gradient(i, xi);
-        for (unsigned int d = 0; d < dim; ++d) {
-          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[1][d] * tmp(1);
-        }
+      for (unsigned int i = 0; i < n_vertices; ++i) {
+
+        const RealType phi_i = fe_.shape_value(i, xi);
+        const auto dphi_i = fe_.shape_gradient(i, xi);
+
+        const RealType xi0 = cell.vertex(i)(0);
+        const RealType xi1 = cell.vertex(i)(1);
+
+        x[0] += phi_i * xi0;
+        x[1] += phi_i * xi1;
+
+        J[0][0] += xi0 * dphi_i(0);
+        J[0][1] += xi0 * dphi_i(1);
+        J[1][0] += xi1 * dphi_i(0);
+        J[1][1] += xi1 * dphi_i(1);
       }
 
-      for (unsigned int d = 0; d < dim; ++d) {
-        q_point_(q, d) = x0[d] + J[d][0] * xi(0) + J[d][1] * xi(1);
+      const RealType det_J =
+        J[0][0]*J[1][1] - J[0][1]*J[1][0];
+
+      const RealType J_inv[2][2] = {
+        { J[1][1]/det_J, -J[0][1]/det_J },
+        {-J[1][0]/det_J,  J[0][0]/det_J }
+      };
+
+      JxW_(q) = std::abs(det_J) * quad_.weight(q);
+
+      q_point_(q,0) = x[0];
+      q_point_(q,1) = x[1];
+
+      for (unsigned int i = 0; i < n_dofs_; ++i) {
+
+        phi_(i,q) = fe_.shape_value(i, xi);
+
+        const auto tmp = fe_.shape_gradient(i, xi);
+
+        grad_phi_(i,q,0) =
+          J_inv[0][0]*tmp(0) + J_inv[1][0]*tmp(1);
+
+        grad_phi_(i,q,1) =
+          J_inv[0][1]*tmp(0) + J_inv[1][1]*tmp(1);
       }
     }
   }
@@ -523,126 +538,100 @@ public:
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell, unsigned int face)
   {
-    // I don't want to deal with other dimensions
     static_assert(dim == 2);
 
     ASSERT(face < SimplexTopology<dim>::faces_per_cell,
-           "Local face number must be less than the number of faces per cell");
+          "Local face number must be less than the number of faces per cell");
 
-    // The challenge with this class is that we have the quadrature rule defined
-    // along the face, but the basis functions defined along the cell. As such,
-    // we must map from reference line to reference triangle.
-
-    // Build a Jacobian from the vertices of the cell.
-    RealType J[dim][dim];
-    RealType x0[dim];
-
-    for (unsigned int d = 0; d < dim; ++d) {
-      x0[d] = cell.vertex(0)(d);
-    }
-
-    // J columns are edge vectors from vertex 0
-    for (unsigned int d = 0; d < dim; ++d) {
-      J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
-      J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
-    }
-
-    // Take the inverse and determinant
-    const RealType det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
-    const RealType J_inv[dim][dim] = { { J[1][1] / det_J, -J[0][1] / det_J },
-                                       { -J[1][0] / det_J, J[0][0] / det_J } };
-
-    // Here is where things become a little different than FEValues.
-    // 1. Each face maps a 1D quad point to the 2D coordinates on the reference
-    // triangle.
-    // 2. Each face maps to a reference normal vector.
-    // 3. The edge length in reference space gives the face Jacobian.
-
-    RealType ref_tangent[dim];
-    RealType ref_origin[dim];
-    RealType ref_normal[dim];
-
-    switch (face) {
-      case 0: {
-        // Face 0 -> v1=(1,0) and v2=(0,1)
-        ref_origin[0] = 1.0;
-        ref_origin[1] = 0.0;
-        ref_tangent[0] = -1.0;
-        ref_tangent[1] = 1.0;
-        ref_normal[0] = 1.0;
-        ref_normal[1] = 1.0;
-        break;
-      }
-      case 1: {
-        // Face 1 -> v2=(0,1) and v0=(0,0)
-        ref_origin[0] = 0.0;
-        ref_origin[1] = 1.0;
-        ref_tangent[0] = 0.0;
-        ref_tangent[1] = -1.0;
-        ref_normal[0] = -1.0;
-        ref_normal[1] = 0.0;
-        break;
-      }
-      case 2: {
-        // Face 2 -> v0=(0,0) and v1=(1,0)
-        ref_origin[0] = 0.0;
-        ref_origin[1] = 0.0;
-        ref_tangent[0] = 1.0;
-        ref_tangent[1] = 0.0;
-        ref_normal[0] = 0.0;
-        ref_normal[1] = -1.0;
-        break;
-      }
-    }
-
-    // Now grab the physical normal and tangent
-    RealType n_phys[dim];
-    n_phys[0] = J_inv[0][0] * ref_normal[0] + J_inv[1][0] * ref_normal[1];
-    n_phys[1] = J_inv[0][1] * ref_normal[0] + J_inv[1][1] * ref_normal[1];
-
-    RealType t_phys[dim];
-    t_phys[0] = J[0][0] * ref_tangent[0] + J[0][1] * ref_tangent[1];
-    t_phys[1] = J[1][0] * ref_tangent[0] + J[1][1] * ref_tangent[1];
-
-    const RealType phys_edge_len =
-      std::sqrt(t_phys[0] * t_phys[0] + t_phys[1] * t_phys[1]);
-
-    // Normalize physical normal
-    const RealType n_phys_norm =
-      std::sqrt(n_phys[0] * n_phys[0] + n_phys[1] * n_phys[1]);
+    const unsigned int n_vertices = cell.n_vertices();
 
     for (unsigned int q = 0; q < n_q_; ++q) {
-      // Grab the 1D quad points
+
       const auto xi_face = quad_.point(q);
       const RealType t = xi_face(0);
 
-      // Map to 2D reference coords
-      RealType xi_ref[dim];
-      xi_ref[0] = ref_origin[0] + t * ref_tangent[0];
-      xi_ref[1] = ref_origin[1] + t * ref_tangent[1];
+      RealType r,s;
 
-      // Wrap in a Tensor
-      Tensor<1, dim, RealType> xi;
-      xi(0) = xi_ref[0];
-      xi(1) = xi_ref[1];
-
-      JxW_(q) = phys_edge_len * quad_.weight(q);
-
-      for (unsigned int d = 0; d < dim; ++d) {
-        q_point_(q, d) = x0[d] + J[d][0] * xi_ref[0] + J[d][1] * xi_ref[1];
+      switch(face) {
+        case 0: r = 1.0 - t; s = t; break;
+        case 1: r = 0.0;     s = 1.0 - t; break;
+        case 2: r = t;       s = 0.0; break;
       }
 
-      for (unsigned int d = 0; d < dim; ++d) {
-        normal_(q, d) = n_phys[d] / n_phys_norm;
+      Tensor<1,2,RealType> xi;
+      xi(0)=r;
+      xi(1)=s;
+
+      RealType x[dim]={0,0};
+      RealType dxdt[dim]={0,0};
+
+      RealType drdt, dsdt;
+
+      switch(face) {
+        case 0: drdt=-1; dsdt=1; break;
+        case 1: drdt=0;  dsdt=-1; break;
+        case 2: drdt=1;  dsdt=0; break;
       }
 
-      for (unsigned int i = 0; i < n_dofs_; ++i) {
-        phi_(i, q) = fe_.shape_value(i, xi);
+      for(unsigned int i=0;i<n_vertices;++i){
 
-        const auto tmp = fe_.shape_gradient(i, xi);
-        for (unsigned int d = 0; d < dim; ++d) {
-          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[0][d] * tmp(1);
-        }
+        const RealType phi_i = fe_.shape_value(i,xi);
+        const auto dphi_i = fe_.shape_gradient(i,xi);
+
+        const RealType dNdt =
+          dphi_i(0)*drdt + dphi_i(1)*dsdt;
+
+        const RealType vx = cell.vertex(i)(0);
+        const RealType vy = cell.vertex(i)(1);
+
+        x[0] += phi_i * vx;
+        x[1] += phi_i * vy;
+
+        dxdt[0] += vx * dNdt;
+        dxdt[1] += vy * dNdt;
+      }
+
+      const RealType edge_len =
+        std::sqrt(dxdt[0]*dxdt[0] + dxdt[1]*dxdt[1]);
+
+      normal_(q,0) =  dxdt[1]/edge_len;
+      normal_(q,1) = -dxdt[0]/edge_len;
+
+      JxW_(q) = edge_len * quad_.weight(q);
+
+      q_point_(q,0)=x[0];
+      q_point_(q,1)=x[1];
+
+      // Jacobian for gradient transform
+      RealType J[dim][dim]={{0,0},{0,0}};
+
+      for(unsigned int i=0;i<n_vertices;++i){
+        const auto dNi = fe_.shape_gradient(i,xi);
+        J[0][0]+=cell.vertex(i)(0)*dNi(0);
+        J[0][1]+=cell.vertex(i)(0)*dNi(1);
+        J[1][0]+=cell.vertex(i)(1)*dNi(0);
+        J[1][1]+=cell.vertex(i)(1)*dNi(1);
+      }
+
+      const RealType det =
+        J[0][0]*J[1][1]-J[0][1]*J[1][0];
+
+      const RealType J_inv[2][2]={
+        { J[1][1]/det, -J[0][1]/det},
+        {-J[1][0]/det,  J[0][0]/det}
+      };
+
+      for(unsigned int i=0;i<n_dofs_;++i){
+
+        phi_(i,q)=fe_.shape_value(i,xi);
+
+        const auto tmp=fe_.shape_gradient(i,xi);
+
+        grad_phi_(i,q,0)=
+          J_inv[0][0]*tmp(0)+J_inv[1][0]*tmp(1);
+
+        grad_phi_(i,q,1)=
+          J_inv[0][1]*tmp(0)+J_inv[1][1]*tmp(1);
       }
     }
   }
