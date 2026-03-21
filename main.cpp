@@ -247,7 +247,8 @@ public:
     boundary_id_; // [face] BC type
 
   // Inverted mass matrix
-  Kokkos::View<RealType*, Layout, DeviceMemSpace> invm_;
+  Kokkos::View<RealType***, Layout, DeviceMemSpace>
+    invm_; // [n_cells, n_dofs_per_cell, n_dofs_per_cell]
 
   // Current state - u^n
   VecDevice rho_, rho_u_, rho_v_, rho_E_;
@@ -324,8 +325,6 @@ public:
       "cell_dofs_h", n_cells, n_dofs_per_cell);
     auto cell_area_h =
       Kokkos::View<RealType*, Layout, HostMemSpace>("cell_area_h", n_cells);
-    auto invm_h =
-      Kokkos::View<RealType*, Layout, HostMemSpace>("mass_inv_h", n_dofs_);
 
     std::vector<uint32_t> dof_indices;
     for (auto cell : dof_handler_.active_cell_range()) {
@@ -353,12 +352,6 @@ public:
 
       for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
         cell_dofs_h(k, i) = dof_indices[i];
-
-        double M_ii = 0;
-        for (unsigned int q = 0; q < n_q_points; ++q)
-          M_ii += fe_values_.shape_value(i, q) * fe_values_.shape_value(i, q) *
-                  fe_values_.JxW(q);
-        invm_h(dof_indices[i]) = RealType(1) / M_ii;
       }
     }
 
@@ -374,8 +367,6 @@ public:
       "cell_dofs", n_cells, n_dofs_per_cell);
     cell_area_ =
       Kokkos::View<RealType*, Layout, DeviceMemSpace>("cell_area", n_cells);
-    invm_ =
-      Kokkos::View<RealType*, Layout, DeviceMemSpace>("mass_inv", n_dofs_);
 
     Kokkos::deep_copy(JxW_, JxW_h);
     Kokkos::deep_copy(q_point_, q_point_h);
@@ -383,7 +374,6 @@ public:
     Kokkos::deep_copy(grad_phi_, grad_phi_h);
     Kokkos::deep_copy(cell_dofs_, cell_dofs_h);
     Kokkos::deep_copy(cell_area_, cell_area_h);
-    Kokkos::deep_copy(invm_, invm_h);
 
     // Allocate the face geometry and copy to device
     auto interior_JxW_h = Kokkos::View<RealType**, Layout, HostMemSpace>(
@@ -594,6 +584,13 @@ public:
     Kokkos::deep_copy(boundary_phi_, boundary_phi_h);
     Kokkos::deep_copy(boundary_dofs_, boundary_dofs_h);
     Kokkos::deep_copy(boundary_id_, boundary_id_h);
+
+    // Create and invert the mass matrix
+    MassMatrix<2, double> invm(fe_values_);
+    invm.assemble(dof_handler_);
+    invm.invert();
+    invm.check_inverse();
+    invm_ = invm.device_inverse();
   }
 
   void print_geometry_debug() const
@@ -735,35 +732,6 @@ public:
       zero_residuals();
       compute_volume_residual();
       compute_face_residual();
-
-      // Diagnostics on first iteration only
-      if (iter == 0) {
-        auto res_rho_h = Kokkos::create_mirror_view(res_rho_.view());
-        auto dt_h = Kokkos::create_mirror_view(dt_.view());
-        auto mass_inv_h = Kokkos::create_mirror_view(invm_);
-        auto rho_h = Kokkos::create_mirror_view(rho_.view());
-        Kokkos::deep_copy(res_rho_h, res_rho_.view());
-        Kokkos::deep_copy(dt_h, dt_.view());
-        Kokkos::deep_copy(mass_inv_h, invm_);
-        Kokkos::deep_copy(rho_h, rho_.view());
-
-        RealType max_res = 0;
-        int max_dof = 0;
-        for (unsigned int i = 0; i < n_dofs_; ++i) {
-          if (Kokkos::abs(res_rho_h(i)) > max_res) {
-            max_res = Kokkos::abs(res_rho_h(i));
-            max_dof = i;
-          }
-        }
-        std::cout << "=== First iteration diagnostics ===" << std::endl;
-        std::cout << "Max rho residual=" << max_res << " at dof=" << max_dof
-                  << std::endl;
-        std::cout << "dt[max_dof]=" << dt_h(max_dof)
-                  << " mass_inv=" << mass_inv_h(max_dof)
-                  << " rho=" << rho_h(max_dof) << " effective_step="
-                  << dt_h(max_dof) * mass_inv_h(max_dof) * max_res << std::endl;
-      }
-
       update(RealType(0.0), RealType(1.0));
       apply_positivity_limiter();
 
@@ -1059,39 +1027,55 @@ public:
 
   void update(RealType alpha, RealType beta)
   {
+    const auto ndpc = dof_handler_.n_dofs_per_cell();
+
     auto d_rho = rho_.view();
     auto d_rho_u = rho_u_.view();
     auto d_rho_v = rho_v_.view();
     auto d_rho_E = rho_E_.view();
-
     auto d_rho_old = rho_old_.view();
     auto d_rho_u_old = rho_u_old_.view();
     auto d_rho_v_old = rho_v_old_.view();
     auto d_rho_E_old = rho_E_old_.view();
-
     auto d_res_rho = res_rho_.view();
     auto d_res_rho_u = res_rho_u_.view();
     auto d_res_rho_v = res_rho_v_.view();
     auto d_res_rho_E = res_rho_E_.view();
-
     auto d_dt = dt_.view();
-
-    auto d_invm = invm_;
+    auto indices = cell_dofs_;
+    auto invm = invm_;
 
     Kokkos::parallel_for(
-      "update_rk_stage", n_dofs_, KOKKOS_LAMBDA(int i) {
-        const RealType dt = d_dt(i);
-        const RealType invm = d_invm(i);
+      "update_rk_stage",
+      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({ 0, 0 },
+                                             { (int)n_cells_, (int)ndpc }),
+      KOKKOS_LAMBDA(int k, int i) {
+        const uint32_t dof_i = indices(k, i);
+        const RealType dt = d_dt(dof_i);
 
-        // SSP-RK3: u_new = alpha*u_old + beta*(u_curr + dt * M^{-1} * R)
-        d_rho(i) =
-          alpha * d_rho_old(i) + beta * (d_rho(i) - dt * invm * d_res_rho(i));
-        d_rho_u(i) = alpha * d_rho_u_old(i) +
-                     beta * (d_rho_u(i) - dt * invm * d_res_rho_u(i));
-        d_rho_v(i) = alpha * d_rho_v_old(i) +
-                     beta * (d_rho_v(i) - dt * invm * d_res_rho_v(i));
-        d_rho_E(i) = alpha * d_rho_E_old(i) +
-                     beta * (d_rho_E(i) - dt * invm * d_res_rho_E(i));
+        // Apply M^{-1} R: result_i = sum_j Minv[k,i,j] * R[j]
+        RealType Minv_R_rho = 0;
+        RealType Minv_R_rho_u = 0;
+        RealType Minv_R_rho_v = 0;
+        RealType Minv_R_rho_E = 0;
+        for (unsigned int j = 0; j < ndpc; ++j) {
+          const RealType Minv_ij = invm(k, i, j);
+          const uint32_t dof_j = indices(k, j);
+          Minv_R_rho += Minv_ij * d_res_rho(dof_j);
+          Minv_R_rho_u += Minv_ij * d_res_rho_u(dof_j);
+          Minv_R_rho_v += Minv_ij * d_res_rho_v(dof_j);
+          Minv_R_rho_E += Minv_ij * d_res_rho_E(dof_j);
+        }
+
+        // SSP-RK3: u_new = alpha*u_old + beta*(u_curr - dt * M^{-1} R)
+        d_rho(dof_i) =
+          alpha * d_rho_old(dof_i) + beta * (d_rho(dof_i) - dt * Minv_R_rho);
+        d_rho_u(dof_i) = alpha * d_rho_u_old(dof_i) +
+                         beta * (d_rho_u(dof_i) - dt * Minv_R_rho_u);
+        d_rho_v(dof_i) = alpha * d_rho_v_old(dof_i) +
+                         beta * (d_rho_v(dof_i) - dt * Minv_R_rho_v);
+        d_rho_E(dof_i) = alpha * d_rho_E_old(dof_i) +
+                         beta * (d_rho_E(dof_i) - dt * Minv_R_rho_E);
       });
     Kokkos::fence();
   }
@@ -1559,12 +1543,6 @@ main(int argc, char* argv[])
     // Create the FEValues objects
     FEValues<2, double> fe_values(fe, quad);
     FEFaceValues<2, double> fe_face_values(fe, face_quad);
-
-    // Create and invert the mass matrix
-    MassMatrix<2, double> invm(fe_values);
-    invm.assemble(dof_handler);
-    invm.invert();
-    invm.check_inverse();
 
     // Create the solver
     EulerSolver<2, double> solver(
