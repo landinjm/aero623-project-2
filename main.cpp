@@ -963,15 +963,15 @@ public:
     const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
     const auto n_q_points = fe_values_.n_q_points();
 
-    auto phi = phi_;
-    auto grad_phi = grad_phi_;
-    auto JxW = JxW_;
-    auto indices = cell_dofs_;
+    const auto phi = phi_;
+    const auto grad_phi = grad_phi_;
+    const auto JxW = JxW_;
+    const auto indices = cell_dofs_;
 
-    auto d_rho = rho_.view();
-    auto d_rho_u = rho_u_.view();
-    auto d_rho_v = rho_v_.view();
-    auto d_rho_E = rho_E_.view();
+    const auto d_rho = rho_.view();
+    const auto d_rho_u = rho_u_.view();
+    const auto d_rho_v = rho_v_.view();
+    const auto d_rho_E = rho_E_.view();
 
     auto d_res_rho = res_rho_.view();
     auto d_res_rho_u = res_rho_u_.view();
@@ -1491,7 +1491,7 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 0;
+static constexpr unsigned int problem_degree = 1;
 
 int
 main(int argc, char* argv[])
@@ -1504,7 +1504,7 @@ main(int argc, char* argv[])
     QGaussSimplex<2, double> quad(problem_degree + 1);
     QGaussSimplex<1, double> face_quad(problem_degree + 1);
 
-    gri.read_gri("../grids/coarse_local_refinement.gri");
+    gri.read_gri("../tests/test_2.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1525,10 +1525,10 @@ main(int argc, char* argv[])
 
     // Renumber boundary ids so they match above.
     std::unordered_map<uint32_t, uint32_t> id_map = {
-      { 7, BoundaryId::InviscidWall },
-      { 8, BoundaryId::InviscidWall },
-      { 5, BoundaryId::SubsonicInflow },
-      { 6, BoundaryId::SubsonicOutflow },
+      { 1, BoundaryId::InviscidWall },
+      { 2, BoundaryId::SubsonicOutflow },
+      { 3, BoundaryId::InviscidWall },
+      { 4, BoundaryId::SubsonicInflow },
     };
     tria.remap_boundary_ids(id_map);
 
@@ -1559,6 +1559,12 @@ main(int argc, char* argv[])
     // Create the FEValues objects
     FEValues<2, double> fe_values(fe, quad);
     FEFaceValues<2, double> fe_face_values(fe, face_quad);
+
+    // Create and invert the mass matrix
+    MassMatrix<2, double> invm(fe_values);
+    invm.assemble(dof_handler);
+    invm.invert();
+    invm.check_inverse();
 
     // Create the solver
     EulerSolver<2, double> solver(
