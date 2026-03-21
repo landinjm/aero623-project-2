@@ -59,123 +59,170 @@ public:
     const uint32_t n_cells = dh_->n_cells();
     const uint32_t ndpc = dh_->n_dofs_per_cell();
     const uint32_t p = dh_->fe().degree();
-
-    // Subdivide each cell into p^2 linear sub-triangles
-    // by building a uniform grid on the reference triangle
-    // Reference nodes: (i/p, j/p) for i+j <= p
-    std::vector<std::array<double, dim>> ref_points;
-    for (unsigned int j = 0; j <= p; ++j)
-      for (unsigned int i = 0; i <= p - j; ++i)
-        ref_points.push_back(
-          { static_cast<double>(i) / p, static_cast<double>(j) / p });
-
-    const uint32_t n_ref_points = ref_points.size(); // == ndpc
-
-    // Build sub-triangle connectivity on reference grid
-    // For each (i,j) with i+j < p, there are up to 2 triangles
-    std::vector<std::array<uint32_t, 3>> ref_tris;
-    auto idx = [&](unsigned int i, unsigned int j) -> uint32_t {
-      // Index of point (i,j) in ref_points
-      // Row j starts at sum_{k=0}^{j-1} (p-k+1) = j*(p+1) - j*(j-1)/2
-      uint32_t start = j * (p + 1) - j * (j - 1) / 2;
-      return start + i;
-    };
-    for (unsigned int j = 0; j < p; ++j) {
-      for (unsigned int i = 0; i < p - j; ++i) {
-        // Lower triangle
-        ref_tris.push_back({ idx(i, j), idx(i + 1, j), idx(i, j + 1) });
-        // Upper triangle (only if it fits)
-        if (i + 1 + j + 1 <= p)
-          ref_tris.push_back(
-            { idx(i + 1, j), idx(i + 1, j + 1), idx(i, j + 1) });
-      }
-    }
-
-    const uint32_t n_sub_tris = ref_tris.size(); // == p^2
-    const uint32_t total_points = n_cells * n_ref_points;
-    const uint32_t total_cells = n_cells * n_sub_tris;
+    const uint32_t verts_per_cell = Topo::verts_per_cell;
 
     std::vector<uint32_t> local_dof_indices;
 
     write_header(out);
-    out << "    <Piece NumberOfPoints=\"" << total_points
-        << "\" NumberOfCells=\"" << total_cells << "\">\n";
 
-    // Points
-    out << "      <Points>\n"
-        << "        <DataArray type=\"Float64\""
-        << " NumberOfComponents=\"3\" format=\"ascii\">\n";
-    for (auto cell : dh_->active_cell_range()) {
-      double x0[dim], J[dim][dim];
-      for (unsigned int d = 0; d < dim; ++d)
-        x0[d] = cell.vertex(0)(d);
-      for (unsigned int d = 0; d < dim; ++d) {
-        J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
-        J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
-      }
+    if (p == 0) {
+      // Degree 0: one DOF per cell, use vertices for geometry and CellData
+      const uint32_t n_points = n_cells * verts_per_cell;
+      out << "    <Piece NumberOfPoints=\"" << n_points << "\" NumberOfCells=\""
+          << n_cells << "\">\n";
 
-      for (const auto& xi_arr : ref_points) {
-        for (unsigned int d = 0; d < dim; ++d) {
-          double xd = x0[d];
-          for (unsigned int e = 0; e < dim; ++e)
-            xd += J[d][e] * xi_arr[e];
-          out << xd << " ";
-        }
-        for (unsigned int d = dim; d < 3; ++d)
-          out << "0.0 ";
-        out << "\n";
-      }
-    }
-    out << "        </DataArray>\n"
-        << "      </Points>\n";
-
-    // Cells
-    out << "      <Cells>\n";
-
-    out << "        <DataArray type=\"UInt32\" Name=\"connectivity\""
-        << " format=\"ascii\">\n";
-    for (uint32_t k = 0; k < n_cells; ++k)
-      for (const auto& tri : ref_tris)
-        out << k * n_ref_points + tri[0] << " " << k * n_ref_points + tri[1]
-            << " " << k * n_ref_points + tri[2] << "\n";
-    out << "        </DataArray>\n";
-
-    out << "        <DataArray type=\"UInt32\" Name=\"offsets\""
-        << " format=\"ascii\">\n";
-    for (uint32_t k = 0; k < total_cells; ++k)
-      out << (k + 1) * 3 << " ";
-    out << "\n        </DataArray>\n";
-
-    out << "        <DataArray type=\"UInt8\" Name=\"types\""
-        << " format=\"ascii\">\n";
-    for (uint32_t k = 0; k < total_cells; ++k)
-      out << "5 ";
-    out << "\n        </DataArray>\n";
-    out << "      </Cells>\n";
-
-    // Point data: evaluate solution at each ref_point
-    out << "      <PointData>\n";
-    for (const auto& e : entries_) {
-      out << "        <DataArray type=\"Float64\" Name=\"" << e.name
-          << "\" format=\"ascii\">\n";
+      // Points
+      out << "      <Points>\n"
+          << "        <DataArray type=\"Float64\""
+          << " NumberOfComponents=\"3\" format=\"ascii\">\n";
       for (auto cell : dh_->active_cell_range()) {
-        cell.get_dof_indices(local_dof_indices);
-
-        for (const auto& xi_arr : ref_points) {
-          // Evaluate u_h = sum_i u_i * phi_i(xi)
-          Tensor<1, dim, double> xi;
+        for (unsigned int v = 0; v < verts_per_cell; ++v) {
+          auto x = cell.vertex(v);
           for (unsigned int d = 0; d < dim; ++d)
-            xi(d) = xi_arr[d];
-
-          double val = 0.0;
-          for (unsigned int i = 0; i < ndpc; ++i)
-            val += e.data[local_dof_indices[i]] * dh_->fe().shape_value(i, xi);
-          out << val << "\n";
+            out << x(d) << " ";
+          for (unsigned int d = dim; d < 3; ++d)
+            out << "0.0 ";
+          out << "\n";
         }
       }
+      out << "        </DataArray>\n"
+          << "      </Points>\n";
+
+      // Cells
+      out << "      <Cells>\n";
+      out << "        <DataArray type=\"UInt32\" Name=\"connectivity\""
+          << " format=\"ascii\">\n";
+      for (uint32_t k = 0; k < n_cells; ++k)
+        out << k * verts_per_cell + 0 << " " << k * verts_per_cell + 1 << " "
+            << k * verts_per_cell + 2 << "\n";
       out << "        </DataArray>\n";
+      out << "        <DataArray type=\"UInt32\" Name=\"offsets\""
+          << " format=\"ascii\">\n";
+      for (uint32_t k = 0; k < n_cells; ++k)
+        out << (k + 1) * verts_per_cell << " ";
+      out << "\n        </DataArray>\n";
+      out << "        <DataArray type=\"UInt8\" Name=\"types\""
+          << " format=\"ascii\">\n";
+      for (uint32_t k = 0; k < n_cells; ++k)
+        out << "5 ";
+      out << "\n        </DataArray>\n";
+      out << "      </Cells>\n";
+
+      // Cell data
+      out << "      <CellData>\n";
+      for (const auto& e : entries_) {
+        out << "        <DataArray type=\"Float64\" Name=\"" << e.name
+            << "\" format=\"ascii\">\n";
+        for (auto cell : dh_->active_cell_range()) {
+          cell.get_dof_indices(local_dof_indices);
+          out << e.data[local_dof_indices[0]] << "\n";
+        }
+        out << "        </DataArray>\n";
+      }
+      out << "      </CellData>\n";
+
+    } else {
+      // Degree >= 1: subdivide into p^2 linear sub-triangles
+      std::vector<std::array<double, dim>> ref_points;
+      for (unsigned int j = 0; j <= p; ++j)
+        for (unsigned int i = 0; i <= p - j; ++i)
+          ref_points.push_back(
+            { static_cast<double>(i) / p, static_cast<double>(j) / p });
+
+      const uint32_t n_ref_points = ref_points.size();
+
+      auto idx = [&](unsigned int i, unsigned int j) -> uint32_t {
+        uint32_t start = j * (p + 1) - j * (j - 1) / 2;
+        return start + i;
+      };
+
+      std::vector<std::array<uint32_t, 3>> ref_tris;
+      for (unsigned int j = 0; j < p; ++j) {
+        for (unsigned int i = 0; i < p - j; ++i) {
+          ref_tris.push_back({ idx(i, j), idx(i + 1, j), idx(i, j + 1) });
+          if (i + 1 + j + 1 <= p)
+            ref_tris.push_back(
+              { idx(i + 1, j), idx(i + 1, j + 1), idx(i, j + 1) });
+        }
+      }
+
+      const uint32_t n_sub_tris = ref_tris.size();
+      const uint32_t total_points = n_cells * n_ref_points;
+      const uint32_t total_cells = n_cells * n_sub_tris;
+
+      out << "    <Piece NumberOfPoints=\"" << total_points
+          << "\" NumberOfCells=\"" << total_cells << "\">\n";
+
+      // Points
+      out << "      <Points>\n"
+          << "        <DataArray type=\"Float64\""
+          << " NumberOfComponents=\"3\" format=\"ascii\">\n";
+      for (auto cell : dh_->active_cell_range()) {
+        double x0[dim], J[dim][dim];
+        for (unsigned int d = 0; d < dim; ++d)
+          x0[d] = cell.vertex(0)(d);
+        for (unsigned int d = 0; d < dim; ++d) {
+          J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
+          J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
+        }
+        for (const auto& xi_arr : ref_points) {
+          for (unsigned int d = 0; d < dim; ++d) {
+            double xd = x0[d];
+            for (unsigned int e = 0; e < dim; ++e)
+              xd += J[d][e] * xi_arr[e];
+            out << xd << " ";
+          }
+          for (unsigned int d = dim; d < 3; ++d)
+            out << "0.0 ";
+          out << "\n";
+        }
+      }
+      out << "        </DataArray>\n"
+          << "      </Points>\n";
+
+      // Cells
+      out << "      <Cells>\n";
+      out << "        <DataArray type=\"UInt32\" Name=\"connectivity\""
+          << " format=\"ascii\">\n";
+      for (uint32_t k = 0; k < n_cells; ++k)
+        for (const auto& tri : ref_tris)
+          out << k * n_ref_points + tri[0] << " " << k * n_ref_points + tri[1]
+              << " " << k * n_ref_points + tri[2] << "\n";
+      out << "        </DataArray>\n";
+      out << "        <DataArray type=\"UInt32\" Name=\"offsets\""
+          << " format=\"ascii\">\n";
+      for (uint32_t k = 0; k < total_cells; ++k)
+        out << (k + 1) * 3 << " ";
+      out << "\n        </DataArray>\n";
+      out << "        <DataArray type=\"UInt8\" Name=\"types\""
+          << " format=\"ascii\">\n";
+      for (uint32_t k = 0; k < total_cells; ++k)
+        out << "5 ";
+      out << "\n        </DataArray>\n";
+      out << "      </Cells>\n";
+
+      // Point data
+      out << "      <PointData>\n";
+      for (const auto& e : entries_) {
+        out << "        <DataArray type=\"Float64\" Name=\"" << e.name
+            << "\" format=\"ascii\">\n";
+        for (auto cell : dh_->active_cell_range()) {
+          cell.get_dof_indices(local_dof_indices);
+          for (const auto& xi_arr : ref_points) {
+            Tensor<1, dim, double> xi;
+            for (unsigned int d = 0; d < dim; ++d)
+              xi(d) = xi_arr[d];
+            double val = 0.0;
+            for (unsigned int i = 0; i < ndpc; ++i)
+              val +=
+                e.data[local_dof_indices[i]] * dh_->fe().shape_value(i, xi);
+            out << val << "\n";
+          }
+        }
+        out << "        </DataArray>\n";
+      }
+      out << "      </PointData>\n";
     }
-    out << "      </PointData>\n";
 
     write_piece_close(out);
     write_footer(out);

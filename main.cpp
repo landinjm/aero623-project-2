@@ -92,6 +92,7 @@ public:
     VecHost v_h(n_dofs_);
     VecHost p_h(n_dofs_);
     VecHost mach_h(n_dofs_);
+    VecHost entropy_h(n_dofs_);
 
     for (unsigned int i = 0; i < n_dofs_; ++i) {
       const RealType rho = rho_h[i];
@@ -108,6 +109,7 @@ public:
       v_h[i] = v;
       p_h[i] = p;
       mach_h[i] = std::sqrt(u * u + v * v) / a;
+      entropy_h[i] = p / std::pow(rho, gamma);
     }
 
     DataOut<dim> data_out;
@@ -122,6 +124,7 @@ public:
     data_out.add_data_vector(v_h, "velocity_y");
     data_out.add_data_vector(p_h, "pressure");
     data_out.add_data_vector(mach_h, "mach");
+    data_out.add_data_vector(entropy_h, "entropy");
     data_out.add_data_vector(res_rho_h, "res_density");
     data_out.add_data_vector(res_rho_u_h, "res_momentum_x");
     data_out.add_data_vector(res_rho_v_h, "res_momentum_y");
@@ -1488,7 +1491,7 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 2;
+static constexpr unsigned int problem_degree = 0;
 
 int
 main(int argc, char* argv[])
