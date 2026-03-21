@@ -1488,7 +1488,7 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 1;
+static constexpr unsigned int problem_degree = 2;
 
 int
 main(int argc, char* argv[])
@@ -1531,10 +1531,33 @@ main(int argc, char* argv[])
 
     DoFHandler<2, double> dof_handler(tria, fe);
 
+    // Test that output works
+    Vector<double, HostMemSpace> test(dof_handler.n_dofs());
+    std::vector<uint32_t> dof_indices;
+    for (auto cell : dof_handler.active_cell_range()) {
+      cell.get_dof_indices(dof_indices);
+      for (unsigned int i = 0; i < dof_handler.n_dofs_per_cell(); ++i) {
+        // Get the reference node position and map to physical x
+        auto xi = dof_handler.fe().node(i);
+        // x = x0 + J * xi
+        double x0 = cell.vertex(0)(0);
+        double J0 = cell.vertex(1)(0) - cell.vertex(0)(0);
+        double J1 = cell.vertex(2)(0) - cell.vertex(0)(0);
+        double x_phys = x0 + J0 * xi(0) + J1 * xi(1);
+        test[dof_indices[i]] = x_phys;
+      }
+    }
+
+    DataOut<2> data_out;
+    data_out.attach_dof_handler(dof_handler);
+    data_out.add_data_vector(test, "x");
+    data_out.write_vtu("test_output.vtu");
+
     // Create the FEValues objects
     FEValues<2, double> fe_values(fe, quad);
     FEFaceValues<2, double> fe_face_values(fe, face_quad);
 
+    // Create the solver
     EulerSolver<2, double> solver(
       dof_handler, fe_values, fe_face_values, problem_degree);
 
