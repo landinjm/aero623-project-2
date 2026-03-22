@@ -502,9 +502,13 @@ public:
             // Right side (periodic neighbor)
             unsigned int neighbor_lf = face.periodic_neighbor_face_index();
             fe_face_values_.reinit(neighbor_cell, neighbor_lf);
-            for (unsigned int q = 0; q < n_q_points_face; ++q)
-              for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
-                periodic_phi_R_h(f, q, i) = fe_face_values_.shape_value(i, q);
+            for (unsigned int q = 0; q < n_q_points_face; ++q) {
+              // Reverse the q point location
+              unsigned int q_r = n_q_points_face - 1 - q;
+              for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
+                periodic_phi_R_h(f, q, i) = fe_face_values_.shape_value(i, q_r);
+              }
+            }
           }
 
         } else {
@@ -535,9 +539,13 @@ public:
             // Right side (neighbor cell)
             unsigned int neighbor_lf = cell.neighbor_face_index(lf);
             fe_face_values_.reinit(neighbor_cell, neighbor_lf);
-            for (unsigned int q = 0; q < n_q_points_face; ++q)
-              for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
-                interior_phi_R_h(f, q, i) = fe_face_values_.shape_value(i, q);
+            for (unsigned int q = 0; q < n_q_points_face; ++q) {
+              // Reverse the q point location
+              unsigned int q_r = n_q_points_face - 1 - q;
+              for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
+                interior_phi_R_h(f, q, i) = fe_face_values_.shape_value(i, q_r);
+              }
+            }
           }
         }
       }
@@ -725,7 +733,7 @@ public:
     }
   }
 
-  void solve(unsigned int max_iter = 50000,
+  void solve(unsigned int max_iter = 100000,
              RealType cfl = Parameters<RealType>::cfl_max,
              unsigned int write_interval = 1000)
   {
@@ -1524,9 +1532,6 @@ interpolate_solution(
   }
 }
 
-static constexpr unsigned int lo_degree = 0;
-static constexpr unsigned int hi_degree = 1;
-
 int
 main(int argc, char* argv[])
 {
@@ -1534,13 +1539,11 @@ main(int argc, char* argv[])
   {
     GriReader<2> gri;
     Triangulation<2> tria;
-    gri.read_gri("../grids/coarse_local_refinement_1.gri");
+    gri.read_gri("../grids/coarse_local_refinement.gri");
     gri.transfer_to_triangulation(tria);
-    if (!tria.verify_mesh()) {
+    if (!tria.verify_mesh())
       std::runtime_error("Verify mesh failed");
-    }
 
-    // Renumber boundary ids so they match above.
     std::unordered_map<uint32_t, uint32_t> id_map = {
       { 7, BoundaryId::InviscidWall },
       { 8, BoundaryId::InviscidWall },
@@ -1549,17 +1552,6 @@ main(int argc, char* argv[])
     };
     tria.remap_boundary_ids(id_map);
 
-    // Low-order setup
-    FE_DGQLegendre<2, double> fe_lo(lo_degree);
-    QGaussSimplex<2, double> quad_lo(2 * lo_degree + 1);
-    QGaussSimplex<1, double> face_quad_lo(2 * lo_degree + 1);
-    DoFHandler<2, double> dof_handler_lo(tria, fe_lo);
-    FEValues<2, double> fe_values_lo(fe_lo, quad_lo);
-    FEFaceValues<2, double> fe_face_values_lo(fe_lo, face_quad_lo);
-
-    EulerSolver<2, double> solver_lo(
-      dof_handler_lo, fe_values_lo, fe_face_values_lo, lo_degree);
-
     auto ic = [](double x, double y) {
       constexpr double gamma = Parameters<double>::gamma;
       constexpr double gm1 = gamma - 1.0;
@@ -1567,7 +1559,6 @@ main(int argc, char* argv[])
       constexpr double rho_0 = Parameters<double>::rho_0;
       constexpr double a_0 = Parameters<double>::a_0;
       constexpr double p_out = Parameters<double>::p_out;
-
       const double p = p_out;
       const double ratio = p / p_0;
       const double rho = rho_0 * std::pow(ratio, 1.0 / gamma);
@@ -1578,52 +1569,96 @@ main(int argc, char* argv[])
       return std::make_tuple(rho, u, v, p);
     };
 
-    solver_lo.set_initial_condition(ic);
-    solver_lo.check_initial_condition_validity();
-    solver_lo.solve();
-    solver_lo.write_solution("solution_lo.vtu");
+    // Helper to interpolate between two degrees
+    auto interpolate = [&](unsigned int deg_lo,
+                           unsigned int deg_hi,
+                           const Vector<double, HostMemSpace>& rho_in,
+                           const Vector<double, HostMemSpace>& rhou_in,
+                           const Vector<double, HostMemSpace>& rhov_in,
+                           const Vector<double, HostMemSpace>& rhoE_in,
+                           Vector<double, HostMemSpace>& rho_out,
+                           Vector<double, HostMemSpace>& rhou_out,
+                           Vector<double, HostMemSpace>& rhov_out,
+                           Vector<double, HostMemSpace>& rhoE_out) {
+      FE_DGQLegendre<2, double> fe_l(deg_lo), fe_h(deg_hi);
+      DoFHandler<2, double> dh_l(tria, fe_l), dh_h(tria, fe_h);
+      interpolate_solution(dh_l,
+                           dh_h,
+                           fe_l,
+                           fe_h,
+                           rho_in.view(),
+                           rhou_in.view(),
+                           rhov_in.view(),
+                           rhoE_in.view(),
+                           rho_out.view(),
+                           rhou_out.view(),
+                           rhov_out.view(),
+                           rhoE_out.view());
+    };
 
-    // Extract low-order state to host
-    const auto n_dofs_lo = dof_handler_lo.n_dofs();
-    Vector<double, HostMemSpace> rho_h(n_dofs_lo), rhou_h(n_dofs_lo),
-      rhov_h(n_dofs_lo), rhoE_h(n_dofs_lo);
-    solver_lo.copy_state_to_host(rho_h, rhou_h, rhov_h, rhoE_h);
+    // --- Degree 0 ---
+    FE_DGQLegendre<2, double> fe0(0);
+    QGaussSimplex<2, double> q0(1);
+    QGaussSimplex<1, double> fq0(1);
+    DoFHandler<2, double> dh0(tria, fe0);
+    FEValues<2, double> fev0(fe0, q0);
+    FEFaceValues<2, double> ffev0(fe0, fq0);
+    EulerSolver<2, double> s0(dh0, fev0, ffev0, 0);
+    s0.set_initial_condition(ic);
+    s0.check_initial_condition_validity();
+    s0.solve();
+    s0.write_solution("solution_p0.vtu");
+    Vector<double, HostMemSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
+      rhov0(dh0.n_dofs()), rhoE0(dh0.n_dofs());
+    s0.copy_state_to_host(rho0, rhou0, rhov0, rhoE0);
 
-    // High-order setup
-    FE_DGQLegendre<2, double> fe_hi(hi_degree);
-    QGaussSimplex<2, double> quad_hi(2 * hi_degree + 1);
-    QGaussSimplex<1, double> face_quad_hi(2 * hi_degree + 1);
-    DoFHandler<2, double> dof_handler_hi(tria, fe_hi);
-    FEValues<2, double> fe_values_hi(fe_hi, quad_hi);
-    FEFaceValues<2, double> fe_face_values_hi(fe_hi, face_quad_hi);
+    // --- Degree 1 (seeded from degree 0) ---
+    FE_DGQLegendre<2, double> fe1(1);
+    QGaussSimplex<2, double> q1(3);
+    QGaussSimplex<1, double> fq1(3);
+    DoFHandler<2, double> dh1(tria, fe1);
+    FEValues<2, double> fev1(fe1, q1);
+    FEFaceValues<2, double> ffev1(fe1, fq1);
+    Vector<double, HostMemSpace> rho1(dh1.n_dofs()), rhou1(dh1.n_dofs()),
+      rhov1(dh1.n_dofs()), rhoE1(dh1.n_dofs());
+    interpolate(0, 1, rho0, rhou0, rhov0, rhoE0, rho1, rhou1, rhov1, rhoE1);
+    EulerSolver<2, double> s1(dh1, fev1, ffev1, 1);
+    s1.set_state_from_host(rho1, rhou1, rhov1, rhoE1);
+    s1.solve();
+    s1.write_solution("solution_p1.vtu");
+    s1.copy_state_to_host(rho1, rhou1, rhov1, rhoE1);
 
-    // Interpolate
-    const auto n_dofs_hi = dof_handler_hi.n_dofs();
-    Vector<double, HostMemSpace> rho_hi(n_dofs_hi), rhou_hi(n_dofs_hi),
-      rhov_hi(n_dofs_hi), rhoE_hi(n_dofs_hi);
+    // --- Degree 2 (seeded from degree 1) ---
+    FE_DGQLegendre<2, double> fe2(2);
+    QGaussSimplex<2, double> q2(5);
+    QGaussSimplex<1, double> fq2(5);
+    DoFHandler<2, double> dh2(tria, fe2);
+    FEValues<2, double> fev2(fe2, q2);
+    FEFaceValues<2, double> ffev2(fe2, fq2);
+    Vector<double, HostMemSpace> rho2(dh2.n_dofs()), rhou2(dh2.n_dofs()),
+      rhov2(dh2.n_dofs()), rhoE2(dh2.n_dofs());
+    interpolate(1, 2, rho1, rhou1, rhov1, rhoE1, rho2, rhou2, rhov2, rhoE2);
+    EulerSolver<2, double> s2(dh2, fev2, ffev2, 2);
+    s2.set_state_from_host(rho2, rhou2, rhov2, rhoE2);
+    s2.solve();
+    s2.write_solution("solution_p2.vtu");
+    s2.copy_state_to_host(rho2, rhou2, rhov2, rhoE2);
 
-    interpolate_solution(dof_handler_lo,
-                         dof_handler_hi,
-                         fe_lo,
-                         fe_hi,
-                         rho_h.view(),
-                         rhou_h.view(),
-                         rhov_h.view(),
-                         rhoE_h.view(),
-                         rho_hi.view(),
-                         rhou_hi.view(),
-                         rhov_hi.view(),
-                         rhoE_hi.view());
-
-    // Inject into high-order solver and write
-    EulerSolver<2, double> solver_hi(
-      dof_handler_hi, fe_values_hi, fe_face_values_hi, hi_degree);
-    solver_hi.set_state_from_host(rho_hi, rhou_hi, rhov_hi, rhoE_hi);
-    solver_hi.write_solution("solution_hi_interpolated.vtu");
-    solver_hi.solve();
-    solver_hi.write_solution("solution_hi.vtu");
+    // --- Degree 3 (seeded from degree 2) ---
+    FE_DGQLegendre<2, double> fe3(3);
+    QGaussSimplex<2, double> q3(7);
+    QGaussSimplex<1, double> fq3(7);
+    DoFHandler<2, double> dh3(tria, fe3);
+    FEValues<2, double> fev3(fe3, q3);
+    FEFaceValues<2, double> ffev3(fe3, fq3);
+    Vector<double, HostMemSpace> rho3(dh3.n_dofs()), rhou3(dh3.n_dofs()),
+      rhov3(dh3.n_dofs()), rhoE3(dh3.n_dofs());
+    interpolate(2, 3, rho2, rhou2, rhov2, rhoE2, rho3, rhou3, rhov3, rhoE3);
+    EulerSolver<2, double> s3(dh3, fev3, ffev3, 3);
+    s3.set_state_from_host(rho3, rhou3, rhov3, rhoE3);
+    s3.solve();
+    s3.write_solution("solution_p3.vtu");
   }
-
   Kokkos::finalize();
   return 0;
 }
