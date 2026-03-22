@@ -1444,7 +1444,63 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 2;
+template<unsigned int dim, typename RealType>
+void
+interpolate_solution(
+  const DoFHandler<dim, RealType>& dof_handler_lo,
+  const DoFHandler<dim, RealType>& dof_handler_hi,
+  const FE_DGQLegendre<dim, RealType>& fe_lo,
+  const FE_DGQLegendre<dim, RealType>& fe_hi,
+  const Kokkos::View<RealType*, Layout, HostMemSpace>& rho_lo,
+  const Kokkos::View<RealType*, Layout, HostMemSpace>& rhou_lo,
+  const Kokkos::View<RealType*, Layout, HostMemSpace>& rhov_lo,
+  const Kokkos::View<RealType*, Layout, HostMemSpace>& rhoE_lo,
+  Kokkos::View<RealType*, Layout, HostMemSpace>& rho_hi,
+  Kokkos::View<RealType*, Layout, HostMemSpace>& rhou_hi,
+  Kokkos::View<RealType*, Layout, HostMemSpace>& rhoE_hi,
+  Kokkos::View<RealType*, Layout, HostMemSpace>& rhov_hi)
+{
+  const auto n_dofs_lo = fe_lo.n_dofs();
+  const auto n_dofs_hi = fe_hi.n_dofs();
+
+  std::vector<uint32_t> dof_indices_lo, dof_indices_hi;
+
+  // Assumes cells are in the same order in both dof handlers
+  // i.e. same mesh, different polynomial degree
+  for (auto cell : dof_handler_hi.active_cell_range()) {
+    const auto k = cell.index();
+    cell.get_dof_indices(dof_indices_hi);
+
+    // Get low-order dof indices for same cell
+    auto cell_lo = dof_handler_lo.cell(k);
+    cell_lo.get_dof_indices(dof_indices_lo);
+
+    // For each high-order node, evaluate the low-order polynomial
+    for (unsigned int i = 0; i < n_dofs_hi; ++i) {
+      // Get the reference coordinate of high-order node i
+      const auto xi = fe_hi.node(i);
+
+      // Evaluate low-order basis functions at this point
+      RealType rho_val = 0, rhou_val = 0, rhov_val = 0, rhoE_val = 0;
+      for (unsigned int j = 0; j < n_dofs_lo; ++j) {
+        const RealType phi_j = fe_lo.shape_value(j, xi);
+        const uint32_t dof_j = dof_indices_lo[j];
+        rho_val += rho_lo(dof_j) * phi_j;
+        rhou_val += rhou_lo(dof_j) * phi_j;
+        rhov_val += rhov_lo(dof_j) * phi_j;
+        rhoE_val += rhoE_lo(dof_j) * phi_j;
+      }
+
+      const uint32_t dof_i = dof_indices_hi[i];
+      rho_hi(dof_i) = rho_val;
+      rhou_hi(dof_i) = rhou_val;
+      rhov_hi(dof_i) = rhov_val;
+      rhoE_hi(dof_i) = rhoE_val;
+    }
+  }
+}
+
+static constexpr unsigned int problem_degree = 1;
 
 int
 main(int argc, char* argv[])
@@ -1454,10 +1510,10 @@ main(int argc, char* argv[])
     GriReader<2> gri;
     Triangulation<2> tria;
     FE_DGQLegendre<2, double> fe(problem_degree);
-    QGaussSimplex<2, double> quad(problem_degree + 1);
-    QGaussSimplex<1, double> face_quad(problem_degree + 1);
+    QGaussSimplex<2, double> quad(2 * problem_degree + 1);
+    QGaussSimplex<1, double> face_quad(2 * problem_degree + 1);
 
-    gri.read_gri("../tests/test_2.gri");
+    gri.read_gri("../grids/coarse_local_refinement.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1478,10 +1534,10 @@ main(int argc, char* argv[])
 
     // Renumber boundary ids so they match above.
     std::unordered_map<uint32_t, uint32_t> id_map = {
-      { 1, BoundaryId::InviscidWall },
-      { 2, BoundaryId::SubsonicOutflow },
-      { 3, BoundaryId::InviscidWall },
-      { 4, BoundaryId::SubsonicInflow },
+      { 7, BoundaryId::InviscidWall },
+      { 8, BoundaryId::InviscidWall },
+      { 5, BoundaryId::SubsonicInflow },
+      { 6, BoundaryId::SubsonicOutflow },
     };
     tria.remap_boundary_ids(id_map);
 

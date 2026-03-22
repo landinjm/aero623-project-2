@@ -53,13 +53,16 @@ public:
     const int ndpc = static_cast<int>(mm_.extent(1));
     const int n_cells = static_cast<int>(mm_.extent(0));
 
+    constexpr int max_dofs = 10;
+    ASSERT(ndpc <= max_dofs, "Exceeded limit for number of DoFs per cell");
+
     auto M = mm_;
     auto Minv = invm_;
 
     Kokkos::parallel_for(
       "mass_matrix_invert", n_cells, KOKKOS_LAMBDA(int k) {
-        // Copy block into local arrays (lives in registers/local memory)
-        RealType aug[10][20]; // max_dofs=10, augmented [M|I]
+        // Copy block into local arrays
+        RealType aug[max_dofs][2 * max_dofs];
 
         for (int i = 0; i < ndpc; ++i) {
           for (int j = 0; j < ndpc; ++j) {
@@ -129,10 +132,10 @@ public:
     for (unsigned int k = 0; k < n_cells; ++k) {
       for (unsigned int i = 0; i < ndpc; ++i) {
         for (unsigned int j = 0; j < ndpc; ++j) {
-          // Compute (M * Minv)[i,j]
           RealType val = 0;
-          for (unsigned int l = 0; l < ndpc; ++l)
+          for (unsigned int l = 0; l < ndpc; ++l) {
             val += mm_h(k, i, l) * invm_h(k, l, j);
+          }
 
           // Should be 1 on diagonal, 0 off diagonal
           const RealType expected = (i == j) ? RealType(1) : RealType(0);
@@ -149,10 +152,7 @@ public:
        << "  max |M * Minv - I| = " << max_err << " (worst cell=" << worst_cell
        << ")\n";
 
-    if (max_err < 1e-10)
-      os << "  PASSED\n";
-    else
-      os << "  FAILED\n";
+    ASSERT(max_err < 1.0e-10, "Inverted mass matrix is wrong");
   }
 
   Kokkos::View<RealType***, Layout, DeviceMemSpace> device_inverse() const

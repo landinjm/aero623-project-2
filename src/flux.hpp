@@ -106,43 +106,35 @@ public:
                                  RealType& F_rho_E,
                                  RealType& s_mag)
   {
+    constexpr RealType gamma = Parameters<RealType>::gamma;
+    constexpr RealType gm1 = gamma - RealType(1.0);
+
     ASSERT(rho_L > 0, "Density must be positive");
     ASSERT(rho_E_L > 0, "Total energy must be positive");
     ASSERT(Kokkos::abs(n_x * n_x + n_y * n_y - 1.0) < 1e-10,
            "Normal must be a unit vector");
 
-    // Convert to primitive state
     RealType u_L, v_L, p_L;
     conservative_to_primitive(rho_L, rho_u_L, rho_v_L, rho_E_L, u_L, v_L, p_L);
 
-    // Compute the ghost element velocity knowing that the normal velocity is
-    // zero at the wall.
+    // Remove normal component — only tangential velocity remains at wall
     const RealType v_n = u_L * n_x + v_L * n_y;
-    const RealType u_R = u_L - RealType(2.0) * v_n * n_x;
-    const RealType v_R = v_L - RealType(2.0) * v_n * n_y;
+    const RealType u_t = u_L - v_n * n_x;
+    const RealType v_t = v_L - v_n * n_y;
 
-    // Grab the ghost state
-    const RealType rho_R = rho_L;
-    const RealType rho_u_R = rho_L * u_R;
-    const RealType rho_v_R = rho_L * v_R;
-    const RealType rho_E_R = rho_E_L;
+    // Wall pressure from tangential KE only (matching Python reference)
+    const RealType p_b =
+      gm1 * (rho_E_L - RealType(0.5) * rho_L * (u_t * u_t + v_t * v_t));
 
-    // Use the Roe flux to compute the rest of the information
-    roe_flux(rho_L,
-             rho_u_L,
-             rho_v_L,
-             rho_E_L,
-             rho_R,
-             rho_u_R,
-             rho_v_R,
-             rho_E_R,
-             n_x,
-             n_y,
-             F_rho,
-             F_rho_u,
-             F_rho_v,
-             F_rho_E,
-             s_mag);
+    // Only pressure flux survives — mass and energy flux are zero at wall
+    F_rho = RealType(0);
+    F_rho_u = p_b * n_x;
+    F_rho_v = p_b * n_y;
+    F_rho_E = RealType(0);
+
+    // Wavespeed — normal velocity is zero at wall so only acoustic contribution
+    const RealType c_b = Kokkos::sqrt(gamma * p_b / rho_L);
+    s_mag = c_b;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -158,81 +150,78 @@ public:
                                    RealType& F_rho_E,
                                    RealType& s_mag)
   {
-    // Some prefactors that can be precomputed
     constexpr RealType gamma = Parameters<RealType>::gamma;
     constexpr RealType gm1 = gamma - RealType(1.0);
     constexpr RealType inv_gm1 = RealType(1.0) / gm1;
-    constexpr RealType two_over_gm1 = RealType(2.0) * inv_gm1;
-
-    // Inflow direction
-    const RealType nx_in = Parameters<RealType>::n_x_0();
-    const RealType ny_in = Parameters<RealType>::n_y_0();
-
-    // Stagnation speed of sound
-    constexpr RealType a_0 = Parameters<RealType>::a_0;
-    constexpr RealType a_0sq = a_0 * a_0;
-
-    // More parameter names to avoid some typing
     constexpr RealType p_0 = Parameters<RealType>::p_0;
     constexpr RealType rho_0 = Parameters<RealType>::rho_0;
+    const RealType RT_0 = p_0 / rho_0; // specific gas constant * T_0
 
     ASSERT(rho_L > 0, "Density must be positive");
     ASSERT(rho_E_L > 0, "Total energy must be positive");
     ASSERT(Kokkos::abs(n_x * n_x + n_y * n_y - 1.0) < 1e-10,
            "Normal must be a unit vector");
 
-    // Convert to primitive state
+    // Primitive variables
     RealType u_L, v_L, p_L;
     conservative_to_primitive(rho_L, rho_u_L, rho_v_L, rho_E_L, u_L, v_L, p_L);
 
-    // Compute the normal velocity and speed of sound for the Riemann invariant
+    // Interior speed of sound and normal velocity
     const RealType c_L = speed_of_sound(rho_L, p_L);
     const RealType v_n_L = u_L * n_x + v_L * n_y;
-    const RealType R_minus = v_n_L + two_over_gm1 * c_L;
 
-    // Solve for the boundary mach number using the quadratic formula
-    const RealType A = RealType(1.0) + two_over_gm1;
-    const RealType B = two_over_gm1 * R_minus;
-    const RealType C = RealType(0.5) * gm1 * R_minus * R_minus - a_0sq;
+    // Outgoing Riemann invariant (leaves domain through inflow face)
+    const RealType j_plus = v_n_L + RealType(2.0) * inv_gm1 * c_L;
+
+    // Inflow direction
+    const RealType nx_in = Parameters<RealType>::n_x_0();
+    const RealType ny_in = Parameters<RealType>::n_y_0();
+    const RealType d_n = nx_in * n_x + ny_in * n_y;
+
+    // Quadratic for boundary Mach number (from Python reference)
+    const RealType A =
+      gamma * RT_0 * d_n * d_n - gm1 / RealType(2.0) * j_plus * j_plus;
+    const RealType B = RealType(4.0) * gamma * RT_0 * d_n * inv_gm1;
+    const RealType C =
+      RealType(4.0) * gamma * RT_0 * inv_gm1 * inv_gm1 - j_plus * j_plus;
 
     const RealType disc = Kokkos::sqrt(B * B - RealType(4.0) * A * C);
-    const RealType c_b = (-B + disc) / (RealType(2.0) * A);
+    const RealType M_b1 = (-B + disc) / (RealType(2.0) * A);
+    const RealType M_b2 = (-B - disc) / (RealType(2.0) * A);
 
-    // Boundary normal velocity and full velocity vector
-    const RealType v_n_b = R_minus + two_over_gm1 * c_b;
-    const RealType u_b = v_n_b * nx_in;
-    const RealType v_b = v_n_b * ny_in;
+    // Select physical root — take positive root if roots have opposite signs,
+    // otherwise take root closest to zero
+    RealType M_b;
+    if ((M_b1 > 0) != (M_b2 > 0))
+      M_b = (M_b1 > 0) ? M_b1 : M_b2;
+    else
+      M_b = (Kokkos::abs(M_b1) < Kokkos::abs(M_b2)) ? M_b1 : M_b2;
 
-    // Isentropic relations back to static quantities
-    const RealType ratio = c_b * c_b / a_0sq;
-    const RealType p_b = p_0 * Kokkos::pow(ratio, gamma * inv_gm1);
-    const RealType rho_b = rho_0 * Kokkos::pow(ratio, inv_gm1);
+    // Boundary speed of sound and isentropic state
+    const RealType denom = RealType(1.0) + RealType(0.5) * gm1 * M_b * M_b;
+    const RealType c_b = Kokkos::sqrt(gamma * RT_0 / denom);
+    const RealType p_b =
+      p_0 * Kokkos::pow(RealType(1.0) / denom, gamma * inv_gm1);
+    const RealType rho_b = p_b / (RT_0 / denom);
 
+    // Boundary velocity
+    const RealType speed_b = M_b * c_b;
+    const RealType u_b = speed_b * nx_in;
+    const RealType v_b = speed_b * ny_in;
+
+    // Boundary enthalpy
     const RealType rho_E_b =
       p_b * inv_gm1 + RealType(0.5) * rho_b * (u_b * u_b + v_b * v_b);
+    const RealType H_b = (rho_E_b + p_b) / rho_b;
 
-    // Grab the ghost state
-    const RealType rho_R = rho_b;
-    const RealType rho_u_R = rho_b * u_b;
-    const RealType rho_v_R = rho_b * v_b;
-    const RealType rho_E_R = rho_E_b;
+    // Compute flux directly (no Roe needed — state fully determined at inflow)
+    const RealType v_n_b = u_b * n_x + v_b * n_y;
+    F_rho = rho_b * v_n_b;
+    F_rho_u = (rho_b * u_b * u_b + p_b) * n_x + rho_b * u_b * v_b * n_y;
+    F_rho_v = rho_b * u_b * v_b * n_x + (rho_b * v_b * v_b + p_b) * n_y;
+    F_rho_E = rho_b * H_b * v_n_b;
 
-    // Use the Roe flux to compute the rest of the information
-    roe_flux(rho_L,
-             rho_u_L,
-             rho_v_L,
-             rho_E_L,
-             rho_R,
-             rho_u_R,
-             rho_v_R,
-             rho_E_R,
-             n_x,
-             n_y,
-             F_rho,
-             F_rho_u,
-             F_rho_v,
-             F_rho_E,
-             s_mag);
+    s_mag = Kokkos::abs(v_n_b) + c_b;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -253,48 +242,47 @@ public:
     constexpr RealType inv_gm1 = RealType(1.0) / gm1;
     constexpr RealType p_out = Parameters<RealType>::p_out;
 
+    ASSERT(rho_L > 0, "Density must be positive");
+    ASSERT(rho_E_L > 0, "Total energy must be positive");
+    ASSERT(Kokkos::abs(n_x * n_x + n_y * n_y - 1.0) < 1e-10,
+           "Normal must be a unit vector");
+
+    // Primitive variables
     RealType u_L, v_L, p_L;
     conservative_to_primitive(rho_L, rho_u_L, rho_v_L, rho_E_L, u_L, v_L, p_L);
 
-    const RealType c_L = Kokkos::sqrt(gamma * p_L / rho_L);
-
-    // Outgoing Riemann invariants (two acoustic + one entropy leave the domain)
+    const RealType c_L = speed_of_sound(rho_L, p_L);
     const RealType v_n_L = u_L * n_x + v_L * n_y;
-    const RealType v_t_L = u_L * -n_y + v_L * n_x; // tangential, unchanged
-    const RealType R_plus = v_n_L + RealType(2.0) * inv_gm1 * c_L;
 
-    // Fix p = p_out (incoming characteristic), recover c_b and v_n_b
-    const RealType c_b = Kokkos::sqrt(gamma * p_out / rho_L);
-    // More precisely: use isentropic relation rho_b from p_out and interior
-    // entropy
-    //   s = p / rho^gamma  is carried out on the entropy wave
-    const RealType rho_b =
-      rho_L * Kokkos::pow(p_out / p_L, RealType(1.0) / gamma);
-    const RealType c_b_iso = Kokkos::sqrt(gamma * p_out / rho_b);
-    const RealType v_n_b = R_plus - RealType(2.0) * inv_gm1 * c_b_iso;
+    // Entropy carried out on contact wave
+    const RealType entropy =
+      gm1 * (rho_E_L - RealType(0.5) * rho_L * (u_L * u_L + v_L * v_L)) /
+      Kokkos::pow(rho_L, gamma);
 
-    // Reconstruct Cartesian velocities
-    const RealType u_b = v_n_b * n_x + v_t_L * -n_y;
-    const RealType v_b = v_n_b * n_y + v_t_L * n_x;
+    // Boundary density from fixed exit pressure + interior entropy
+    const RealType rho_b = Kokkos::pow(p_out / entropy, RealType(1.0) / gamma);
+    const RealType c_b = Kokkos::sqrt(gamma * p_out / rho_b);
 
+    // Outgoing Riemann invariant — fixes boundary normal velocity
+    const RealType j_plus = v_n_L + RealType(2.0) * inv_gm1 * c_L;
+    const RealType v_n_b = j_plus - RealType(2.0) * inv_gm1 * c_b;
+
+    // Reconstruct full velocity: keep tangential component, replace normal
+    const RealType u_b = u_L - v_n_L * n_x + v_n_b * n_x;
+    const RealType v_b = v_L - v_n_L * n_y + v_n_b * n_y;
+
+    // Boundary energy and enthalpy
     const RealType rho_E_b =
       p_out * inv_gm1 + RealType(0.5) * rho_b * (u_b * u_b + v_b * v_b);
+    const RealType H_b = (rho_E_b + p_out) / rho_b;
 
-    roe_flux(rho_L,
-             rho_u_L,
-             rho_v_L,
-             rho_E_L,
-             rho_b,
-             rho_b * u_b,
-             rho_b * v_b,
-             rho_E_b,
-             n_x,
-             n_y,
-             F_rho,
-             F_rho_u,
-             F_rho_v,
-             F_rho_E,
-             s_mag);
+    // Compute flux directly
+    F_rho = rho_b * v_n_b;
+    F_rho_u = (rho_b * u_b * u_b + p_out) * n_x + rho_b * u_b * v_b * n_y;
+    F_rho_v = rho_b * u_b * v_b * n_x + (rho_b * v_b * v_b + p_out) * n_y;
+    F_rho_E = rho_b * H_b * v_n_b;
+
+    s_mag = Kokkos::abs(v_n_b) + c_b;
   }
 
   KOKKOS_INLINE_FUNCTION
