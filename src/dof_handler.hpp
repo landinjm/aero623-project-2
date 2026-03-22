@@ -31,6 +31,16 @@ public:
 
     auto vertex(LocalIndexType v) const { return tria_cell.vertex(v); }
 
+    unsigned int n_geometry_nodes() const
+    {
+      return tria_cell.n_geometry_nodes();
+    }
+
+    auto geometry_node(LocalIndexType i) const
+    {
+      return tria_cell.geometry_node(i);
+    }
+
     ::FaceAccessor<dim> face(LocalIndexType local_f) const
     {
       return tria_cell.face(local_f);

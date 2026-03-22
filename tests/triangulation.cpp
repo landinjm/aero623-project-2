@@ -7,7 +7,7 @@ TEST(ReadGri, basic)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test.gri");
-  auto data = gri.data();
+  auto data = gri.get_data();
 
   EXPECT_EQ(data.n_nodes, 6);
   EXPECT_EQ(data.n_elements, 4);
@@ -20,7 +20,7 @@ TEST(ReadGri, basic_2)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_2.gri");
-  auto data = gri.data();
+  auto data = gri.get_data();
 
   EXPECT_EQ(data.n_nodes, 12);
   EXPECT_EQ(data.n_elements, 12);
@@ -33,7 +33,7 @@ TEST(ReadGri, basic_3)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_3.gri");
-  auto data = gri.data();
+  auto data = gri.get_data();
 
   EXPECT_EQ(data.n_nodes, 6);
   EXPECT_EQ(data.n_elements, 4);
@@ -46,7 +46,7 @@ TEST(ReadGri, basic_4)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_4.gri");
-  auto data = gri.data();
+  auto data = gri.get_data();
 
   EXPECT_EQ(data.n_nodes, 15);
   EXPECT_EQ(data.n_elements, 16);
@@ -59,7 +59,7 @@ TEST(ReadGri, basic_5)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_5.gri");
-  auto data = gri.data();
+  auto data = gri.get_data();
 
   EXPECT_EQ(data.n_nodes, 45);
   EXPECT_EQ(data.n_elements, 64);

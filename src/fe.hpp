@@ -416,7 +416,7 @@ public:
   {
     static_assert(dim == 2);
 
-    const unsigned int n_vertices = cell.n_vertices();
+    const unsigned int n_geom = cell.n_geometry_nodes();
 
     for (unsigned int q = 0; q < n_q_; ++q) {
 
@@ -426,13 +426,14 @@ public:
       RealType x[dim] = {0,0};
       RealType J[dim][dim] = {{0,0},{0,0}};
 
-      for (unsigned int i = 0; i < n_vertices; ++i) {
+      for (unsigned int i = 0; i < n_geom; ++i) {
 
-        const RealType phi_i = fe_.shape_value(i, xi);
-        const auto dphi_i = fe_.shape_gradient(i, xi);
+        const RealType phi_i = geom_shape(i,xi);
+        const auto dphi_i = geom_grad(i,xi);
 
-        const RealType xi0 = cell.vertex(i)(0);
-        const RealType xi1 = cell.vertex(i)(1);
+        const auto X = cell.geometry_node(i);
+        const RealType xi0 = X(0);
+        const RealType xi1 = X(1);
 
         x[0] += phi_i * xi0;
         x[1] += phi_i * xi1;
@@ -458,7 +459,7 @@ public:
 
       for (unsigned int i = 0; i < n_dofs_; ++i) {
 
-        phi_(i,q) = fe_.shape_value(i, xi);
+        phi_(i,q)=fe_.shape_value(i,xi);
 
         const auto tmp = fe_.shape_gradient(i, xi);
 
@@ -468,6 +469,51 @@ public:
         grad_phi_(i,q,1) =
           J_inv[0][1]*tmp(0) + J_inv[1][1]*tmp(1);
       }
+    }
+  }
+
+  inline RealType geom_shape(
+      unsigned int i,
+      const Tensor<1,dim,RealType>& xi)
+  {
+    const RealType x = xi[0];
+    const RealType y = xi[1];
+
+    const RealType l1 = 1.0 - x - y;
+    const RealType l2 = x;
+    const RealType l3 = y;
+
+    switch(i)
+    {
+        case 0: return l1*(2*l1-1);
+        case 1: return l2*(2*l2-1);
+        case 2: return l3*(2*l3-1);
+        case 3: return 4*l1*l2;
+        case 4: return 4*l2*l3;
+        case 5: return 4*l3*l1;
+    }
+  }
+
+  inline Tensor<1,dim,RealType>
+  geom_grad(
+      unsigned int i,
+      const Tensor<1,dim,RealType>& xi)
+  {
+    const RealType x = xi[0];
+    const RealType y = xi[1];
+
+    const RealType l1 = 1.0 - x - y;
+    const RealType l2 = x;
+    const RealType l3 = y;
+
+    switch(i)
+    {
+    case 0: return { -4*l1+1 , -4*l1+1 };
+    case 1: return {  4*l2-1 , 0 };
+    case 2: return { 0 , 4*l3-1 };
+    case 3: return { 4*(l1-l2) , -4*l2 };
+    case 4: return { 4*l3 , 4*l2 };
+    case 5: return { -4*l3 , 4*(l1-l3) };
     }
   }
 
@@ -535,6 +581,7 @@ public:
    * @brief Reinit the cell so JxW and quadrature point values reflect the real
    * geometry.
    */
+
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell, unsigned int face)
   {
@@ -543,7 +590,7 @@ public:
     ASSERT(face < SimplexTopology<dim>::faces_per_cell,
           "Local face number must be less than the number of faces per cell");
 
-    const unsigned int n_vertices = cell.n_vertices();
+    const unsigned int n_geom = cell.n_geometry_nodes();
 
     for (unsigned int q = 0; q < n_q_; ++q) {
 
@@ -573,22 +620,23 @@ public:
         case 2: drdt=1;  dsdt=0; break;
       }
 
-      for(unsigned int i=0;i<n_vertices;++i){
+      for (unsigned int i = 0; i < n_geom; ++i) {
 
-        const RealType phi_i = fe_.shape_value(i,xi);
-        const auto dphi_i = fe_.shape_gradient(i,xi);
+        const RealType phi_i = geom_shape(i,xi);
+        const auto dphi_i = geom_grad(i,xi);
 
         const RealType dNdt =
           dphi_i(0)*drdt + dphi_i(1)*dsdt;
 
-        const RealType vx = cell.vertex(i)(0);
-        const RealType vy = cell.vertex(i)(1);
+        const auto X = cell.geometry_node(i);
+        const RealType xi0 = X(0);
+        const RealType xi1 = X(1);
 
-        x[0] += phi_i * vx;
-        x[1] += phi_i * vy;
+        x[0] += phi_i * xi0;
+        x[1] += phi_i * xi1;
 
-        dxdt[0] += vx * dNdt;
-        dxdt[1] += vy * dNdt;
+        dxdt[0] += xi0 * dNdt;
+        dxdt[1] += xi1 * dNdt;
       }
 
       const RealType edge_len =
@@ -605,12 +653,13 @@ public:
       // Jacobian for gradient transform
       RealType J[dim][dim]={{0,0},{0,0}};
 
-      for(unsigned int i=0;i<n_vertices;++i){
-        const auto dNi = fe_.shape_gradient(i,xi);
-        J[0][0]+=cell.vertex(i)(0)*dNi(0);
-        J[0][1]+=cell.vertex(i)(0)*dNi(1);
-        J[1][0]+=cell.vertex(i)(1)*dNi(0);
-        J[1][1]+=cell.vertex(i)(1)*dNi(1);
+      for (unsigned int i = 0; i < n_geom; ++i) {
+        const auto dNi = geom_grad(i, xi);
+        const auto X = cell.geometry_node(i);
+        J[0][0]+=X(0)*dNi(0);
+        J[0][1]+=X(0)*dNi(1);
+        J[1][0]+=X(1)*dNi(0);
+        J[1][1]+=X(1)*dNi(1);
       }
 
       const RealType det =
@@ -633,6 +682,51 @@ public:
         grad_phi_(i,q,1)=
           J_inv[0][1]*tmp(0)+J_inv[1][1]*tmp(1);
       }
+    }
+  }
+
+  inline RealType geom_shape(
+      unsigned int i,
+      const Tensor<1,dim,RealType>& xi)
+  {
+    const RealType x = xi[0];
+    const RealType y = xi[1];
+
+    const RealType l1 = 1.0 - x - y;
+    const RealType l2 = x;
+    const RealType l3 = y;
+
+    switch(i)
+    {
+        case 0: return l1*(2*l1-1);
+        case 1: return l2*(2*l2-1);
+        case 2: return l3*(2*l3-1);
+        case 3: return 4*l1*l2;
+        case 4: return 4*l2*l3;
+        case 5: return 4*l3*l1;
+    }
+  }
+
+  inline Tensor<1,dim,RealType>
+  geom_grad(
+      unsigned int i,
+      const Tensor<1,dim,RealType>& xi)
+  {
+    const RealType x = xi[0];
+    const RealType y = xi[1];
+
+    const RealType l1 = 1.0 - x - y;
+    const RealType l2 = x;
+    const RealType l3 = y;
+
+    switch(i)
+    {
+    case 0: return { -4*l1+1 , -4*l1+1 };
+    case 1: return {  4*l2-1 , 0 };
+    case 2: return { 0 , 4*l3-1 };
+    case 3: return { 4*(l1-l2) , -4*l2 };
+    case 4: return { 4*l3 , 4*l2 };
+    case 5: return { -4*l3 , 4*(l1-l3) };
     }
   }
 
