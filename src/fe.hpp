@@ -32,6 +32,7 @@ public:
     , n_dofs_(n_dofs_per_cell(p))
   {
     ASSERT(p <= max_degree_, "Polynomial degree exceeds maximum");
+    init_nodes();
   };
 
   unsigned int degree() const { return p_; }
@@ -61,13 +62,10 @@ public:
     return x;
   }
 
-  const RealType (&get_coeffs() const)[max_dofs_][max_dofs_] { return coeffs_; }
-
 private:
   unsigned int p_;
   unsigned int n_dofs_;
 
-  RealType coeffs_[max_dofs_][max_dofs_];
   RealType nodes_[max_dofs_][dim];
 
   static RealType fixed_pow(RealType x, int n)
@@ -76,6 +74,61 @@ private:
     for (int i = 0; i < n; ++i)
       r *= x;
     return r;
+  }
+
+  void init_nodes()
+  {
+    switch (p_) {
+      case 0:
+        nodes_[0][0] = 1.0 / 3.0;
+        nodes_[0][1] = 1.0 / 3.0;
+        break;
+      case 1:
+        nodes_[0][0] = 0.0;
+        nodes_[0][1] = 0.0;
+        nodes_[1][0] = 1.0;
+        nodes_[1][1] = 0.0;
+        nodes_[2][0] = 0.0;
+        nodes_[2][1] = 1.0;
+        break;
+      case 2:
+        nodes_[0][0] = 0.0;
+        nodes_[0][1] = 0.0;
+        nodes_[1][0] = 0.5;
+        nodes_[1][1] = 0.0;
+        nodes_[2][0] = 0.0;
+        nodes_[2][1] = 0.5;
+        nodes_[3][0] = 0.5;
+        nodes_[3][1] = 0.5;
+        nodes_[4][0] = 0.0;
+        nodes_[4][1] = 0.5;
+        nodes_[5][0] = 0.5;
+        nodes_[5][1] = 0.0;
+        break;
+      case 3:
+        nodes_[0][0] = 0.0;
+        nodes_[0][1] = 0.0;
+        nodes_[1][0] = 1.0;
+        nodes_[1][1] = 0.0;
+        nodes_[2][0] = 0.0;
+        nodes_[2][1] = 1.0;
+        nodes_[3][0] = 1.0 / 3.0;
+        nodes_[3][1] = 0.0;
+        nodes_[4][0] = 0.0;
+        nodes_[4][1] = 1.0 / 3.0;
+        nodes_[5][0] = 0.0;
+        nodes_[5][1] = 2.0 / 3.0;
+        nodes_[6][0] = 1.0 / 3.0;
+        nodes_[6][1] = 2.0 / 3.0;
+        nodes_[7][0] = 2.0 / 3.0;
+        nodes_[7][1] = 0.0;
+        nodes_[8][0] = 2.0 / 3.0;
+        nodes_[8][1] = 1.0 / 3.0;
+        nodes_[9][0] = 1.0 / 3.0;
+        nodes_[9][1] = 1.0 / 3.0;
+        break;
+    }
+    check_basis();
   }
 
   RealType eval(unsigned int i, const Tensor<1, dim, RealType>& point) const

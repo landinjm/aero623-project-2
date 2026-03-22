@@ -60,6 +60,56 @@ public:
     precompute_geometry();
   }
 
+  VecHost get_rho() const
+  {
+    VecHost h(n_dofs_);
+    Kokkos::deep_copy(h.view(), rho_.view());
+    return h;
+  }
+
+  VecHost get_rho_u() const
+  {
+    VecHost h(n_dofs_);
+    Kokkos::deep_copy(h.view(), rho_u_.view());
+    return h;
+  }
+
+  VecHost get_rho_v() const
+  {
+    VecHost h(n_dofs_);
+    Kokkos::deep_copy(h.view(), rho_v_.view());
+    return h;
+  }
+
+  VecHost get_rho_E() const
+  {
+    VecHost h(n_dofs_);
+    Kokkos::deep_copy(h.view(), rho_E_.view());
+    return h;
+  }
+
+  void set_state_from_host(const VecHost& rho_h,
+                           const VecHost& rho_u_h,
+                           const VecHost& rho_v_h,
+                           const VecHost& rho_E_h)
+  {
+    Kokkos::deep_copy(rho_.view(), rho_h.view());
+    Kokkos::deep_copy(rho_u_.view(), rho_u_h.view());
+    Kokkos::deep_copy(rho_v_.view(), rho_v_h.view());
+    Kokkos::deep_copy(rho_E_.view(), rho_E_h.view());
+  }
+
+  void copy_state_to_host(VecHost& rho_h,
+                          VecHost& rho_u_h,
+                          VecHost& rho_v_h,
+                          VecHost& rho_E_h) const
+  {
+    Kokkos::deep_copy(rho_h.view(), rho_.view());
+    Kokkos::deep_copy(rho_u_h.view(), rho_u_.view());
+    Kokkos::deep_copy(rho_v_h.view(), rho_v_.view());
+    Kokkos::deep_copy(rho_E_h.view(), rho_E_.view());
+  }
+
   void write_solution(const std::string& filename, unsigned int cycle = 0)
   {
     constexpr RealType gamma = Parameters<RealType>::gamma;
@@ -701,7 +751,7 @@ public:
     }
   }
 
-  void solve(unsigned int max_iter = 50000,
+  void solve(unsigned int max_iter = 10000,
              RealType cfl = Parameters<RealType>::cfl_max,
              unsigned int write_interval = 1000)
   {
@@ -1500,7 +1550,8 @@ interpolate_solution(
   }
 }
 
-static constexpr unsigned int problem_degree = 1;
+static constexpr unsigned int lo_degree = 1;
+static constexpr unsigned int hi_degree = 3;
 
 int
 main(int argc, char* argv[])
@@ -1509,72 +1560,33 @@ main(int argc, char* argv[])
   {
     GriReader<2> gri;
     Triangulation<2> tria;
-    FE_DGQLegendre<2, double> fe(problem_degree);
-    QGaussSimplex<2, double> quad(2 * problem_degree + 1);
-    QGaussSimplex<1, double> face_quad(2 * problem_degree + 1);
-
-    gri.read_gri("../grids/coarse_local_refinement.gri");
+    gri.read_gri("../tests/test_6.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
     }
 
-    // Print one point per boundary face to check the IDs
-    std::cout << "=== Boundary Face IDs ===" << std::endl;
-    for (auto cell : tria.active_cell_range()) {
-      for (unsigned int lf = 0; lf < SimplexTopology<2>::faces_per_cell; ++lf) {
-        if (cell.face_at_boundary(lf)) {
-          auto face = cell.face(lf);
-          auto center = face.center();
-          std::cout << "id=" << face.boundary_id() << " center=(" << center(0)
-                    << "," << center(1) << ")" << std::endl;
-        }
-      }
-    }
-
     // Renumber boundary ids so they match above.
     std::unordered_map<uint32_t, uint32_t> id_map = {
-      { 7, BoundaryId::InviscidWall },
-      { 8, BoundaryId::InviscidWall },
-      { 5, BoundaryId::SubsonicInflow },
-      { 6, BoundaryId::SubsonicOutflow },
+      { 1, BoundaryId::InviscidWall },
+      { 2, BoundaryId::SubsonicOutflow },
+      { 3, BoundaryId::InviscidWall },
+      { 4, BoundaryId::SubsonicInflow },
     };
     tria.remap_boundary_ids(id_map);
 
-    DoFHandler<2, double> dof_handler(tria, fe);
+    // Low-order setup
+    FE_DGQLegendre<2, double> fe_lo(lo_degree);
+    QGaussSimplex<2, double> quad_lo(2 * lo_degree + 1);
+    QGaussSimplex<1, double> face_quad_lo(2 * lo_degree + 1);
+    DoFHandler<2, double> dof_handler_lo(tria, fe_lo);
+    FEValues<2, double> fe_values_lo(fe_lo, quad_lo);
+    FEFaceValues<2, double> fe_face_values_lo(fe_lo, face_quad_lo);
 
-    // Test that output works
-    Vector<double, HostMemSpace> test(dof_handler.n_dofs());
-    std::vector<uint32_t> dof_indices;
-    for (auto cell : dof_handler.active_cell_range()) {
-      cell.get_dof_indices(dof_indices);
-      for (unsigned int i = 0; i < dof_handler.n_dofs_per_cell(); ++i) {
-        // Get the reference node position and map to physical x
-        auto xi = dof_handler.fe().node(i);
-        // x = x0 + J * xi
-        double x0 = cell.vertex(0)(0);
-        double J0 = cell.vertex(1)(0) - cell.vertex(0)(0);
-        double J1 = cell.vertex(2)(0) - cell.vertex(0)(0);
-        double x_phys = x0 + J0 * xi(0) + J1 * xi(1);
-        test[dof_indices[i]] = x_phys;
-      }
-    }
+    EulerSolver<2, double> solver_lo(
+      dof_handler_lo, fe_values_lo, fe_face_values_lo, lo_degree);
 
-    DataOut<2> data_out;
-    data_out.attach_dof_handler(dof_handler);
-    data_out.add_data_vector(test, "x");
-    data_out.write_vtu("test_output.vtu");
-
-    // Create the FEValues objects
-    FEValues<2, double> fe_values(fe, quad);
-    FEFaceValues<2, double> fe_face_values(fe, face_quad);
-
-    // Create the solver
-    EulerSolver<2, double> solver(
-      dof_handler, fe_values, fe_face_values, problem_degree);
-
-    // Set uniform freestream state
-    solver.set_initial_condition([](double x, double y) {
+    auto ic = [](double x, double y) {
       constexpr double gamma = Parameters<double>::gamma;
       constexpr double gm1 = gamma - 1.0;
       constexpr double p_0 = Parameters<double>::p_0;
@@ -1582,33 +1594,64 @@ main(int argc, char* argv[])
       constexpr double a_0 = Parameters<double>::a_0;
       constexpr double p_out = Parameters<double>::p_out;
 
-      // Use outflow pressure as the static pressure (consistent with outflow
-      // BC)
       const double p = p_out;
-
-      // Isentropic relations from stagnation to static
       const double ratio = p / p_0;
       const double rho = rho_0 * std::pow(ratio, 1.0 / gamma);
       const double a = std::sqrt(gamma * p / rho);
-      const double a_sq = a * a;
-      const double a_0sq = a_0 * a_0;
-
-      // Velocity magnitude from energy: a^2 + 0.5*gm1*V^2 = a_0^2
-      const double V = std::sqrt(2.0 / gm1 * (a_0sq - a_sq));
-
-      // Split into components using inflow direction
-      const double nx = Parameters<double>::n_x_0();
-      const double ny = Parameters<double>::n_y_0();
-      const double u = V * nx;
-      const double v = V * ny;
-
+      const double V = std::sqrt(2.0 / gm1 * (a_0 * a_0 - a * a));
+      const double u = V * Parameters<double>::n_x_0();
+      const double v = V * Parameters<double>::n_y_0();
       return std::make_tuple(rho, u, v, p);
-    });
+    };
 
-    // solver.test_freestream_preservation(100);
+    solver_lo.set_initial_condition(ic);
+    solver_lo.check_initial_condition_validity();
+    solver_lo.solve();
+    solver_lo.write_solution("solution_lo.vtu");
 
-    solver.check_initial_condition_validity();
-    solver.solve();
+    // Extract low-order state to host
+    const auto n_dofs_lo = dof_handler_lo.n_dofs();
+    Vector<double, HostMemSpace> rho_h(n_dofs_lo), rhou_h(n_dofs_lo),
+      rhov_h(n_dofs_lo), rhoE_h(n_dofs_lo);
+    solver_lo.copy_state_to_host(rho_h, rhou_h, rhov_h, rhoE_h);
+
+    std::cout << "rho_h[0] = " << rho_h.view()(0) << std::endl;
+
+    // High-order setup
+    FE_DGQLegendre<2, double> fe_hi(hi_degree);
+    QGaussSimplex<2, double> quad_hi(2 * hi_degree + 1);
+    QGaussSimplex<1, double> face_quad_hi(2 * hi_degree + 1);
+    DoFHandler<2, double> dof_handler_hi(tria, fe_hi);
+    FEValues<2, double> fe_values_hi(fe_hi, quad_hi);
+    FEFaceValues<2, double> fe_face_values_hi(fe_hi, face_quad_hi);
+
+    // Interpolate
+    const auto n_dofs_hi = dof_handler_hi.n_dofs();
+    Vector<double, HostMemSpace> rho_hi(n_dofs_hi), rhou_hi(n_dofs_hi),
+      rhov_hi(n_dofs_hi), rhoE_hi(n_dofs_hi);
+
+    interpolate_solution(dof_handler_lo,
+                         dof_handler_hi,
+                         fe_lo,
+                         fe_hi,
+                         rho_h.view(),
+                         rhou_h.view(),
+                         rhov_h.view(),
+                         rhoE_h.view(),
+                         rho_hi.view(),
+                         rhou_hi.view(),
+                         rhoE_hi.view(),
+                         rhov_hi.view());
+
+    std::cout << "rho_hi[0] = " << rho_hi.view()(0) << std::endl;
+    std::cout << "rho_hi[1] = " << rho_hi.view()(1) << std::endl;
+    std::cout << "rho_hi[2] = " << rho_hi.view()(2) << std::endl;
+
+    // Inject into high-order solver and write
+    EulerSolver<2, double> solver_hi(
+      dof_handler_hi, fe_values_hi, fe_face_values_hi, hi_degree);
+    solver_hi.set_state_from_host(rho_hi, rhou_hi, rhov_hi, rhoE_hi);
+    solver_hi.write_solution("solution_hi_interpolated.vtu");
   }
 
   Kokkos::finalize();
