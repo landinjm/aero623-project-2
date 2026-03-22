@@ -733,21 +733,18 @@ public:
       compute_volume_residual();
       compute_face_residual();
       update(RealType(0.0), RealType(1.0));
-      apply_positivity_limiter();
 
       // --- SSP-RK3 Stage 2: u^(2) = 3/4*u^n + 1/4*(u^(1) + dt*R(u^(1))) ---
       zero_residuals();
       compute_volume_residual();
       compute_face_residual();
       update(RealType(0.75), RealType(0.25));
-      apply_positivity_limiter();
 
       // --- SSP-RK3 Stage 3: u^(n+1) = 1/3*u^n + 2/3*(u^(2) + dt*R(u^(2))) ---
       zero_residuals();
       compute_volume_residual();
       compute_face_residual();
       update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
-      apply_positivity_limiter();
 
       // Compute residual for convergence check
       if (iter % write_interval == 0 || iter == max_iter - 1) {
@@ -1113,34 +1110,6 @@ public:
     std::cout << "Total bad DOFs: " << n_bad << "/" << n_dofs_ << std::endl;
   }
 
-  void apply_positivity_limiter()
-  {
-    auto d_rho = rho_.view();
-    auto d_rho_u = rho_u_.view();
-    auto d_rho_v = rho_v_.view();
-    auto d_rho_E = rho_E_.view();
-
-    constexpr RealType rho_min = 1e-6;
-    constexpr RealType p_min = 1e-6;
-    constexpr RealType gamma = Parameters<RealType>::gamma;
-    constexpr RealType gm1 = gamma - RealType(1);
-
-    Kokkos::parallel_for(
-      "positivity", n_dofs_, KOKKOS_LAMBDA(int i) {
-        // Clamp density
-        d_rho(i) = Kokkos::max(d_rho(i), rho_min);
-
-        // Clamp pressure via energy
-        const RealType rho = d_rho(i);
-        const RealType u = d_rho_u(i) / rho;
-        const RealType v = d_rho_v(i) / rho;
-        const RealType E_min =
-          p_min / gm1 + RealType(0.5) * rho * (u * u + v * v);
-        d_rho_E(i) = Kokkos::max(d_rho_E(i), E_min);
-      });
-    Kokkos::fence();
-  }
-
   void compute_face_residual()
   {
     compute_interior_face_residual();
@@ -1475,7 +1444,7 @@ public:
   }
 };
 
-static constexpr unsigned int problem_degree = 1;
+static constexpr unsigned int problem_degree = 2;
 
 int
 main(int argc, char* argv[])
