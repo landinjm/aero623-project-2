@@ -94,10 +94,10 @@ private:
       case 2:
         nodes_[0][0] = 0.0;
         nodes_[0][1] = 0.0;
-        nodes_[1][0] = 0.5;
+        nodes_[1][0] = 1.0;
         nodes_[1][1] = 0.0;
         nodes_[2][0] = 0.0;
-        nodes_[2][1] = 0.5;
+        nodes_[2][1] = 1.0;
         nodes_[3][0] = 0.5;
         nodes_[3][1] = 0.5;
         nodes_[4][0] = 0.0;
@@ -112,18 +112,18 @@ private:
         nodes_[1][1] = 0.0;
         nodes_[2][0] = 0.0;
         nodes_[2][1] = 1.0;
-        nodes_[3][0] = 1.0 / 3.0;
-        nodes_[3][1] = 0.0;
-        nodes_[4][0] = 0.0;
-        nodes_[4][1] = 1.0 / 3.0;
+        nodes_[3][0] = 2.0 / 3.0;
+        nodes_[3][1] = 1.0 / 3.0;
+        nodes_[4][0] = 1.0 / 3.0;
+        nodes_[4][1] = 2.0 / 3.0;
         nodes_[5][0] = 0.0;
         nodes_[5][1] = 2.0 / 3.0;
-        nodes_[6][0] = 1.0 / 3.0;
-        nodes_[6][1] = 2.0 / 3.0;
-        nodes_[7][0] = 2.0 / 3.0;
+        nodes_[6][0] = 0.0;
+        nodes_[6][1] = 1.0 / 3.0;
+        nodes_[7][0] = 1.0 / 3.0;
         nodes_[7][1] = 0.0;
         nodes_[8][0] = 2.0 / 3.0;
-        nodes_[8][1] = 1.0 / 3.0;
+        nodes_[8][1] = 0.0;
         nodes_[9][0] = 1.0 / 3.0;
         nodes_[9][1] = 1.0 / 3.0;
         break;
@@ -320,7 +320,12 @@ private:
           pt(d) = nodes_[j][d];
         RealType val = eval(i, pt);
         RealType expected = (i == j) ? RealType(1) : RealType(0);
-        ASSERT(std::abs(val - expected) < 1.0e-10, "Failed basis");
+        if (std::abs(val - expected) >= 1.0e-10) {
+          std::cout << "FAIL: phi_" << i << "(node_" << j << ") = " << val
+                    << " expected " << expected << " node=(" << nodes_[j][0]
+                    << "," << nodes_[j][1] << ")" << std::endl;
+          ASSERT(std::abs(val - expected) < 1.0e-10, "Failed basis");
+        }
       }
     }
   }
@@ -589,8 +594,8 @@ public:
   }
 
   /**
-   * @brief Reinit the cell so JxW and quadrature point values reflect the real
-   * geometry.
+   * @brief Reinit the cell so JxW and quadrature point values reflect the
+   * real geometry.
    */
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell)
@@ -714,8 +719,8 @@ public:
   }
 
   /**
-   * @brief Reinit the cell so JxW and quadrature point values reflect the real
-   * geometry.
+   * @brief Reinit the cell so JxW and quadrature point values reflect the
+   * real geometry.
    */
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell, unsigned int face)
@@ -726,9 +731,9 @@ public:
     ASSERT(face < SimplexTopology<dim>::faces_per_cell,
            "Local face number must be less than the number of faces per cell");
 
-    // The challenge with this class is that we have the quadrature rule defined
-    // along the face, but the basis functions defined along the cell. As such,
-    // we must map from reference line to reference triangle.
+    // The challenge with this class is that we have the quadrature rule
+    // defined along the face, but the basis functions defined along the cell.
+    // As such, we must map from reference line to reference triangle.
 
     // Build a Jacobian from the vertices of the cell.
     RealType J[dim][dim];
@@ -750,8 +755,8 @@ public:
                                        { -J[1][0] / det_J, J[0][0] / det_J } };
 
     // Here is where things become a little different than FEValues.
-    // 1. Each face maps a 1D quad point to the 2D coordinates on the reference
-    // triangle.
+    // 1. Each face maps a 1D quad point to the 2D coordinates on the
+    // reference triangle.
     // 2. Each face maps to a reference normal vector.
     // 3. The edge length in reference space gives the face Jacobian.
 
@@ -838,7 +843,7 @@ public:
 
         const auto tmp = fe_.shape_gradient(i, xi);
         for (unsigned int d = 0; d < dim; ++d) {
-          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[0][d] * tmp(1);
+          grad_phi_(i, q, d) = J_inv[0][d] * tmp(0) + J_inv[1][d] * tmp(1);
         }
       }
     }

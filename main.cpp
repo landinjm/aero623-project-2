@@ -19,6 +19,7 @@ struct BoundaryId
   static constexpr uint32_t InviscidWall = 1;
   static constexpr uint32_t SubsonicInflow = 2;
   static constexpr uint32_t SubsonicOutflow = 3;
+  static constexpr uint32_t Freestream = 4;
 };
 
 template<unsigned int dim, typename RealType>
@@ -58,34 +59,6 @@ public:
 
     // Precompute geometries
     precompute_geometry();
-  }
-
-  VecHost get_rho() const
-  {
-    VecHost h(n_dofs_);
-    Kokkos::deep_copy(h.view(), rho_.view());
-    return h;
-  }
-
-  VecHost get_rho_u() const
-  {
-    VecHost h(n_dofs_);
-    Kokkos::deep_copy(h.view(), rho_u_.view());
-    return h;
-  }
-
-  VecHost get_rho_v() const
-  {
-    VecHost h(n_dofs_);
-    Kokkos::deep_copy(h.view(), rho_v_.view());
-    return h;
-  }
-
-  VecHost get_rho_E() const
-  {
-    VecHost h(n_dofs_);
-    Kokkos::deep_copy(h.view(), rho_E_.view());
-    return h;
   }
 
   void set_state_from_host(const VecHost& rho_h,
@@ -376,9 +349,9 @@ public:
     auto cell_area_h =
       Kokkos::View<RealType*, Layout, HostMemSpace>("cell_area_h", n_cells);
 
+    uint32_t k = 0;
     std::vector<uint32_t> dof_indices;
     for (auto cell : dof_handler_.active_cell_range()) {
-      const auto k = cell.index();
       fe_values_.reinit(cell);
       cell.get_dof_indices(dof_indices);
 
@@ -403,6 +376,7 @@ public:
       for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
         cell_dofs_h(k, i) = dof_indices[i];
       }
+      ++k;
     }
 
     JxW_ = Kokkos::View<RealType**, Layout, DeviceMemSpace>(
@@ -751,7 +725,7 @@ public:
     }
   }
 
-  void solve(unsigned int max_iter = 10000,
+  void solve(unsigned int max_iter = 50000,
              RealType cfl = Parameters<RealType>::cfl_max,
              unsigned int write_interval = 1000)
   {
@@ -1507,8 +1481,8 @@ interpolate_solution(
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rhoE_lo,
   Kokkos::View<RealType*, Layout, HostMemSpace>& rho_hi,
   Kokkos::View<RealType*, Layout, HostMemSpace>& rhou_hi,
-  Kokkos::View<RealType*, Layout, HostMemSpace>& rhoE_hi,
-  Kokkos::View<RealType*, Layout, HostMemSpace>& rhov_hi)
+  Kokkos::View<RealType*, Layout, HostMemSpace>& rhov_hi,
+  Kokkos::View<RealType*, Layout, HostMemSpace>& rhoE_hi)
 {
   const auto n_dofs_lo = fe_lo.n_dofs();
   const auto n_dofs_hi = fe_hi.n_dofs();
@@ -1550,8 +1524,8 @@ interpolate_solution(
   }
 }
 
-static constexpr unsigned int lo_degree = 1;
-static constexpr unsigned int hi_degree = 3;
+static constexpr unsigned int lo_degree = 0;
+static constexpr unsigned int hi_degree = 1;
 
 int
 main(int argc, char* argv[])
@@ -1560,7 +1534,7 @@ main(int argc, char* argv[])
   {
     GriReader<2> gri;
     Triangulation<2> tria;
-    gri.read_gri("../tests/test_6.gri");
+    gri.read_gri("../grids/coarse_local_refinement_1.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1568,10 +1542,10 @@ main(int argc, char* argv[])
 
     // Renumber boundary ids so they match above.
     std::unordered_map<uint32_t, uint32_t> id_map = {
-      { 1, BoundaryId::InviscidWall },
-      { 2, BoundaryId::SubsonicOutflow },
-      { 3, BoundaryId::InviscidWall },
-      { 4, BoundaryId::SubsonicInflow },
+      { 7, BoundaryId::InviscidWall },
+      { 8, BoundaryId::InviscidWall },
+      { 5, BoundaryId::SubsonicInflow },
+      { 6, BoundaryId::SubsonicOutflow },
     };
     tria.remap_boundary_ids(id_map);
 
@@ -1615,8 +1589,6 @@ main(int argc, char* argv[])
       rhov_h(n_dofs_lo), rhoE_h(n_dofs_lo);
     solver_lo.copy_state_to_host(rho_h, rhou_h, rhov_h, rhoE_h);
 
-    std::cout << "rho_h[0] = " << rho_h.view()(0) << std::endl;
-
     // High-order setup
     FE_DGQLegendre<2, double> fe_hi(hi_degree);
     QGaussSimplex<2, double> quad_hi(2 * hi_degree + 1);
@@ -1640,18 +1612,16 @@ main(int argc, char* argv[])
                          rhoE_h.view(),
                          rho_hi.view(),
                          rhou_hi.view(),
-                         rhoE_hi.view(),
-                         rhov_hi.view());
-
-    std::cout << "rho_hi[0] = " << rho_hi.view()(0) << std::endl;
-    std::cout << "rho_hi[1] = " << rho_hi.view()(1) << std::endl;
-    std::cout << "rho_hi[2] = " << rho_hi.view()(2) << std::endl;
+                         rhov_hi.view(),
+                         rhoE_hi.view());
 
     // Inject into high-order solver and write
     EulerSolver<2, double> solver_hi(
       dof_handler_hi, fe_values_hi, fe_face_values_hi, hi_degree);
     solver_hi.set_state_from_host(rho_hi, rhou_hi, rhov_hi, rhoE_hi);
     solver_hi.write_solution("solution_hi_interpolated.vtu");
+    solver_hi.solve();
+    solver_hi.write_solution("solution_hi.vtu");
   }
 
   Kokkos::finalize();
