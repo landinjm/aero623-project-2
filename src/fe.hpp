@@ -428,8 +428,8 @@ public:
 
       for (unsigned int i = 0; i < n_geom; ++i) {
 
-        const RealType phi_i = geom_shape(i,xi);
-        const auto dphi_i = geom_grad(i,xi);
+        const RealType phi_i = geom_shape(i,xi,n_geom);
+        const auto dphi_i = geom_grad(i,xi,n_geom);
 
         const auto X = cell.geometry_node(i);
         const RealType xi0 = X(0);
@@ -472,49 +472,73 @@ public:
     }
   }
 
-  inline RealType geom_shape(
-      unsigned int i,
-      const Tensor<1,dim,RealType>& xi)
+  RealType geom_shape(unsigned int i,
+                      const Tensor<1,dim,RealType>& xi,
+                      unsigned int n_geom)
   {
-    const RealType x = xi[0];
-    const RealType y = xi[1];
+      const RealType x = xi[0];
+      const RealType y = xi[1];
 
-    const RealType l1 = 1.0 - x - y;
-    const RealType l2 = x;
-    const RealType l3 = y;
+      const RealType l1 = 1.0 - x - y;
+      const RealType l2 = x;
+      const RealType l3 = y;
 
-    switch(i)
-    {
-        case 0: return l1*(2*l1-1);
-        case 1: return l2*(2*l2-1);
-        case 2: return l3*(2*l3-1);
-        case 3: return 4*l1*l2;
-        case 4: return 4*l2*l3;
-        case 5: return 4*l3*l1;
-    }
+      if (n_geom == 3) {
+          switch(i) {
+              case 0: return l1;
+              case 1: return l2;
+              case 2: return l3;
+          }
+      }
+
+      if (n_geom == 6) {
+          switch(i) {
+              case 0: return l1*(2*l1-1);
+              case 1: return l2*(2*l2-1);
+              case 2: return l3*(2*l3-1);
+              case 3: return 4*l1*l2;
+              case 4: return 4*l2*l3;
+              case 5: return 4*l3*l1;
+          }
+      }
+
+      ASSERT(false,"Unsupported geometry order");
   }
 
-  inline Tensor<1,dim,RealType>
+  Tensor<1,dim,RealType>
   geom_grad(
       unsigned int i,
-      const Tensor<1,dim,RealType>& xi)
+      const Tensor<1,dim,RealType>& xi,
+      unsigned int n_geom)
   {
-    const RealType x = xi[0];
-    const RealType y = xi[1];
+      const RealType x = xi[0];
+      const RealType y = xi[1];
 
-    const RealType l1 = 1.0 - x - y;
-    const RealType l2 = x;
-    const RealType l3 = y;
+      const RealType l1 = 1.0 - x - y;
+      const RealType l2 = x;
+      const RealType l3 = y;
 
-    switch(i)
-    {
-    case 0: return { -4*l1+1 , -4*l1+1 };
-    case 1: return {  4*l2-1 , 0 };
-    case 2: return { 0 , 4*l3-1 };
-    case 3: return { 4*(l1-l2) , -4*l2 };
-    case 4: return { 4*l3 , 4*l2 };
-    case 5: return { -4*l3 , 4*(l1-l3) };
-    }
+      if (n_geom == 3) {
+          switch(i) {
+              case 0: return { -1.0, -1.0 }; // grad(l1)
+              case 1: return {  1.0,  0.0 }; // grad(l2)
+              case 2: return {  0.0,  1.0 }; // grad(l3)
+          }
+      }
+
+      if (n_geom == 6) {
+          switch(i) {
+              case 0: return { -4*l1 + 1, -4*l1 + 1 };
+              case 1: return {  4*l2 - 1,  0.0 };
+              case 2: return {  0.0,  4*l3 - 1 };
+              case 3: return {  4*(l1 - l2), -4*l2 };
+              case 4: return {  4*l3,  4*l2 };
+              case 5: return { -4*l3,  4*(l1 - l3) };
+          }
+      }
+
+      ASSERT(false,"Unsupported geometry order");
+      return {}; // silence compiler
   }
 
   unsigned int n_dofs() const { return n_dofs_; }
@@ -622,8 +646,8 @@ public:
 
       for (unsigned int i = 0; i < n_geom; ++i) {
 
-        const RealType phi_i = geom_shape(i,xi);
-        const auto dphi_i = geom_grad(i,xi);
+        const RealType phi_i = geom_shape(i,xi,n_geom);
+        const auto dphi_i = geom_grad(i,xi,n_geom);
 
         const RealType dNdt =
           dphi_i(0)*drdt + dphi_i(1)*dsdt;
@@ -654,7 +678,7 @@ public:
       RealType J[dim][dim]={{0,0},{0,0}};
 
       for (unsigned int i = 0; i < n_geom; ++i) {
-        const auto dNi = geom_grad(i, xi);
+        const auto dNi = geom_grad(i, xi, n_geom);
         const auto X = cell.geometry_node(i);
         J[0][0]+=X(0)*dNi(0);
         J[0][1]+=X(0)*dNi(1);
@@ -685,49 +709,73 @@ public:
     }
   }
 
-  inline RealType geom_shape(
-      unsigned int i,
-      const Tensor<1,dim,RealType>& xi)
+  RealType geom_shape(unsigned int i,
+                    const Tensor<1,dim,RealType>& xi,
+                    unsigned int n_geom)
   {
-    const RealType x = xi[0];
-    const RealType y = xi[1];
+      const RealType x = xi[0];
+      const RealType y = xi[1];
 
-    const RealType l1 = 1.0 - x - y;
-    const RealType l2 = x;
-    const RealType l3 = y;
+      const RealType l1 = 1.0 - x - y;
+      const RealType l2 = x;
+      const RealType l3 = y;
 
-    switch(i)
-    {
-        case 0: return l1*(2*l1-1);
-        case 1: return l2*(2*l2-1);
-        case 2: return l3*(2*l3-1);
-        case 3: return 4*l1*l2;
-        case 4: return 4*l2*l3;
-        case 5: return 4*l3*l1;
-    }
+      if (n_geom == 3) {
+          switch(i) {
+              case 0: return l1;
+              case 1: return l2;
+              case 2: return l3;
+          }
+      }
+
+      if (n_geom == 6) {
+          switch(i) {
+              case 0: return l1*(2*l1-1);
+              case 1: return l2*(2*l2-1);
+              case 2: return l3*(2*l3-1);
+              case 3: return 4*l1*l2;
+              case 4: return 4*l2*l3;
+              case 5: return 4*l3*l1;
+          }
+      }
+
+      ASSERT(false,"Unsupported geometry order");
   }
 
-  inline Tensor<1,dim,RealType>
+  Tensor<1,dim,RealType>
   geom_grad(
       unsigned int i,
-      const Tensor<1,dim,RealType>& xi)
+      const Tensor<1,dim,RealType>& xi,
+      unsigned int n_geom)
   {
-    const RealType x = xi[0];
-    const RealType y = xi[1];
+      const RealType x = xi[0];
+      const RealType y = xi[1];
 
-    const RealType l1 = 1.0 - x - y;
-    const RealType l2 = x;
-    const RealType l3 = y;
+      const RealType l1 = 1.0 - x - y;
+      const RealType l2 = x;
+      const RealType l3 = y;
 
-    switch(i)
-    {
-    case 0: return { -4*l1+1 , -4*l1+1 };
-    case 1: return {  4*l2-1 , 0 };
-    case 2: return { 0 , 4*l3-1 };
-    case 3: return { 4*(l1-l2) , -4*l2 };
-    case 4: return { 4*l3 , 4*l2 };
-    case 5: return { -4*l3 , 4*(l1-l3) };
-    }
+      if (n_geom == 3) {
+          switch(i) {
+              case 0: return { -1.0, -1.0 }; // grad(l1)
+              case 1: return {  1.0,  0.0 }; // grad(l2)
+              case 2: return {  0.0,  1.0 }; // grad(l3)
+          }
+      }
+
+      if (n_geom == 6) {
+          switch(i) {
+              case 0: return { -4*l1 + 1, -4*l1 + 1 };
+              case 1: return {  4*l2 - 1,  0.0 };
+              case 2: return {  0.0,  4*l3 - 1 };
+              case 3: return {  4*(l1 - l2), -4*l2 };
+              case 4: return {  4*l3,  4*l2 };
+              case 5: return { -4*l3,  4*(l1 - l3) };
+          }
+      }
+
+      ASSERT(false,"Unsupported geometry order");
+      return {}; // silence compiler
   }
 
   unsigned int n_dofs() const { return n_dofs_; }
