@@ -59,12 +59,12 @@ struct Parameters
   /**
    * @brief Maximum CFL number to use when calculating optimal timestep.
    */
-  static constexpr RealType cfl_max = RealType{ 0.1 };
+  static constexpr RealType cfl_max = RealType{ 0.5 };
 
   /**
    * @brief Convergence tolerance.
    */
-  static constexpr RealType convergence_tol = 1e-10;
+  static constexpr RealType convergence_tol = 1e-5;
 
   /**
    * @brief Unsteady flow parameters.

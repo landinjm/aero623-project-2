@@ -32,7 +32,7 @@ public:
     , n_dofs_(n_dofs_per_cell(p))
   {
     ASSERT(p <= max_degree_, "Polynomial degree exceeds maximum");
-    build_monomial_table();
+    init_nodes();
   };
 
   unsigned int degree() const { return p_; }
@@ -62,23 +62,11 @@ public:
     return x;
   }
 
-  const RealType (&get_coeffs() const)[max_dofs_][max_dofs_] { return coeffs_; }
-
 private:
   unsigned int p_;
   unsigned int n_dofs_;
 
-  RealType coeffs_[max_dofs_][max_dofs_];
   RealType nodes_[max_dofs_][dim];
-
-  static void monomial_exponents(int k, int& r, int& s)
-  {
-    int idx = 0;
-    for (s = 0; s <= (int)max_degree_; ++s)
-      for (r = 0; r <= (int)max_degree_ - s; ++r, ++idx)
-        if (idx == k)
-          return;
-  }
 
   static RealType fixed_pow(RealType x, int n)
   {
@@ -88,93 +76,127 @@ private:
     return r;
   }
 
-  void build_monomial_table()
+  void init_nodes()
   {
-    const int N = n_dofs_;
-
-    // Build nodes — same ordering as monomials: ix+iy <= p
-    int idx = 0;
-    for (int iy = 0; iy <= (int)p_; ++iy)
-      for (int ix = 0; ix <= (int)p_ - iy; ++ix, ++idx) {
-        nodes_[idx][0] =
-          (p_ > 0) ? RealType(ix) / RealType(p_) : RealType(1) / 3;
-        if constexpr (dim > 1)
-          nodes_[idx][1] =
-            (p_ > 0) ? RealType(iy) / RealType(p_) : RealType(1) / 3;
-      }
-
-    // Build Vandermonde matrix
-    RealType A[max_dofs_][max_dofs_];
-    for (int i = 0; i < N; ++i) {
-      int k = 0;
-      for (int s = 0; s <= (int)p_; ++s)
-        for (int r = 0; r <= (int)p_ - s; ++r, ++k) {
-          const RealType eta = (dim > 1) ? nodes_[i][1] : RealType(0);
-          A[i][k] = fixed_pow(nodes_[i][0], r) * fixed_pow(eta, s);
-        }
+    switch (p_) {
+      case 0:
+        nodes_[0][0] = 1.0 / 3.0;
+        nodes_[0][1] = 1.0 / 3.0;
+        break;
+      case 1:
+        nodes_[0][0] = 0.0;
+        nodes_[0][1] = 0.0;
+        nodes_[1][0] = 1.0;
+        nodes_[1][1] = 0.0;
+        nodes_[2][0] = 0.0;
+        nodes_[2][1] = 1.0;
+        break;
+      case 2:
+        nodes_[0][0] = 0.0;
+        nodes_[0][1] = 0.0;
+        nodes_[1][0] = 1.0;
+        nodes_[1][1] = 0.0;
+        nodes_[2][0] = 0.0;
+        nodes_[2][1] = 1.0;
+        nodes_[3][0] = 0.5;
+        nodes_[3][1] = 0.5;
+        nodes_[4][0] = 0.0;
+        nodes_[4][1] = 0.5;
+        nodes_[5][0] = 0.5;
+        nodes_[5][1] = 0.0;
+        break;
+      case 3:
+        nodes_[0][0] = 0.0;
+        nodes_[0][1] = 0.0;
+        nodes_[1][0] = 1.0;
+        nodes_[1][1] = 0.0;
+        nodes_[2][0] = 0.0;
+        nodes_[2][1] = 1.0;
+        nodes_[3][0] = 2.0 / 3.0;
+        nodes_[3][1] = 1.0 / 3.0;
+        nodes_[4][0] = 1.0 / 3.0;
+        nodes_[4][1] = 2.0 / 3.0;
+        nodes_[5][0] = 0.0;
+        nodes_[5][1] = 2.0 / 3.0;
+        nodes_[6][0] = 0.0;
+        nodes_[6][1] = 1.0 / 3.0;
+        nodes_[7][0] = 1.0 / 3.0;
+        nodes_[7][1] = 0.0;
+        nodes_[8][0] = 2.0 / 3.0;
+        nodes_[8][1] = 0.0;
+        nodes_[9][0] = 1.0 / 3.0;
+        nodes_[9][1] = 1.0 / 3.0;
+        break;
     }
-
-    // rhs starts as identity, becomes A^{-1} = coeffs after solve
-    for (int i = 0; i < N; ++i)
-      for (int j = 0; j < N; ++j)
-        coeffs_[i][j] = (i == j) ? RealType(1) : RealType(0);
-
-    // LU with partial pivoting
-    int piv[max_dofs_];
-    for (int k = 0; k < N; ++k) {
-      // Find pivot
-      int maxrow = k;
-      RealType maxval = std::abs(A[k][k]);
-      for (int i = k + 1; i < N; ++i)
-        if (std::abs(A[i][k]) > maxval) {
-          maxval = std::abs(A[i][k]);
-          maxrow = i;
-        }
-      piv[k] = maxrow;
-
-      for (int j = 0; j < N; ++j) {
-        std::swap(A[k][j], A[maxrow][j]);
-        std::swap(coeffs_[k][j], coeffs_[maxrow][j]);
-      }
-
-      for (int i = k + 1; i < N; ++i) {
-        A[i][k] /= A[k][k];
-        for (int j = k + 1; j < N; ++j)
-          A[i][j] -= A[i][k] * A[k][j];
-        for (int j = 0; j < N; ++j)
-          coeffs_[i][j] -= A[i][k] * coeffs_[k][j];
-      }
-    }
-
-    // Back substitution
-    for (int k = N - 1; k >= 0; --k) {
-      for (int j = 0; j < N; ++j)
-        coeffs_[k][j] /= A[k][k];
-      for (int i = 0; i < k; ++i)
-        for (int j = 0; j < N; ++j)
-          coeffs_[i][j] -= A[i][k] * coeffs_[k][j];
-    }
-
-    // Transpose for cache locality
-    RealType tmp[max_dofs_][max_dofs_];
-    for (int i = 0; i < N; ++i)
-      for (int j = 0; j < N; ++j)
-        tmp[j][i] = coeffs_[i][j];
-    for (int i = 0; i < N; ++i)
-      for (int j = 0; j < N; ++j)
-        coeffs_[i][j] = tmp[i][j];
+    check_basis();
   }
 
   RealType eval(unsigned int i, const Tensor<1, dim, RealType>& point) const
   {
     const RealType x = point(0);
-    const RealType y = (dim > 1) ? point(1) : RealType(0);
-    RealType val = RealType(0);
-    int k = 0;
-    for (int s = 0; s <= (int)p_; ++s)
-      for (int r = 0; r <= (int)p_ - s; ++r, ++k)
-        val += coeffs_[i][k] * fixed_pow(x, r) * fixed_pow(y, s);
-    return val;
+    const RealType y = point(1);
+    switch (p_) {
+      case 0:
+        return RealType(1);
+      case 1:
+        switch (i) {
+          case 0:
+            return 1.0 - x - y;
+          case 1:
+            return x;
+          case 2:
+            return y;
+        }
+      case 2:
+        switch (i) {
+          case 0:
+            return 1.0 - 3.0 * x - 3.0 * y + 2.0 * x * x + 4.0 * x * y +
+                   2.0 * y * y;
+          case 1:
+            return -x + 2.0 * x * x;
+          case 2:
+            return -y + 2.0 * y * y;
+          case 3:
+            return 4.0 * x * y;
+          case 4:
+            return 4.0 * y - 4.0 * x * y - 4.0 * y * y;
+          case 5:
+            return 4.0 * x - 4.0 * x * x - 4.0 * x * y;
+        }
+      case 3:
+        switch (i) {
+          case 0:
+            return 1.0 - 11.0 / 2.0 * x - 11.0 / 2.0 * y + 9.0 * x * x +
+                   18.0 * x * y + 9.0 * y * y - 9.0 / 2.0 * x * x * x -
+                   27.0 / 2.0 * x * x * y - 27.0 / 2.0 * x * y * y -
+                   9.0 / 2.0 * y * y * y;
+          case 1:
+            return x - 9.0 / 2.0 * x * x + 9.0 / 2.0 * x * x * x;
+          case 2:
+            return y - 9.0 / 2.0 * y * y + 9.0 / 2.0 * y * y * y;
+          case 3:
+            return -9.0 / 2.0 * x * y + 27.0 / 2.0 * x * x * y;
+          case 4:
+            return -9.0 / 2.0 * x * y + 27.0 / 2.0 * x * y * y;
+          case 5:
+            return -9.0 / 2.0 * y + 9.0 / 2.0 * x * y + 18.0 * y * y -
+                   27.0 / 2.0 * x * y * y - 27.0 / 2.0 * y * y * y;
+          case 6:
+            return 9.0 * y - 45.0 / 2.0 * x * y - 45.0 / 2.0 * y * y +
+                   27.0 / 2.0 * x * x * y + 27.0 * x * y * y +
+                   27.0 / 2.0 * y * y * y;
+          case 7:
+            return 9.0 * x - 45.0 / 2.0 * x * x - 45.0 / 2.0 * x * y +
+                   27.0 / 2.0 * x * x * x + 27.0 * x * x * y +
+                   27.0 / 2.0 * x * y * y;
+          case 8:
+            return -9.0 / 2.0 * x + 18.0 * x * x + 9.0 / 2.0 * x * y -
+                   27.0 / 2.0 * x * x * x - 27.0 / 2.0 * x * x * y;
+          case 9:
+            return 27.0 * x * y - 27.0 * x * x * y - 27.0 * x * y * y;
+        }
+    }
+    return RealType(0);
   }
 
   Tensor<1, dim, RealType> eval_gradient(
@@ -182,19 +204,130 @@ private:
     const Tensor<1, dim, RealType>& point) const
   {
     const RealType x = point(0);
-    const RealType y = (dim > 1) ? point(1) : RealType(0);
+    const RealType y = point(1);
     Tensor<1, dim, RealType> grad;
-    int k = 0;
-    for (int s = 0; s <= (int)p_; ++s) {
-      for (int r = 0; r <= (int)p_ - s; ++r, ++k) {
-        const RealType c = coeffs_[i][k];
-        if (r > 0)
-          grad(0) += c * RealType(r) * fixed_pow(x, r - 1) * fixed_pow(y, s);
-        if (dim > 1 && s > 0)
-          grad(1) += c * fixed_pow(x, r) * RealType(s) * fixed_pow(y, s - 1);
-      }
+
+    switch (p_) {
+      case 0:
+        grad(0) = 0.0;
+        grad(1) = 0.0;
+        break;
+      case 1:
+        switch (i) {
+          case 0:
+            grad(0) = -1.0;
+            grad(1) = -1.0;
+            break;
+          case 1:
+            grad(0) = 1.0;
+            grad(1) = 0.0;
+            break;
+          case 2:
+            grad(0) = 0.0;
+            grad(1) = 1.0;
+            break;
+        }
+        break;
+      case 2:
+        switch (i) {
+          case 0:
+            grad(0) = -3.0 + 4.0 * x + 4.0 * y;
+            grad(1) = -3.0 + 4.0 * x + 4.0 * y;
+            break;
+          case 1:
+            grad(0) = -1.0 + 4.0 * x;
+            grad(1) = 0.0;
+            break;
+          case 2:
+            grad(0) = 0.0;
+            grad(1) = -1.0 + 4.0 * y;
+            break;
+          case 3:
+            grad(0) = 4.0 * y;
+            grad(1) = 4.0 * x;
+            break;
+          case 4:
+            grad(0) = -4.0 * y;
+            grad(1) = 4.0 - 4.0 * x - 8.0 * y;
+            break;
+          case 5:
+            grad(0) = 4.0 - 8.0 * x - 4.0 * y;
+            grad(1) = -4.0 * x;
+            break;
+        }
+        break;
+      case 3:
+        switch (i) {
+          case 0:
+            grad(0) = -11.0 / 2.0 + 18.0 * x + 18.0 * y - 27.0 / 2.0 * x * x -
+                      27.0 * x * y - 27.0 / 2.0 * y * y;
+            grad(1) = -11.0 / 2.0 + 18.0 * x + 18.0 * y - 27.0 / 2.0 * x * x -
+                      27.0 * x * y - 27.0 / 2.0 * y * y;
+            break;
+          case 1:
+            grad(0) = 1.0 - 9.0 * x + 27.0 / 2.0 * x * x;
+            grad(1) = 0.0;
+            break;
+          case 2:
+            grad(0) = 0.0;
+            grad(1) = 1.0 - 9.0 * y + 27.0 / 2.0 * y * y;
+            break;
+          case 3:
+            grad(0) = -9.0 / 2.0 * y + 27.0 * x * y;
+            grad(1) = -9.0 / 2.0 * x + 27.0 / 2.0 * x * x;
+            break;
+          case 4:
+            grad(0) = -9.0 / 2.0 * y + 27.0 / 2.0 * y * y;
+            grad(1) = -9.0 / 2.0 * x + 27.0 * x * y;
+            break;
+          case 5:
+            grad(0) = 9.0 / 2.0 * y - 27.0 / 2.0 * y * y;
+            grad(1) = -9.0 / 2.0 + 9.0 / 2.0 * x + 36.0 * y - 27.0 * x * y -
+                      81.0 / 2.0 * y * y;
+            break;
+          case 6:
+            grad(0) = -45.0 / 2.0 * y + 27.0 * x * y + 27.0 * y * y;
+            grad(1) = 9.0 - 45.0 / 2.0 * x - 45.0 * y + 27.0 / 2.0 * x * x +
+                      54.0 * x * y + 81.0 / 2.0 * y * y;
+            break;
+          case 7:
+            grad(0) = 9.0 - 45.0 * x - 45.0 / 2.0 * y + 81.0 / 2.0 * x * x +
+                      54.0 * x * y + 27.0 / 2.0 * y * y;
+            grad(1) = -45.0 / 2.0 * x + 27.0 * x * x + 27.0 * x * y;
+            break;
+          case 8:
+            grad(0) = -9.0 / 2.0 + 36.0 * x + 9.0 / 2.0 * y -
+                      81.0 / 2.0 * x * x - 27.0 * x * y;
+            grad(1) = 9.0 / 2.0 * x - 27.0 / 2.0 * x * x;
+            break;
+          case 9:
+            grad(0) = 27.0 * y - 54.0 * x * y - 27.0 * y * y;
+            grad(1) = 27.0 * x - 27.0 * x * x - 54.0 * x * y;
+            break;
+        }
+        break;
     }
     return grad;
+  }
+
+  void check_basis() const
+  {
+    // Check φᵢ(node_j) = δᵢⱼ
+    for (int i = 0; i < (int)n_dofs_; ++i) {
+      for (int j = 0; j < (int)n_dofs_; ++j) {
+        Tensor<1, dim, RealType> pt;
+        for (int d = 0; d < (int)dim; ++d)
+          pt(d) = nodes_[j][d];
+        RealType val = eval(i, pt);
+        RealType expected = (i == j) ? RealType(1) : RealType(0);
+        if (std::abs(val - expected) >= 1.0e-10) {
+          std::cout << "FAIL: phi_" << i << "(node_" << j << ") = " << val
+                    << " expected " << expected << " node=(" << nodes_[j][0]
+                    << "," << nodes_[j][1] << ")" << std::endl;
+          ASSERT(std::abs(val - expected) < 1.0e-10, "Failed basis");
+        }
+      }
+    }
   }
 };
 
@@ -212,8 +345,7 @@ public:
       return p;
     }
     if constexpr (dim == 2) {
-      // From your switch: 1->1, 2->3, 3->4, 4->6
-      constexpr unsigned int table[] = { 0, 1, 3, 4, 6 };
+      constexpr unsigned int table[] = { 0, 1, 3, 4, 6, 7, 12, 13 };
       return table[p];
     }
     return 0;
@@ -274,7 +406,7 @@ public:
   }
 
 private:
-  static constexpr unsigned int max_order_ = 4;
+  static constexpr unsigned int max_order_ = 7;
   unsigned int order_;
   unsigned int n_points_;
   Kokkos::View<RealType**, Layout, HostMemSpace> points_; // [q, dim]
@@ -353,32 +485,86 @@ private:
         break;
       }
       case 2: {
-        const RealType a = 1.0 / 6.0;
-        const RealType b = 2.0 / 3.0;
-        pts = { { { a, a } }, { { b, a } }, { { a, b } } };
+        const RealType a = 0.166666666666667;
+        const RealType b = 0.666666666666667;
+        pts = { { { b, a } }, { { a, a } }, { { a, b } } };
         wts = { 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0 };
         break;
       }
       case 3: {
-        const RealType w0 = -27.0 / 96.0;
-        const RealType w1 = 25.0 / 96.0;
-        pts = { { { 1.0 / 3.0, 1.0 / 3.0 } },
-                { { 1.0 / 5.0, 1.0 / 5.0 } },
-                { { 3.0 / 5.0, 1.0 / 5.0 } },
-                { { 1.0 / 5.0, 3.0 / 5.0 } } };
+        const RealType w0 = -0.281250000000000;
+        const RealType w1 = 0.260416666666667;
+        pts = { { { 0.333333333333333, 0.333333333333333 } },
+                { { 0.600000000000000, 0.200000000000000 } },
+                { { 0.200000000000000, 0.200000000000000 } },
+                { { 0.200000000000000, 0.600000000000000 } } };
         wts = { w0, w1, w1, w1 };
         break;
       }
       case 4: {
-        const RealType a1 = 0.445948490915965;
-        const RealType b1 = 1.0 - 2.0 * a1;
-        const RealType a2 = 0.091576213509771;
-        const RealType b2 = 1.0 - 2.0 * a2;
-        const RealType w1 = 0.223381589678011 * 0.5;
-        const RealType w2 = 0.109951743655322 * 0.5;
-        pts = { { { a1, a1 } }, { { b1, a1 } }, { { a1, b1 } },
-                { { a2, a2 } }, { { b2, a2 } }, { { a2, b2 } } };
+        const RealType w1 = 0.111690794839005;
+        const RealType w2 = 0.054975871827661;
+        pts = { { { 0.108103018168070, 0.445948490915965 } },
+                { { 0.445948490915965, 0.445948490915965 } },
+                { { 0.445948490915965, 0.108103018168070 } },
+                { { 0.816847572980459, 0.091576213509771 } },
+                { { 0.091576213509771, 0.091576213509771 } },
+                { { 0.091576213509771, 0.816847572980459 } } };
         wts = { w1, w1, w1, w2, w2, w2 };
+        break;
+      }
+      case 5: {
+        const RealType w0 = 0.112500000000000;
+        const RealType w1 = 0.066197076394253;
+        const RealType w2 = 0.062969590272414;
+        pts = { { { 0.333333333333333, 0.333333333333333 } },
+                { { 0.059715871789770, 0.470142064105115 } },
+                { { 0.470142064105115, 0.470142064105115 } },
+                { { 0.470142064105115, 0.059715871789770 } },
+                { { 0.797426985353087, 0.101286507323456 } },
+                { { 0.101286507323456, 0.101286507323456 } },
+                { { 0.101286507323456, 0.797426985353087 } } };
+        wts = { w0, w1, w1, w1, w2, w2, w2 };
+        break;
+      }
+      case 6: {
+        const RealType w1 = 0.058393137863189;
+        const RealType w2 = 0.025422453185103;
+        const RealType w3 = 0.041425537809187;
+        pts = { { { 0.501426509658179, 0.249286745170910 } },
+                { { 0.249286745170910, 0.249286745170910 } },
+                { { 0.249286745170910, 0.501426509658179 } },
+                { { 0.873821971016996, 0.063089014491502 } },
+                { { 0.063089014491502, 0.063089014491502 } },
+                { { 0.063089014491502, 0.873821971016996 } },
+                { { 0.053145049844817, 0.310352451033784 } },
+                { { 0.310352451033784, 0.636502499121399 } },
+                { { 0.636502499121399, 0.053145049844817 } },
+                { { 0.310352451033784, 0.053145049844817 } },
+                { { 0.053145049844817, 0.636502499121399 } },
+                { { 0.636502499121399, 0.310352451033784 } } };
+        wts = { w1, w1, w1, w2, w2, w2, w3, w3, w3, w3, w3, w3 };
+        break;
+      }
+      case 7: {
+        const RealType w0 = -0.074785022233841;
+        const RealType w1 = 0.087807628716604;
+        const RealType w2 = 0.026673617804419;
+        const RealType w3 = 0.038556880445128;
+        pts = { { { 0.333333333333333, 0.333333333333333 } },
+                { { 0.479308067841920, 0.260345966079040 } },
+                { { 0.260345966079040, 0.260345966079040 } },
+                { { 0.260345966079040, 0.479308067841920 } },
+                { { 0.869739794195568, 0.065130102902216 } },
+                { { 0.065130102902216, 0.065130102902216 } },
+                { { 0.065130102902216, 0.869739794195568 } },
+                { { 0.048690315425316, 0.312865496004874 } },
+                { { 0.312865496004874, 0.638444188569810 } },
+                { { 0.638444188569810, 0.048690315425316 } },
+                { { 0.312865496004874, 0.048690315425316 } },
+                { { 0.048690315425316, 0.638444188569810 } },
+                { { 0.638444188569810, 0.312865496004874 } } };
+        wts = { w0, w1, w1, w1, w2, w2, w2, w3, w3, w3, w3, w3, w3 };
         break;
       }
       default:
@@ -408,8 +594,8 @@ public:
   }
 
   /**
-   * @brief Reinit the cell so JxW and quadrature point values reflect the real
-   * geometry.
+   * @brief Reinit the cell so JxW and quadrature point values reflect the
+   * real geometry.
    */
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell)
@@ -602,8 +788,8 @@ public:
   }
 
   /**
-   * @brief Reinit the cell so JxW and quadrature point values reflect the real
-   * geometry.
+   * @brief Reinit the cell so JxW and quadrature point values reflect the
+   * real geometry.
    */
 
   template<typename CellAccessor>
