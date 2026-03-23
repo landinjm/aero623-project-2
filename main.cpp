@@ -1512,7 +1512,7 @@ main(int argc, char* argv[])
   {
     GriReader<2> gri;
     Triangulation<2> tria;
-    gri.read_gri("../grids/coarse_local_refinement_1.gri");
+    gri.read_gri("../grids/coarse_local_refinement_2.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh())
       std::runtime_error("Verify mesh failed");
@@ -1580,7 +1580,7 @@ main(int argc, char* argv[])
     FEFaceValues<2, double> ffev0(fe0, fq0);
     EulerSolver<2, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition(ic);
-    abs_tol = s0.solve_steady_state(50000, 0.5, 1000, false, 1.0e-5);
+    abs_tol = s0.solve_steady_state(30000, 0.5, 1000, false, 1.0e-5);
     s0.write_solution("solution_steady_state_p0.vtu");
     Vector<double, HostMemSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
       rhov0(dh0.n_dofs()), rhoE0(dh0.n_dofs());
@@ -1598,7 +1598,7 @@ main(int argc, char* argv[])
     interpolate(0, 1, rho0, rhou0, rhov0, rhoE0, rho1, rhou1, rhov1, rhoE1);
     EulerSolver<2, double> s1(dh1, fev1, ffev1, 1);
     s1.set_state_from_host(rho1, rhou1, rhov1, rhoE1);
-    s1.solve_steady_state(50000, 0.5, 1000, true, abs_tol);
+    s1.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
     s1.write_solution("solution_steady_state_p1.vtu");
     s1.copy_state_to_host(rho1, rhou1, rhov1, rhoE1);
 
@@ -1614,7 +1614,7 @@ main(int argc, char* argv[])
     interpolate(1, 2, rho1, rhou1, rhov1, rhoE1, rho2, rhou2, rhov2, rhoE2);
     EulerSolver<2, double> s2(dh2, fev2, ffev2, 2);
     s2.set_state_from_host(rho2, rhou2, rhov2, rhoE2);
-    s2.solve_steady_state(50000, 0.5, 1000, true, abs_tol);
+    s2.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
     s2.write_solution("solution_steady_state_p2.vtu");
     s2.copy_state_to_host(rho2, rhou2, rhov2, rhoE2);
 
@@ -1630,7 +1630,7 @@ main(int argc, char* argv[])
     interpolate(2, 3, rho2, rhou2, rhov2, rhoE2, rho3, rhou3, rhov3, rhoE3);
     EulerSolver<2, double> s3(dh3, fev3, ffev3, 3);
     s3.set_state_from_host(rho3, rhou3, rhov3, rhoE3);
-    s3.solve_steady_state(50000, 0.5, 1000, true, abs_tol);
+    s3.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
     s3.write_solution("solution_steady_state_p3.vtu");
 
     // Unsteady
@@ -1642,10 +1642,10 @@ main(int argc, char* argv[])
     s2.precompute_geometry();
     s3.precompute_geometry();
 
-    s0.solve_unsteady(250);
-    s1.solve_unsteady(250);
-    s2.solve_unsteady(250);
-    s3.solve_unsteady(250);
+    // s0.solve_unsteady(250);
+    // s1.solve_unsteady(250);
+    // s2.solve_unsteady(250);
+    s3.solve_unsteady(500);
 
     // Hmm this might've fixed things with some lifetime stuff, so I'm going
     // to leave this here.
