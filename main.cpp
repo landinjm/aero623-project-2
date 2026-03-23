@@ -5,6 +5,7 @@
 #include <dof_handler.hpp>
 #include <fe.hpp>
 #include <flux.hpp>
+#include <iterator>
 #include <matrix.hpp>
 #include <parameters.hpp>
 #include <read_gri.hpp>
@@ -19,7 +20,8 @@ struct BoundaryId
   static constexpr uint32_t InviscidWall = 1;
   static constexpr uint32_t SubsonicInflow = 2;
   static constexpr uint32_t SubsonicOutflow = 3;
-  static constexpr uint32_t Freestream = 4;
+  static constexpr uint32_t UnsteadySubsonicInflow = 4;
+  static constexpr uint32_t Freestream = 5;
 };
 
 template<unsigned int dim, typename RealType>
@@ -83,7 +85,9 @@ public:
     Kokkos::deep_copy(rho_E_h.view(), rho_E_.view());
   }
 
-  void write_solution(const std::string& filename, unsigned int cycle = 0)
+  void write_solution(const std::string& filename,
+                      unsigned int cycle = 0,
+                      double time = 0.0)
   {
     constexpr RealType gamma = Parameters<RealType>::gamma;
     constexpr RealType gm1 = gamma - RealType(1);
@@ -138,6 +142,7 @@ public:
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler_);
     data_out.set_cycle(cycle);
+    data_out.set_time(time);
 
     data_out.add_data_vector(rho_h, "density");
     data_out.add_data_vector(rho_u_h, "momentum_x");
@@ -625,120 +630,25 @@ public:
     invm_ = invm.device_inverse();
   }
 
-  void print_geometry_debug() const
+  double solve(unsigned int max_iter = 100000,
+               RealType cfl = Parameters<RealType>::cfl_max,
+               unsigned int write_interval = 1000,
+               bool use_abs_tol = false,
+               double abs_tol = 1e-5)
   {
-    std::cout << "=== Geometry Debug ===" << std::endl;
-    std::cout << "n_cells=" << n_cells_ << " n_interior=" << n_interior_faces_
-              << " n_periodic=" << n_periodic_faces_
-              << " n_boundary=" << n_boundary_faces_ << std::endl;
-
-    // Cell DOFs
-    std::cout << "\n--- Cell DOFs ---" << std::endl;
-    auto cell_dofs_h = Kokkos::create_mirror_view(cell_dofs_);
-    Kokkos::deep_copy(cell_dofs_h, cell_dofs_);
-    for (unsigned int k = 0; k < n_cells_; ++k) {
-      std::cout << "Cell " << k << " dofs: ";
-      for (unsigned int i = 0; i < dof_handler_.n_dofs_per_cell(); ++i)
-        std::cout << cell_dofs_h(k, i) << " ";
-      std::cout << std::endl;
-    }
-
-    // Interior faces
-    std::cout << "\n--- Interior Faces ---" << std::endl;
-    auto int_dofs_L_h = Kokkos::create_mirror_view(interior_dofs_L_);
-    auto int_dofs_R_h = Kokkos::create_mirror_view(interior_dofs_R_);
-    auto int_normal_h = Kokkos::create_mirror_view(interior_normal_);
-    auto int_JxW_h = Kokkos::create_mirror_view(interior_JxW_);
-    auto int_qpt_h = Kokkos::create_mirror_view(interior_q_point_);
-    Kokkos::deep_copy(int_dofs_L_h, interior_dofs_L_);
-    Kokkos::deep_copy(int_dofs_R_h, interior_dofs_R_);
-    Kokkos::deep_copy(int_normal_h, interior_normal_);
-    Kokkos::deep_copy(int_JxW_h, interior_JxW_);
-    Kokkos::deep_copy(int_qpt_h, interior_q_point_);
-
-    for (unsigned int f = 0; f < n_interior_faces_; ++f) {
-      std::cout << "Interior face " << f << std::endl;
-      std::cout << "  dofs_L: ";
-      for (unsigned int i = 0; i < dof_handler_.n_dofs_per_cell(); ++i)
-        std::cout << int_dofs_L_h(f, i) << " ";
-      std::cout << std::endl;
-      std::cout << "  dofs_R: ";
-      for (unsigned int i = 0; i < dof_handler_.n_dofs_per_cell(); ++i)
-        std::cout << int_dofs_R_h(f, i) << " ";
-      std::cout << std::endl;
-      for (unsigned int q = 0; q < interior_JxW_.extent(1); ++q) {
-        std::cout << "  q=" << q << " JxW=" << int_JxW_h(f, q) << " p=("
-                  << int_qpt_h(f, q, 0) << "," << int_qpt_h(f, q, 1) << ")"
-                  << " n=(" << int_normal_h(f, q, 0) << ","
-                  << int_normal_h(f, q, 1) << ")" << std::endl;
-      }
-    }
-
-    // Periodic faces
-    std::cout << "\n--- Periodic Faces ---" << std::endl;
-    auto per_dofs_L_h = Kokkos::create_mirror_view(periodic_dofs_L_);
-    auto per_dofs_R_h = Kokkos::create_mirror_view(periodic_dofs_R_);
-    auto per_normal_h = Kokkos::create_mirror_view(periodic_normal_);
-    auto per_JxW_h = Kokkos::create_mirror_view(periodic_JxW_);
-    auto per_qpt_h = Kokkos::create_mirror_view(periodic_q_point_);
-    Kokkos::deep_copy(per_dofs_L_h, periodic_dofs_L_);
-    Kokkos::deep_copy(per_dofs_R_h, periodic_dofs_R_);
-    Kokkos::deep_copy(per_normal_h, periodic_normal_);
-    Kokkos::deep_copy(per_JxW_h, periodic_JxW_);
-    Kokkos::deep_copy(per_qpt_h, periodic_q_point_);
-
-    for (unsigned int f = 0; f < n_periodic_faces_; ++f) {
-      std::cout << "Periodic face " << f << std::endl;
-      std::cout << "  dofs_L: ";
-      for (unsigned int i = 0; i < dof_handler_.n_dofs_per_cell(); ++i)
-        std::cout << per_dofs_L_h(f, i) << " ";
-      std::cout << std::endl;
-      std::cout << "  dofs_R: ";
-      for (unsigned int i = 0; i < dof_handler_.n_dofs_per_cell(); ++i)
-        std::cout << per_dofs_R_h(f, i) << " ";
-      std::cout << std::endl;
-      for (unsigned int q = 0; q < periodic_JxW_.extent(1); ++q) {
-        std::cout << "  q=" << q << " JxW=" << per_JxW_h(f, q) << " p=("
-                  << per_qpt_h(f, q, 0) << "," << per_qpt_h(f, q, 1) << ")"
-                  << " n=(" << per_normal_h(f, q, 0) << ","
-                  << per_normal_h(f, q, 1) << ")" << std::endl;
-      }
-    }
-
-    // Boundary faces
-    std::cout << "\n--- Boundary Faces ---" << std::endl;
-    auto bnd_dofs_h = Kokkos::create_mirror_view(boundary_dofs_);
-    auto bnd_normal_h = Kokkos::create_mirror_view(boundary_normal_);
-    auto bnd_JxW_h = Kokkos::create_mirror_view(boundary_JxW_);
-    auto bnd_qpt_h = Kokkos::create_mirror_view(boundary_q_point_);
-    auto bnd_id_h = Kokkos::create_mirror_view(boundary_id_);
-    Kokkos::deep_copy(bnd_dofs_h, boundary_dofs_);
-    Kokkos::deep_copy(bnd_normal_h, boundary_normal_);
-    Kokkos::deep_copy(bnd_JxW_h, boundary_JxW_);
-    Kokkos::deep_copy(bnd_qpt_h, boundary_q_point_);
-    Kokkos::deep_copy(bnd_id_h, boundary_id_);
-
-    for (unsigned int f = 0; f < n_boundary_faces_; ++f) {
-      std::cout << "Boundary face " << f << " id=" << bnd_id_h(f) << std::endl;
-      std::cout << "  dofs: ";
-      for (unsigned int i = 0; i < dof_handler_.n_dofs_per_cell(); ++i)
-        std::cout << bnd_dofs_h(f, i) << " ";
-      std::cout << std::endl;
-      for (unsigned int q = 0; q < boundary_JxW_.extent(1); ++q) {
-        std::cout << "  q=" << q << " JxW=" << bnd_JxW_h(f, q) << " p=("
-                  << bnd_qpt_h(f, q, 0) << "," << bnd_qpt_h(f, q, 1) << ")"
-                  << " n=(" << bnd_normal_h(f, q, 0) << ","
-                  << bnd_normal_h(f, q, 1) << ")" << std::endl;
-      }
-    }
+    return 0.0;
   }
 
-  void solve(unsigned int max_iter = 100000,
-             RealType cfl = Parameters<RealType>::cfl_max,
-             unsigned int write_interval = 1000)
+  double solve_steady_state(unsigned int max_iter = 100000,
+                            RealType cfl = Parameters<RealType>::cfl_max,
+                            unsigned int write_interval = 1000,
+                            bool use_abs_tol = false,
+                            double abs_tol = 1e-5)
   {
-    std::cout << "Starting solve with " << max_iter << " iterations"
-              << std::endl;
+    const std::string deg_str = "p" + std::to_string(degree_);
+
+    std::cout << "Starting steady-state solve with " << max_iter
+              << " iterations" << std::endl;
 
     // Compute initial residual norm for normalization
     zero_residuals();
@@ -747,72 +657,121 @@ public:
     const RealType res0 = residual_norm();
     std::cout << "Initial residual: " << res0 << std::endl;
 
-    // Write initial solution
-    write_solution("solution_0000.vtu", 0);
-
     for (unsigned int iter = 0; iter < max_iter; ++iter) {
+      ssp_rk3_step(cfl);
+
+      // Always compute residual for convergence check
+      zero_residuals();
+      compute_volume_residual();
+      compute_face_residual();
+      const RealType res = residual_norm();
+      const RealType rel_res = (res0 > RealType(0)) ? res / res0 : res;
+
+      // Check for NaN/divergence every step
+      if (std::isnan(res) || std::isinf(res)) {
+        std::cout << "Solution diverged at iter " << iter << std::endl;
+        break;
+      }
+
+      // Convergence check every step
+      if ((use_abs_tol && res < abs_tol) ||
+          rel_res < Parameters<RealType>::convergence_tol) {
+        std::cout << "converged at iter " << iter << " rel_res=" << rel_res
+                  << std::endl;
+        write_solution("solution_final_" + deg_str + ".vtu", iter);
+        return res;
+      }
+
+      // Only print and write at intervals
+      if (iter % write_interval == 0 || iter == max_iter - 1) {
+        std::cout << "Iter " << std::setw(6) << iter
+                  << "  abs_res=" << std::scientific << std::setprecision(6)
+                  << res << "  rel_res=" << rel_res << std::endl;
+      }
+    }
+
+    write_solution("solution_final_" + deg_str + ".vtu", max_iter);
+    return 0.0;
+  }
+
+  double solve_unsteady(RealType t_end,
+                        RealType cfl = Parameters<RealType>::cfl_max,
+                        unsigned int write_interval = 100)
+  {
+    const std::string deg_str = "p" + std::to_string(degree_);
+
+    std::cout << "Starting unsteady solve, t_end=" << t_end << std::endl;
+
+    RealType t = 0.0;
+    unsigned int iter = 0;
+
+    // Write initial solution
+    write_solution("solution_" + deg_str + "_t0000.vtu", 0);
+
+    while (t < t_end) {
       // Store u^n
       Kokkos::deep_copy(rho_old_.view(), rho_.view());
       Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
       Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
       Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
 
-      // Compute local timestep once per iteration
-      compute_local_dt(cfl);
+      // Global timestep
+      compute_global_dt(cfl);
 
-      // --- SSP-RK3 Stage 1: u^(1) = u^n + dt*R(u^n) ---
+      // Get dt value (same everywhere) and clamp to not overshoot t_end
+      auto dt_h = Kokkos::create_mirror_view(dt_.view());
+      Kokkos::deep_copy(dt_h, dt_.view());
+      const RealType dt = Kokkos::min(dt_h(0), t_end - t);
+
+      // If we clamped, refill dt_ with the clamped value
+      if (dt < dt_h(0)) {
+        auto d_dt = dt_.view();
+        Kokkos::parallel_for(
+          "fill_clamped_dt",
+          Kokkos::RangePolicy<>(0, n_dofs_),
+          KOKKOS_LAMBDA(int i) { d_dt(i) = dt; });
+        Kokkos::fence();
+      }
+
+      // --- SSP-RK3 Stage 1 ---
       zero_residuals();
       compute_volume_residual();
-      compute_face_residual();
+      compute_face_residual(t);
       update(RealType(0.0), RealType(1.0));
 
-      // --- SSP-RK3 Stage 2: u^(2) = 3/4*u^n + 1/4*(u^(1) + dt*R(u^(1))) ---
+      // --- SSP-RK3 Stage 2 ---
       zero_residuals();
       compute_volume_residual();
-      compute_face_residual();
+      compute_face_residual(t + dt);
       update(RealType(0.75), RealType(0.25));
 
-      // --- SSP-RK3 Stage 3: u^(n+1) = 1/3*u^n + 2/3*(u^(2) + dt*R(u^(2))) ---
+      // --- SSP-RK3 Stage 3 ---
       zero_residuals();
       compute_volume_residual();
-      compute_face_residual();
+      compute_face_residual(t + 0.5 * dt);
       update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
 
-      // Compute residual for convergence check
-      if (iter % write_interval == 0 || iter == max_iter - 1) {
-        zero_residuals();
-        compute_volume_residual();
-        compute_face_residual();
-        const RealType res = residual_norm();
-        const RealType rel_res = (res0 > RealType(0)) ? res / res0 : res;
+      t += dt;
+      iter++;
 
-        std::cout << "Iter " << std::setw(6) << iter
-                  << "  abs_res=" << std::scientific << std::setprecision(6)
-                  << res << "  rel_res=" << rel_res << std::endl;
-
-        // Write solution
+      if (iter % write_interval == 0) {
         std::ostringstream fname;
-        fname << "solution_" << std::setw(4) << std::setfill('0') << iter
-              << ".vtu";
-        write_solution(fname.str(), iter);
+        fname << "solution_" << deg_str << "_" << std::setw(8)
+              << std::setfill('0') << iter << ".vtu";
+        write_solution(fname.str(), iter, t);
+        std::cout << "t=" << std::scientific << std::setprecision(4) << t
+                  << "  iter=" << iter << "  dt=" << dt << std::endl;
+      }
 
-        // Check for NaN/divergence
-        if (std::isnan(res) || std::isinf(res)) {
-          std::cout << "Solution diverged at iter " << iter << std::endl;
-          break;
-        }
-
-        // Convergence check
-        if (rel_res < Parameters<RealType>::convergence_tol) {
-          std::cout << "Converged at iter " << iter << " rel_res=" << rel_res
-                    << std::endl;
-          write_solution("solution_final.vtu", iter);
-          break;
-        }
+      if (std::isnan(t) || std::isinf(t)) {
+        std::cout << "Solution diverged at t=" << t << std::endl;
+        break;
       }
     }
 
-    write_solution("solution_final.vtu", max_iter);
+    std::cout << "Finished at t=" << t << " iter=" << iter << std::endl;
+    write_solution("solution_" + deg_str + "_final.vtu", iter, t);
+    return t;
   }
 
   void test_freestream_preservation(unsigned int n_steps = 10)
@@ -827,33 +786,8 @@ public:
     Kokkos::deep_copy(rho_v_init, rho_v_.view());
     Kokkos::deep_copy(rho_E_init, rho_E_.view());
 
-    // Run n_steps of SSP-RK3
     for (unsigned int step = 0; step < n_steps; ++step) {
-      // Store u^n
-      Kokkos::deep_copy(rho_old_.view(), rho_.view());
-      Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
-      Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
-      Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
-
-      compute_local_dt(Parameters<RealType>::cfl_max);
-
-      // Stage 1
-      zero_residuals();
-      compute_volume_residual();
-      compute_face_residual();
-      update(RealType(0.0), RealType(1.0));
-
-      // Stage 2
-      zero_residuals();
-      compute_volume_residual();
-      compute_face_residual();
-      update(RealType(0.75), RealType(0.25));
-
-      // Stage 3
-      zero_residuals();
-      compute_volume_residual();
-      compute_face_residual();
-      update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
+      ssp_rk3_step(Parameters<RealType>::cfl_max);
 
       // Check residual is still zero after this step
       zero_residuals();
@@ -904,6 +838,34 @@ public:
     }
   }
 
+  void ssp_rk3_step(RealType cfl)
+  {
+    Kokkos::deep_copy(rho_old_.view(), rho_.view());
+    Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
+    Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
+    Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
+
+    compute_local_dt(cfl);
+
+    // Stage 1
+    zero_residuals();
+    compute_volume_residual();
+    compute_face_residual();
+    update(RealType(0.0), RealType(1.0));
+
+    // Stage 2
+    zero_residuals();
+    compute_volume_residual();
+    compute_face_residual();
+    update(RealType(0.75), RealType(0.25));
+
+    // Stage 3
+    zero_residuals();
+    compute_volume_residual();
+    compute_face_residual();
+    update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
+  }
+
   void compute_local_dt(RealType cfl)
   {
     auto d_rho = rho_.view();
@@ -952,6 +914,30 @@ public:
         for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
           d_dt(indices(k, i)) = dt;
       });
+    Kokkos::fence();
+  }
+
+  void compute_global_dt(RealType cfl)
+  {
+    compute_local_dt(cfl);
+
+    // Find global minimum
+    auto d_dt = dt_.view();
+    RealType dt_min = RealType(0);
+    Kokkos::parallel_reduce(
+      "find_min_dt",
+      Kokkos::RangePolicy<>(0, n_dofs_),
+      KOKKOS_LAMBDA(int i, RealType& local_min) {
+        local_min = Kokkos::min(local_min, d_dt(i));
+      },
+      Kokkos::Min<RealType>(dt_min));
+    Kokkos::fence();
+
+    // Fill entire dt_ array with the minimum
+    Kokkos::parallel_for(
+      "fill_global_dt",
+      Kokkos::RangePolicy<>(0, n_dofs_),
+      KOKKOS_LAMBDA(int i) { d_dt(i) = dt_min; });
     Kokkos::fence();
   }
 
@@ -1033,7 +1019,7 @@ public:
                                      Fy_rho_v,
                                      Fy_rho_E);
 
-          // Accumulate: R_i -= (∇φ_i · F) * JxW
+          // Accumulate
           const RealType jxw = JxW(k, q);
           const RealType dphi_dx = grad_phi(k, i, q, 0);
           const RealType dphi_dy = grad_phi(k, i, q, 1);
@@ -1074,15 +1060,18 @@ public:
     auto indices = cell_dofs_;
     auto invm = invm_;
 
+    // Parallel loop over data where k is the cell index and i is a local dof
+    // index
     Kokkos::parallel_for(
       "update_rk_stage",
       Kokkos::MDRangePolicy<Kokkos::Rank<2>>({ 0, 0 },
                                              { (int)n_cells_, (int)ndpc }),
       KOKKOS_LAMBDA(int k, int i) {
+        // Grab the global dof and local timestep we're working with
         const uint32_t dof_i = indices(k, i);
         const RealType dt = d_dt(dof_i);
 
-        // Apply M^{-1} R: result_i = sum_j Minv[k,i,j] * R[j]
+        // Apply inverted mass matrix
         RealType Minv_R_rho = 0;
         RealType Minv_R_rho_u = 0;
         RealType Minv_R_rho_v = 0;
@@ -1096,7 +1085,8 @@ public:
           Minv_R_rho_E += Minv_ij * d_res_rho_E(dof_j);
         }
 
-        // SSP-RK3: u_new = alpha*u_old + beta*(u_curr - dt * M^{-1} R)
+        // Add residual and old state based on the some SSP-RK3 stage with its
+        // respective butcher table coefficients.
         d_rho(dof_i) =
           alpha * d_rho_old(dof_i) + beta * (d_rho(dof_i) - dt * Minv_R_rho);
         d_rho_u(dof_i) = alpha * d_rho_u_old(dof_i) +
@@ -1109,44 +1099,11 @@ public:
     Kokkos::fence();
   }
 
-  void check_initial_condition_validity()
-  {
-    constexpr RealType gamma = Parameters<RealType>::gamma;
-    constexpr RealType gm1 = gamma - RealType(1);
-
-    auto rho_h = Kokkos::create_mirror_view(rho_.view());
-    auto rho_u_h = Kokkos::create_mirror_view(rho_u_.view());
-    auto rho_v_h = Kokkos::create_mirror_view(rho_v_.view());
-    auto rho_E_h = Kokkos::create_mirror_view(rho_E_.view());
-    Kokkos::deep_copy(rho_h, rho_.view());
-    Kokkos::deep_copy(rho_u_h, rho_u_.view());
-    Kokkos::deep_copy(rho_v_h, rho_v_.view());
-    Kokkos::deep_copy(rho_E_h, rho_E_.view());
-
-    int n_bad = 0;
-    for (unsigned int i = 0; i < n_dofs_; ++i) {
-      const RealType rho = rho_h(i);
-      const RealType rho_u = rho_u_h(i);
-      const RealType rho_v = rho_v_h(i);
-      const RealType rho_E = rho_E_h(i);
-      const RealType u = rho_u / rho;
-      const RealType v = rho_v / rho;
-      const RealType p = gm1 * (rho_E - RealType(0.5) * rho * (u * u + v * v));
-
-      if (rho <= 0 || p <= 0 || rho_E <= 0) {
-        std::cout << "Bad DOF " << i << " rho=" << rho << " p=" << p
-                  << " rho_E=" << rho_E << std::endl;
-        n_bad++;
-      }
-    }
-    std::cout << "Total bad DOFs: " << n_bad << "/" << n_dofs_ << std::endl;
-  }
-
-  void compute_face_residual()
+  void compute_face_residual(RealType t = RealType(0))
   {
     compute_interior_face_residual();
     compute_periodic_face_residual();
-    compute_boundary_face_residual();
+    compute_boundary_face_residual(t);
   }
 
   void compute_interior_face_residual()
@@ -1332,7 +1289,7 @@ public:
     Kokkos::fence();
   }
 
-  void compute_boundary_face_residual()
+  void compute_boundary_face_residual(RealType t)
   {
     const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
     const auto n_q_face = fe_face_values_.n_q_points();
@@ -1419,6 +1376,23 @@ public:
                                                     smag);
               break;
             }
+            case BoundaryId::UnsteadySubsonicInflow: {
+              const RealType y_face = q_point(f, q, 1);
+              Flux<RealType>::unsteady_subsonic_inflow_flux(rho_L,
+                                                            rho_u_L,
+                                                            rho_v_L,
+                                                            rho_E_L,
+                                                            nx,
+                                                            ny,
+                                                            y_face,
+                                                            t,
+                                                            flux_rho,
+                                                            flux_rho_u,
+                                                            flux_rho_v,
+                                                            flux_rho_E,
+                                                            smag);
+              break;
+            }
             default: {
               // Freestream / do-nothing
               Flux<RealType>::roe_flux(rho_L,
@@ -1467,12 +1441,11 @@ public:
       "res_norm",
       Kokkos::RangePolicy<>(0, n_dofs_),
       KOKKOS_LAMBDA(int i, RealType& local) {
-        local += d_res_rho(i) * d_res_rho(i) + d_res_rho_u(i) * d_res_rho_u(i) +
-                 d_res_rho_v(i) * d_res_rho_v(i) +
-                 d_res_rho_E(i) * d_res_rho_E(i);
+        local += Kokkos::abs(d_res_rho(i)) + Kokkos::abs(d_res_rho_u(i)) +
+                 Kokkos::abs(d_res_rho_v(i)) + Kokkos::abs(d_res_rho_E(i));
       },
       norm);
-    return Kokkos::sqrt(norm);
+    return norm;
   }
 };
 
@@ -1539,7 +1512,7 @@ main(int argc, char* argv[])
   {
     GriReader<2> gri;
     Triangulation<2> tria;
-    gri.read_gri("../grids/coarse_local_refinement.gri");
+    gri.read_gri("../grids/coarse_local_refinement_1.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh())
       std::runtime_error("Verify mesh failed");
@@ -1596,6 +1569,8 @@ main(int argc, char* argv[])
                            rhoE_out.view());
     };
 
+    double abs_tol = 0.0;
+
     // --- Degree 0 ---
     FE_DGQLegendre<2, double> fe0(0);
     QGaussSimplex<2, double> q0(1);
@@ -1605,9 +1580,8 @@ main(int argc, char* argv[])
     FEFaceValues<2, double> ffev0(fe0, fq0);
     EulerSolver<2, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition(ic);
-    s0.check_initial_condition_validity();
-    s0.solve();
-    s0.write_solution("solution_p0.vtu");
+    abs_tol = s0.solve_steady_state(50000, 0.5, 1000, false, 1.0e-5);
+    s0.write_solution("solution_steady_state_p0.vtu");
     Vector<double, HostMemSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
       rhov0(dh0.n_dofs()), rhoE0(dh0.n_dofs());
     s0.copy_state_to_host(rho0, rhou0, rhov0, rhoE0);
@@ -1624,8 +1598,8 @@ main(int argc, char* argv[])
     interpolate(0, 1, rho0, rhou0, rhov0, rhoE0, rho1, rhou1, rhov1, rhoE1);
     EulerSolver<2, double> s1(dh1, fev1, ffev1, 1);
     s1.set_state_from_host(rho1, rhou1, rhov1, rhoE1);
-    s1.solve();
-    s1.write_solution("solution_p1.vtu");
+    s1.solve_steady_state(50000, 0.5, 1000, true, abs_tol);
+    s1.write_solution("solution_steady_state_p1.vtu");
     s1.copy_state_to_host(rho1, rhou1, rhov1, rhoE1);
 
     // --- Degree 2 (seeded from degree 1) ---
@@ -1640,8 +1614,8 @@ main(int argc, char* argv[])
     interpolate(1, 2, rho1, rhou1, rhov1, rhoE1, rho2, rhou2, rhov2, rhoE2);
     EulerSolver<2, double> s2(dh2, fev2, ffev2, 2);
     s2.set_state_from_host(rho2, rhou2, rhov2, rhoE2);
-    s2.solve();
-    s2.write_solution("solution_p2.vtu");
+    s2.solve_steady_state(50000, 0.5, 1000, true, abs_tol);
+    s2.write_solution("solution_steady_state_p2.vtu");
     s2.copy_state_to_host(rho2, rhou2, rhov2, rhoE2);
 
     // --- Degree 3 (seeded from degree 2) ---
@@ -1656,8 +1630,30 @@ main(int argc, char* argv[])
     interpolate(2, 3, rho2, rhou2, rhov2, rhoE2, rho3, rhou3, rhov3, rhoE3);
     EulerSolver<2, double> s3(dh3, fev3, ffev3, 3);
     s3.set_state_from_host(rho3, rhou3, rhov3, rhoE3);
-    s3.solve();
-    s3.write_solution("solution_p3.vtu");
+    s3.solve_steady_state(50000, 0.5, 1000, true, abs_tol);
+    s3.write_solution("solution_steady_state_p3.vtu");
+
+    // Unsteady
+    id_map = { { 2, BoundaryId::UnsteadySubsonicInflow } };
+    tria.remap_boundary_ids(id_map);
+
+    s0.precompute_geometry();
+    s1.precompute_geometry();
+    s2.precompute_geometry();
+    s3.precompute_geometry();
+
+    s0.solve_unsteady(250);
+    s1.solve_unsteady(250);
+    s2.solve_unsteady(250);
+    s3.solve_unsteady(250);
+
+    // Hmm this might've fixed things with some lifetime stuff, so I'm going
+    // to leave this here.
+    DataOut<2> data_out;
+    Vector<double, HostMemSpace> temp(dh3.n_dofs());
+    data_out.attach_dof_handler(dh3);
+    data_out.add_data_vector(temp, "solution");
+    data_out.write_vtu("test.vtu");
   }
   Kokkos::finalize();
   return 0;
