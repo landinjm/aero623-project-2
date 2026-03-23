@@ -16,7 +16,7 @@ TEST(Curved_Grid, read_grid_correctness) {
     QGaussSimplex<2, double> quad(problem_degree + 1);
     QGaussSimplex<1, double> face_quad(problem_degree + 1);
 
-    gri.read_gri("../contrib/givens/naca.gri");
+    gri.read_gri("../grids/Uniform2K_curved.gri");
     gri.transfer_to_triangulation(tria);
 
     DoFHandler<2, double> dof_handler(tria, fe);
@@ -26,7 +26,7 @@ TEST(Curved_Grid, read_grid_correctness) {
 
     const MeshData& mesh = gri.get_data();
 
-    EXPECT_EQ(mesh.n_nodes, 1153);
+    EXPECT_EQ(mesh.n_nodes, 1778);
     EXPECT_EQ(mesh.n_elements, 1999);
     EXPECT_EQ(mesh.n_boundary_groups, 6);
     EXPECT_EQ(mesh.n_periodic_groups, 2);

@@ -100,15 +100,14 @@ public:
 
   void check_counter_clockwise() const {
     for (unsigned int i = 0; i < data.n_elements; ++i) {
-      const double ax = data.x[data.node_1[i]];
-      const double ay = data.y[data.node_1[i]];
+        const double ax = data.x[data.node_1[i]];
+        const double ay = data.y[data.node_1[i]];
 
-      const double bx = data.x[data.node_2[i]];
-      const double by = data.y[data.node_2[i]];
+        const double bx = data.x[data.node_2[i]];
+        const double by = data.y[data.node_2[i]];
 
-      const double cx = data.x[data.node_3[i]];
-      const double cy = data.y[data.node_3[i]];
-
+        const double cx = data.x[data.node_3[i]];
+        const double cy = data.y[data.node_3[i]];
       // z-component of (B-A) x (C-A)
       const double cross = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
 
@@ -201,7 +200,8 @@ public:
         const auto d = periodic_nodes[b];
         const EdgeKey key = {std::min(c, d), std::max(c, d)};
 
-        ASSERT(edge_to_face.contains(key), "Periodic edge match not found");
+        ASSERT(edge_to_face.contains(key), "Periodic edge from " + 
+          std::to_string(c) + " and " + std::to_string(d) +  " match not found");
 
         const FaceIndexType face_index = edge_to_face[key];
         rf.neighbor = face_index;
@@ -462,24 +462,34 @@ void GriReader<dim>::read_gri(const std::string &filename) {
 
       data.element_order[elem_counter] = element_group_order;
 
-      in >> dummy;
-      data.node_1[elem_counter] = dummy - 1;
+      if (element_group_order == 1) {
+        in >> dummy;
+        data.node_1[elem_counter] = dummy - 1;
 
-      in >> dummy;
-      data.node_2[elem_counter] = dummy - 1;
+        in >> dummy;
+        data.node_2[elem_counter] = dummy - 1;
 
-      in >> dummy;
-      data.node_3[elem_counter] = dummy - 1;
+        in >> dummy;
+        data.node_3[elem_counter] = dummy - 1;
 
-      if (element_group_order == 2) {
+      } else { //read in the curved nodes
+        in >> dummy;
+        data.node_1[elem_counter] = dummy - 1;
+
         in >> dummy;
         data.node_4[elem_counter] = dummy - 1;
+
+        in >> dummy;
+        data.node_2[elem_counter] = dummy - 1;
+
+        in >> dummy;
+        data.node_6[elem_counter] = dummy - 1;
 
         in >> dummy;
         data.node_5[elem_counter] = dummy - 1;
 
         in >> dummy;
-        data.node_6[elem_counter] = dummy - 1;
+        data.node_3[elem_counter] = dummy - 1;
       }
 
       ++elem_counter;
