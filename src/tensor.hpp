@@ -113,7 +113,7 @@ public:
   KOKKOS_INLINE_FUNCTION
   Tensor& operator/=(const RealType scalar)
   {
-    ASSERT_DEBUG(scalar != RealType(0), "Division by zero");
+    ASSERT(scalar != RealType(0), "Division by zero");
     for (int i = 0; i < n_components; ++i) {
       data_[i] /= scalar;
     }
@@ -281,4 +281,51 @@ double_contract(const Tensor<2, dim, RealType>& A,
     }
   }
   return sum;
+}
+
+// ── dim=3 specialisations ─────────────────────────────────────────────────
+
+template<typename RealType>
+KOKKOS_INLINE_FUNCTION Tensor<1, 3, RealType>
+cross(const Tensor<1, 3, RealType>& a, const Tensor<1, 3, RealType>& b)
+{
+  Tensor<1, 3, RealType> result;
+  result(0) = a(1) * b(2) - a(2) * b(1);
+  result(1) = a(2) * b(0) - a(0) * b(2);
+  result(2) = a(0) * b(1) - a(1) * b(0);
+  return result;
+}
+
+template<typename RealType>
+KOKKOS_INLINE_FUNCTION RealType
+det(const Tensor<2, 3, RealType>& A)
+{
+  return A(0,0) * (A(1,1)*A(2,2) - A(1,2)*A(2,1))
+       - A(0,1) * (A(1,0)*A(2,2) - A(1,2)*A(2,0))
+       + A(0,2) * (A(1,0)*A(2,1) - A(1,1)*A(2,0));
+}
+
+template<typename RealType>
+KOKKOS_INLINE_FUNCTION Tensor<2, 3, RealType>
+inverse(const Tensor<2, 3, RealType>& A)
+{
+  const RealType d = det(A);
+  ASSERT(d != RealType(0), "Matrix is singular");
+
+  const RealType inv_d = RealType(1) / d;
+  Tensor<2, 3, RealType> result;
+
+  result(0,0) =  (A(1,1)*A(2,2) - A(1,2)*A(2,1)) * inv_d;
+  result(0,1) = -(A(0,1)*A(2,2) - A(0,2)*A(2,1)) * inv_d;
+  result(0,2) =  (A(0,1)*A(1,2) - A(0,2)*A(1,1)) * inv_d;
+
+  result(1,0) = -(A(1,0)*A(2,2) - A(1,2)*A(2,0)) * inv_d;
+  result(1,1) =  (A(0,0)*A(2,2) - A(0,2)*A(2,0)) * inv_d;
+  result(1,2) = -(A(0,0)*A(1,2) - A(0,2)*A(1,0)) * inv_d;
+
+  result(2,0) =  (A(1,0)*A(2,1) - A(1,1)*A(2,0)) * inv_d;
+  result(2,1) = -(A(0,0)*A(2,1) - A(0,1)*A(2,0)) * inv_d;
+  result(2,2) =  (A(0,0)*A(1,1) - A(0,1)*A(1,0)) * inv_d;
+
+  return result;
 }

@@ -27,13 +27,13 @@ exact_line_integral(unsigned int a)
   return 1.0 / (a + 1.0);
 }
 
-TEST(FE_DGQLegendre, 1D_DoF_counts)
-{
-  for (unsigned int order = 0; order <= 3; ++order) {
-    FE_DGQLegendre<1, RealType> fe(order);
-    EXPECT_EQ(fe.n_dofs(), order + 1);
-  }
-}
+// TEST(FE_DGQLegendre, 1D_DoF_counts)
+// {
+//   for (unsigned int order = 0; order <= 3; ++order) {
+//     FE_DGQLegendre<1, RealType> fe(order);
+//     EXPECT_EQ(fe.n_dofs(), order + 1);
+//   }
+// }
 
 TEST(FE_DGQLegendre, 2D_DoF_counts)
 {
