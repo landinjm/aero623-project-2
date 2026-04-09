@@ -82,6 +82,11 @@ private:
 
   void init_nodes()
   {
+    if constexpr (dim == 1) {
+      for (unsigned int i = 0; i <= p_; ++i)
+          nodes_[i][0] = (p_ == 0) ? RealType(0.5)
+                                    : static_cast<RealType>(i) / p_;
+    }
     if constexpr (dim == 2) {
       switch (p_) {
         case 0:
@@ -177,6 +182,17 @@ private:
 
   RealType eval(unsigned int i, const Tensor<1, dim, RealType>& point) const
   {
+    if constexpr (dim == 1) {
+        const RealType x = point(0);
+        RealType result = RealType(1);
+        for (unsigned int j = 0; j <= p_; ++j) {
+            if (j == i) continue;
+            const RealType xj = (p_ == 0) ? RealType(0.5) : static_cast<RealType>(j) / p_;
+            const RealType xi = (p_ == 0) ? RealType(0.5) : static_cast<RealType>(i) / p_;
+            result *= (x - xj) / (xi - xj);
+        }
+        return result;
+    }
     if constexpr (dim == 2) {
       const RealType x = point(0);
       const RealType y = point(1);
@@ -282,7 +298,25 @@ private:
     const Tensor<1, dim, RealType>& point) const
   {
     Tensor<1, dim, RealType> grad;
-
+    if constexpr (dim == 1) {
+      const RealType x = point(0);
+      RealType result = RealType(0);
+      for (unsigned int k = 0; k <= p_; ++k) {
+          if (k == i) continue;
+          RealType term = RealType(1);
+          for (unsigned int j = 0; j <= p_; ++j) {
+              if (j == i || j == k) continue;
+              const RealType xj = static_cast<RealType>(j) / p_;
+              const RealType xi = static_cast<RealType>(i) / p_;
+              term *= (x - xj) / (xi - xj);
+          }
+          const RealType xk = static_cast<RealType>(k) / p_;
+          const RealType xi = static_cast<RealType>(i) / p_;
+          result += term / (xi - xk);
+      }
+      grad(0) = result;
+      return grad;
+    }
     if constexpr (dim == 2) {
       const RealType x = point(0);
       const RealType y = point(1);

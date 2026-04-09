@@ -508,7 +508,7 @@ GriReader<dim>::read_gri(const std::string& filename)
   data_.set_n_elements(dummy);
   in >> dummy;
 
-  ASSERT(data_.n_nodes > 0, "Number of nodes must be greater than zero.");
+  ASSERT(data_.n_nodes > 0,    "Number of nodes must be greater than zero.");
   ASSERT(data_.n_elements > 0, "Number of elements must be greater than zero.");
   ASSERT(dummy == (int)dim, "File has different dimension than mesh.");
 
@@ -588,10 +588,8 @@ GriReader<dim>::read_gri(const std::string& filename)
            "Invalid periodicity type " + periodic_group_type);
 
     for (unsigned int j = 0; j < data_.periodic_group_n_nodes[i]; ++j) {
-      in >> dummy;
-      data_.periodic_node_1.emplace_back(dummy - 1);
-      in >> dummy;
-      data_.periodic_node_2.emplace_back(dummy - 1);
+      in >> dummy; data_.periodic_node_1.emplace_back(dummy - 1);
+      in >> dummy; data_.periodic_node_2.emplace_back(dummy - 1);
     }
   }
 }
