@@ -15,6 +15,8 @@
 #include <triangulation.hpp>
 #include <vector.hpp>
 
+#include "quad.hpp"
+
 struct BoundaryId
 {
   static constexpr uint32_t InviscidWall = 1;
