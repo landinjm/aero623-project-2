@@ -71,119 +71,92 @@ public:
   }
 
   KOKKOS_INLINE_FUNCTION
+  static void solve_riemann_inflow(RealType rho_L, RealType u_L, RealType v_L, RealType w_L, RealType p_L,
+                                   RealType n_x, RealType n_y, RealType n_z,
+                                   RealType rho_0, RealType p_0,
+                                   RealType& rho_b, RealType& u_b, RealType& v_b, RealType& w_b, RealType& p_b, RealType& c_b)
+  {
+    constexpr RealType gamma = Parameters<RealType>::gamma;
+    constexpr RealType gm1 = gamma - RealType(1.0);
+    constexpr RealType inv_gm1 = RealType(1.0) / gm1;
+    const RealType RT_0 = p_0 / rho_0;
+
+    const RealType c_L = speed_of_sound(rho_L, p_L);
+    const RealType v_n_L = u_L * n_x + v_L * n_y + w_L * n_z;
+    const RealType j_plus = v_n_L + RealType(2.0) * inv_gm1 * c_L;
+
+    const RealType nx_in = Parameters<RealType>::n_x_0();
+    const RealType ny_in = Parameters<RealType>::n_y_0();
+    const RealType nz_in = 0.0; 
+    const RealType d_n = nx_in * n_x + ny_in * n_y + nz_in * n_z; 
+
+    const RealType A = gamma * RT_0 * d_n * d_n - gm1 / RealType(2.0) * j_plus * j_plus;
+    const RealType B = RealType(4.0) * gamma * RT_0 * d_n * inv_gm1;
+    const RealType C = RealType(4.0) * gamma * RT_0 * inv_gm1 * inv_gm1 - j_plus * j_plus;
+
+    const RealType disc = Kokkos::fmax(0.0, B * B - RealType(4.0) * A * C);
+    const RealType sqrt_disc = Kokkos::sqrt(disc);
+    
+    // Safety check for A near zero to avoid NaN
+    const RealType M_b1 = (Kokkos::abs(A) > 1e-12) ? (-B + sqrt_disc) / (RealType(2.0) * A) : -C/B;
+    const RealType M_b2 = (Kokkos::abs(A) > 1e-12) ? (-B - sqrt_disc) / (RealType(2.0) * A) : -C/B;
+    RealType M_b = ((M_b1 > 0) != (M_b2 > 0)) ? ((M_b1 > 0) ? M_b1 : M_b2) : 
+                   ((Kokkos::abs(M_b1) < Kokkos::abs(M_b2)) ? M_b1 : M_b2);
+
+    const RealType denom = RealType(1.0) + RealType(0.5) * gm1 * M_b * M_b;
+    c_b = Kokkos::sqrt(gamma * RT_0 / denom);
+    p_b = p_0 * Kokkos::pow(RealType(1.0) / denom, gamma * inv_gm1);
+    rho_b = p_b / (RT_0 / denom);
+    
+    const RealType speed_b = M_b * c_b;
+    u_b = speed_b * nx_in;
+    v_b = speed_b * ny_in;
+    w_b = speed_b * nz_in; 
+  }
+
+  KOKKOS_INLINE_FUNCTION
   static void unsteady_subsonic_inflow_flux(RealType rho_L, RealType rho_u_L, RealType rho_v_L, RealType rho_w_L, RealType rho_E_L,
                                             RealType n_x, RealType n_y, RealType n_z,
                                             RealType y_face, RealType t,
                                             RealType& F_rho, RealType& F_rho_u, RealType& F_rho_v, RealType& F_rho_w, RealType& F_rho_E,
                                             RealType& s_mag)
   {
-    constexpr RealType gamma = Parameters<RealType>::gamma;
-    constexpr RealType gm1 = gamma - RealType(1.0);
-    constexpr RealType inv_gm1 = RealType(1.0) / gm1;
-    
     const RealType rho_0 = wake_density(y_face, t);
-    const RealType p_0 = rho_0 * Parameters<RealType>::a_0 * Parameters<RealType>::a_0 / gamma;
-    const RealType RT_0 = p_0 / rho_0;
-
-    ASSERT(rho_L > 0, "Density must be positive");
-    ASSERT(rho_E_L > 0, "Total energy must be positive");
-
-    RealType u_L, v_L, w_L, p_L;
+    const RealType p_0 = rho_0 * Parameters<RealType>::a_0 * Parameters<RealType>::a_0 / Parameters<RealType>::gamma;
+    
+    RealType u_L, v_L, w_L, p_L, rho_b, u_b, v_b, w_b, p_b, c_b;
     conservative_to_primitive(rho_L, rho_u_L, rho_v_L, rho_w_L, rho_E_L, u_L, v_L, w_L, p_L);
-    const RealType c_L = speed_of_sound(rho_L, p_L);
-    const RealType v_n_L = u_L * n_x + v_L * n_y + w_L * n_z;
-
-    const RealType j_plus = v_n_L + RealType(2.0) * inv_gm1 * c_L;
-
-    // Fixed Inflow Direction (Now using all 3D components)
-    const RealType nx_in = Parameters<RealType>::n_x_0();
-    const RealType ny_in = Parameters<RealType>::n_y_0();
-    const RealType nz_in = 0.0; // Inflow is primarily axial/tangential
-    const RealType d_n = nx_in * n_x + ny_in * n_y + nz_in * n_z; 
-
-    // Quadratic solver with NaN protection
-    const RealType A = gamma * RT_0 * d_n * d_n - gm1 / RealType(2.0) * j_plus * j_plus;
-    const RealType B = RealType(4.0) * gamma * RT_0 * d_n * inv_gm1;
-    const RealType C = RealType(4.0) * gamma * RT_0 * inv_gm1 * inv_gm1 - j_plus * j_plus;
-
-    const RealType disc = Kokkos::fmax(0.0, B * B - RealType(4.0) * A * C);
-    const RealType sqrt_disc = Kokkos::sqrt(disc);
     
-    const RealType M_b1 = (-B + sqrt_disc) / (RealType(2.0) * A);
-    const RealType M_b2 = (-B - sqrt_disc) / (RealType(2.0) * A);
-    RealType M_b = ((M_b1 > 0) != (M_b2 > 0)) ? ((M_b1 > 0) ? M_b1 : M_b2) : 
-                   ((Kokkos::abs(M_b1) < Kokkos::abs(M_b2)) ? M_b1 : M_b2);
+    solve_riemann_inflow(rho_L, u_L, v_L, w_L, p_L, n_x, n_y, n_z, rho_0, p_0, rho_b, u_b, v_b, w_b, p_b, c_b);
 
-    const RealType denom = RealType(1.0) + RealType(0.5) * gm1 * M_b * M_b;
-    const RealType c_b = Kokkos::sqrt(gamma * RT_0 / denom);
-    const RealType p_b = p_0 * Kokkos::pow(RealType(1.0) / denom, gamma * inv_gm1);
-    const RealType rho_b = p_b / (RT_0 / denom);
-    
-    const RealType speed_b = M_b * c_b;
-    const RealType u_b = speed_b * nx_in;
-    const RealType v_b = speed_b * ny_in;
-    const RealType w_b = speed_b * nz_in; 
-    const RealType rho_E_b = p_b * inv_gm1 + RealType(0.5) * rho_b * (u_b * u_b + v_b * v_b + w_b * w_b);
-
+    const RealType rho_E_b = p_b / (Parameters<RealType>::gamma - 1.0) + RealType(0.5) * rho_b * (u_b * u_b + v_b * v_b + w_b * w_b);
     euler_flux(rho_b, u_b, v_b, w_b, p_b, rho_E_b, n_x, n_y, n_z, F_rho, F_rho_u, F_rho_v, F_rho_w, F_rho_E);
     s_mag = Kokkos::abs(u_b * n_x + v_b * n_y + w_b * n_z) + c_b;
   }
 
-  KOKKOS_INLINE_FUNCTION
-  static void subsonic_inflow_flux(RealType rho_L, RealType rho_u_L, RealType rho_v_L, RealType rho_w_L, RealType rho_E_L,
-                                   RealType n_x, RealType n_y, RealType n_z,
-                                   RealType& F_rho, RealType& F_rho_u, RealType& F_rho_v, RealType& F_rho_w, RealType& F_rho_E,
-                                   RealType& s_mag)
+  KOKKOS_INLINE_FUNCTION static void subsonic_inflow_flux(
+      RealType rho_in, RealType u_in, RealType v_in, RealType w_in, RealType p_in, // Input state
+      RealType n_x, RealType n_y, RealType n_z,                                  // Normal
+      RealType& f_rho, RealType& f_rhou, RealType& f_rhov, RealType& f_rhow, RealType& f_rhoE)
   {
-    constexpr RealType gamma = Parameters<RealType>::gamma;
-    constexpr RealType gm1 = gamma - RealType(1.0);
-    constexpr RealType inv_gm1 = RealType(1.0) / gm1;
-    constexpr RealType p_0 = Parameters<RealType>::p_0;
-    constexpr RealType rho_0 = Parameters<RealType>::rho_0;
-    const RealType RT_0 = p_0 / rho_0;
+      // FIX: Ensure 'rho_in' is used to compute the ghost state, not a constant from Parameters
+      RealType rho_g = rho_in; 
+      RealType u_g   = u_in;
+      RealType v_g   = v_in;
+      RealType w_g   = w_in;
+      RealType p_g   = p_in;
 
-    ASSERT(rho_L > 0, "Density must be positive");
-    ASSERT(rho_E_L > 0, "Total energy must be positive");
+      // Recalculate Energy based on the SPECIFIC rho_in provided
+      RealType rhoE_g = p_g / (Parameters<RealType>::gamma - 1.0) + 
+                        0.5 * rho_g * (u_g*u_g + v_g*v_g + w_g*w_g);
 
-    RealType u_L, v_L, w_L, p_L;
-    conservative_to_primitive(rho_L, rho_u_L, rho_v_L, rho_w_L, rho_E_L, u_L, v_L, w_L, p_L);
-    const RealType c_L = speed_of_sound(rho_L, p_L);
-    const RealType v_n_L = u_L * n_x + v_L * n_y + w_L * n_z;
-
-    const RealType j_plus = v_n_L + RealType(2.0) * inv_gm1 * c_L;
-
-    // Fixed Inflow Direction
-    const RealType nx_in = Parameters<RealType>::n_x_0();
-    const RealType ny_in = Parameters<RealType>::n_y_0();
-    const RealType nz_in = 0.0; 
-    const RealType d_n = nx_in * n_x + ny_in * n_y + nz_in * n_z; 
-
-    // Quadratic solver with NaN protection
-    const RealType A = gamma * RT_0 * d_n * d_n - gm1 / RealType(2.0) * j_plus * j_plus;
-    const RealType B = RealType(4.0) * gamma * RT_0 * d_n * inv_gm1;
-    const RealType C = RealType(4.0) * gamma * RT_0 * inv_gm1 * inv_gm1 - j_plus * j_plus;
-
-    const RealType disc = Kokkos::fmax(0.0, B * B - RealType(4.0) * A * C);
-    const RealType sqrt_disc = Kokkos::sqrt(disc);
-    
-    const RealType M_b1 = (-B + sqrt_disc) / (RealType(2.0) * A);
-    const RealType M_b2 = (-B - sqrt_disc) / (RealType(2.0) * A);
-    RealType M_b = ((M_b1 > 0) != (M_b2 > 0)) ? ((M_b1 > 0) ? M_b1 : M_b2) : 
-                   ((Kokkos::abs(M_b1) < Kokkos::abs(M_b2)) ? M_b1 : M_b2);
-
-    const RealType denom = RealType(1.0) + RealType(0.5) * gm1 * M_b * M_b;
-    const RealType c_b = Kokkos::sqrt(gamma * RT_0 / denom);
-    const RealType p_b = p_0 * Kokkos::pow(RealType(1.0) / denom, gamma * inv_gm1);
-    const RealType rho_b = p_b / (RT_0 / denom);
-    
-    const RealType speed_b = M_b * c_b;
-    const RealType u_b = speed_b * nx_in;
-    const RealType v_b = speed_b * ny_in;
-    const RealType w_b = speed_b * nz_in; 
-    const RealType rho_E_b = p_b * inv_gm1 + RealType(0.5) * rho_b * (u_b * u_b + v_b * v_b + w_b * w_b);
-
-    euler_flux(rho_b, u_b, v_b, w_b, p_b, rho_E_b, n_x, n_y, n_z, F_rho, F_rho_u, F_rho_v, F_rho_w, F_rho_E);
-    s_mag = Kokkos::abs(u_b * n_x + v_b * n_y + w_b * n_z) + c_b;
+      // Compute flux using these ghost values...
+      RealType vn = u_g*n_x + v_g*n_y + w_g*n_z;
+      f_rho  = rho_g * vn;
+      f_rhou = rho_g * u_g * vn + p_g * n_x;
+      f_rhov = rho_g * v_g * vn + p_g * n_y;
+      f_rhow = rho_g * w_g * vn + p_g * n_z;
+      f_rhoE = (rhoE_g + p_g) * vn;
   }
 
   // ===========================================================================
@@ -213,7 +186,6 @@ public:
     const RealType j_plus = v_n_L + RealType(2.0) * inv_gm1 * c_L;
     const RealType v_n_b = j_plus - RealType(2.0) * inv_gm1 * c_b;
 
-    // Full 3D Reconstruction
     const RealType u_b = u_L + (v_n_b - v_n_L) * n_x;
     const RealType v_b = v_L + (v_n_b - v_n_L) * n_y;
     const RealType w_b = w_L + (v_n_b - v_n_L) * n_z;
@@ -244,7 +216,6 @@ public:
     const RealType v_t = v_L - v_n_L * n_y;
     const RealType w_t = w_L - v_n_L * n_z;
 
-    // Wall Pressure with safety floor
     RealType p_b = gm1 * (rho_E_L - RealType(0.5) * rho_L * (u_t * u_t + v_t * v_t + w_t * w_t));
     p_b = Kokkos::fmax(p_b, RealType(1e-6));
 
@@ -295,12 +266,13 @@ public:
     const RealType dw = w_R - w_L;
     const RealType dv_n = du * n_x + dv * n_y + dw * n_z;
 
-    const RealType a1 = 0.5 * (dp - rho_L * c * dv_n) / (c * c);
+    const RealType rho_roe = sL * sR; // Use geometric mean for acoustic wave scaling
+    const RealType a1 = 0.5 * (dp - rho_roe * c * dv_n) / (c * c);
     const RealType a2 = drho - dp / (c * c);
     const RealType a3_u = du - dv_n * n_x; 
     const RealType a3_v = dv - dv_n * n_y; 
     const RealType a3_w = dw - dv_n * n_z; 
-    const RealType a4 = 0.5 * (dp + rho_L * c * dv_n) / (c * c);
+    const RealType a4 = 0.5 * (dp + rho_roe * c * dv_n) / (c * c);
 
     const RealType eps = 0.1 * c;
     auto efix = [&](RealType lam) {
@@ -312,10 +284,10 @@ public:
     const RealType l4 = efix(v_n + c);
 
     const RealType d_rho = l1 * a1 + l2 * a2 + l4 * a4;
-    const RealType d_rhou = l1 * a1 * (u - c * n_x) + l2 * (a2 * u + rho_L * a3_u) + l4 * a4 * (u + c * n_x);
-    const RealType d_rhov = l1 * a1 * (v - c * n_y) + l2 * (a2 * v + rho_L * a3_v) + l4 * a4 * (v + c * n_y);
-    const RealType d_rhow = l1 * a1 * (w - c * n_z) + l2 * (a2 * w + rho_L * a3_w) + l4 * a4 * (w + c * n_z);
-    const RealType d_rhoE = l1 * a1 * (H - c * v_n) + l2 * (a2 * 0.5 * q2 + rho_L * (u * a3_u + v * a3_v + w * a3_w)) + l4 * a4 * (H + c * v_n);
+    const RealType d_rhou = l1 * a1 * (u - c * n_x) + l2 * (a2 * u + rho_roe * a3_u) + l4 * a4 * (u + c * n_x);
+    const RealType d_rhov = l1 * a1 * (v - c * n_y) + l2 * (a2 * v + rho_roe * a3_v) + l4 * a4 * (v + c * n_y);
+    const RealType d_rhow = l1 * a1 * (w - c * n_z) + l2 * (a2 * w + rho_roe * a3_w) + l4 * a4 * (w + c * n_z);
+    const RealType d_rhoE = l1 * a1 * (H - c * v_n) + l2 * (a2 * 0.5 * q2 + rho_roe * (u * a3_u + v * a3_v + w * a3_w)) + l4 * a4 * (H + c * v_n);
 
     RealType FL_rho, FL_rhou, FL_rhov, FL_rhow, FL_rhoE;
     RealType FR_rho, FR_rhou, FR_rhov, FR_rhow, FR_rhoE;
