@@ -37,6 +37,14 @@ if(NOT ${Kokkos_FOUND})
   FetchContent_MakeAvailable(Kokkos)
 endif()
 
+# Eigen
+FetchContent_Declare(
+  eigen
+  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+  GIT_TAG 5.0.1
+)
+FetchContent_MakeAvailable(eigen)
+
 # Google Test suite
 FetchContent_Declare(
   googletest
@@ -62,7 +70,7 @@ target_include_directories(
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE Kokkos::kokkos)
+target_link_libraries(${PROJECT_NAME} PRIVATE Kokkos::kokkos Eigen3::Eigen)
 
 # Tests
 if(BUILD_TESTS)
@@ -88,6 +96,7 @@ if(BUILD_TESTS)
     ${PROJECT_NAME}_tests
     PRIVATE
       Kokkos::kokkos
+      Eigen3::Eigen
       GTest::gtest
   )
 
