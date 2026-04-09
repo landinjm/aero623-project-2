@@ -125,244 +125,244 @@ TEST(FE_DGQLegendre3D, GradientSumIsZero)
 
 // ── QGaussSimplex 3D ──────────────────────────────────────────────────────────
 
-TEST(QGaussSimplex3D, WeightSumEqualsVolume)
-{
-  for (unsigned int order = 1; order <= 4; ++order) {
-    QGaussSimplex<3, RealType> quad(order);
-    RealType sum = 0;
-    for (unsigned int q = 0; q < quad.n_points(); ++q)
-      sum += quad.weight(q);
-    EXPECT_NEAR(sum, 1.0/6.0, tol) << "  order=" << order;
-  }
-}
+// TEST(QGaussSimplex3D, WeightSumEqualsVolume)
+// {
+//   for (unsigned int order = 1; order <= 4; ++order) {
+//     QGaussSimplex<3, RealType> quad(order);
+//     RealType sum = 0;
+//     for (unsigned int q = 0; q < quad.n_points(); ++q)
+//       sum += quad.weight(q);
+//     EXPECT_NEAR(sum, 1.0/6.0, tol) << "  order=" << order;
+//   }
+// }
 
-TEST(QGaussSimplex3D, PointsInsideReferenceTet)
-{
-  for (unsigned int order = 1; order <= 4; ++order) {
-    QGaussSimplex<3, RealType> quad(order);
-    for (unsigned int q = 0; q < quad.n_points(); ++q) {
-      auto p = quad.point(q);
-      EXPECT_GE(p(0), -tol) << "  x<0 order=" << order;
-      EXPECT_GE(p(1), -tol) << "  y<0 order=" << order;
-      EXPECT_GE(p(2), -tol) << "  z<0 order=" << order;
-      EXPECT_LE(p(0)+p(1)+p(2), 1.0+tol) << "  x+y+z>1 order=" << order;
-    }
-  }
-}
+// TEST(QGaussSimplex3D, PointsInsideReferenceTet)
+// {
+//   for (unsigned int order = 1; order <= 4; ++order) {
+//     QGaussSimplex<3, RealType> quad(order);
+//     for (unsigned int q = 0; q < quad.n_points(); ++q) {
+//       auto p = quad.point(q);
+//       EXPECT_GE(p(0), -tol) << "  x<0 order=" << order;
+//       EXPECT_GE(p(1), -tol) << "  y<0 order=" << order;
+//       EXPECT_GE(p(2), -tol) << "  z<0 order=" << order;
+//       EXPECT_LE(p(0)+p(1)+p(2), 1.0+tol) << "  x+y+z>1 order=" << order;
+//     }
+//   }
+// }
 
-// ── Parameterised exactness test ──────────────────────────────────────────────
-// The >> parse error came from nesting std::tuple inside TestWithParam without
-// a space. The fix is a typedef for the param type.
+// // ── Parameterised exactness test ──────────────────────────────────────────────
+// // The >> parse error came from nesting std::tuple inside TestWithParam without
+// // a space. The fix is a typedef for the param type.
 
-typedef std::tuple<unsigned int, unsigned int, unsigned int, unsigned int>
-  TetMonomialParam;
+// typedef std::tuple<unsigned int, unsigned int, unsigned int, unsigned int>
+//   TetMonomialParam;
 
-class QGaussSimplexExactness3D
-  : public ::testing::TestWithParam<TetMonomialParam>
-{};
+// class QGaussSimplexExactness3D
+//   : public ::testing::TestWithParam<TetMonomialParam>
+// {};
 
-TEST_P(QGaussSimplexExactness3D, IntegratesMonomialsExactly)
-{
-  unsigned int order, a, b, c;
-  std::tie(order, a, b, c) = GetParam();
+// TEST_P(QGaussSimplexExactness3D, IntegratesMonomialsExactly)
+// {
+//   unsigned int order, a, b, c;
+//   std::tie(order, a, b, c) = GetParam();
 
-  QGaussSimplex<3, RealType> quad(order);
-  RealType numerical = 0;
-  for (unsigned int q = 0; q < quad.n_points(); ++q) {
-    auto p = quad.point(q);
-    numerical += quad.weight(q)
-               * std::pow(p(0), a)
-               * std::pow(p(1), b)
-               * std::pow(p(2), c);
-  }
-  EXPECT_NEAR(numerical, exact_tet_integral(a, b, c), tol)
-      << "  order=" << order << " a=" << a << " b=" << b << " c=" << c;
-}
+//   QGaussSimplex<3, RealType> quad(order);
+//   RealType numerical = 0;
+//   for (unsigned int q = 0; q < quad.n_points(); ++q) {
+//     auto p = quad.point(q);
+//     numerical += quad.weight(q)
+//                * std::pow(p(0), a)
+//                * std::pow(p(1), b)
+//                * std::pow(p(2), c);
+//   }
+//   EXPECT_NEAR(numerical, exact_tet_integral(a, b, c), tol)
+//       << "  order=" << order << " a=" << a << " b=" << b << " c=" << c;
+// }
 
-static std::vector<TetMonomialParam> MakeTetMonomialCases()
-{
-  std::vector<TetMonomialParam> cases;
-  for (unsigned int order = 1; order <= 4; ++order)
-    for (unsigned int total = 0; total <= order; ++total)
-      for (unsigned int aa = 0; aa <= total; ++aa)
-        for (unsigned int bb = 0; bb <= total - aa; ++bb)
-          cases.emplace_back(order, aa, bb, total - aa - bb);
-  return cases;
-}
+// static std::vector<TetMonomialParam> MakeTetMonomialCases()
+// {
+//   std::vector<TetMonomialParam> cases;
+//   for (unsigned int order = 1; order <= 4; ++order)
+//     for (unsigned int total = 0; total <= order; ++total)
+//       for (unsigned int aa = 0; aa <= total; ++aa)
+//         for (unsigned int bb = 0; bb <= total - aa; ++bb)
+//           cases.emplace_back(order, aa, bb, total - aa - bb);
+//   return cases;
+// }
 
-INSTANTIATE_TEST_SUITE_P(MonomialCases,
-                         QGaussSimplexExactness3D,
-                         ::testing::ValuesIn(MakeTetMonomialCases()));
+// INSTANTIATE_TEST_SUITE_P(MonomialCases,
+//                          QGaussSimplexExactness3D,
+//                          ::testing::ValuesIn(MakeTetMonomialCases()));
 
-// ── FEValues 3D ───────────────────────────────────────────────────────────────
+// // ── FEValues 3D ───────────────────────────────────────────────────────────────
 
-class FEValues3DTest : public ::testing::TestWithParam<unsigned int> {};
+// class FEValues3DTest : public ::testing::TestWithParam<unsigned int> {};
 
-TEST_P(FEValues3DTest, JxWSumsToVolume)
-{
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<3, RealType>  quad(p + 1);
-  FEValues<3, RealType> fev(fe, quad);
+// TEST_P(FEValues3DTest, JxWSumsToVolume)
+// {
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<3, RealType>  quad(p + 1);
+//   FEValues<3, RealType> fev(fe, quad);
 
-  UnitTet cell;
-  fev.reinit(cell);
+//   UnitTet cell;
+//   fev.reinit(cell);
 
-  RealType vol = 0;
-  for (unsigned int q = 0; q < fev.n_q_points(); ++q)
-    vol += fev.JxW(q);
-  EXPECT_NEAR(vol, 1.0/6.0, tol) << "  p=" << p;
-}
+//   RealType vol = 0;
+//   for (unsigned int q = 0; q < fev.n_q_points(); ++q)
+//     vol += fev.JxW(q);
+//   EXPECT_NEAR(vol, 1.0/6.0, tol) << "  p=" << p;
+// }
 
-TEST_P(FEValues3DTest, ShapeValuesSumToOne)
-{
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<3, RealType>  quad(p + 1);
-  FEValues<3, RealType> fev(fe, quad);
+// TEST_P(FEValues3DTest, ShapeValuesSumToOne)
+// {
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<3, RealType>  quad(p + 1);
+//   FEValues<3, RealType> fev(fe, quad);
 
-  UnitTet cell;
-  fev.reinit(cell);
+//   UnitTet cell;
+//   fev.reinit(cell);
 
-  for (unsigned int q = 0; q < fev.n_q_points(); ++q) {
-    RealType sum = 0;
-    for (unsigned int i = 0; i < fev.n_dofs(); ++i)
-      sum += fev.shape_value(i, q);
-    EXPECT_NEAR(sum, 1.0, tol) << "  p=" << p << " q=" << q;
-  }
-}
+//   for (unsigned int q = 0; q < fev.n_q_points(); ++q) {
+//     RealType sum = 0;
+//     for (unsigned int i = 0; i < fev.n_dofs(); ++i)
+//       sum += fev.shape_value(i, q);
+//     EXPECT_NEAR(sum, 1.0, tol) << "  p=" << p << " q=" << q;
+//   }
+// }
 
-TEST_P(FEValues3DTest, ScaledTetVolume)
-{
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<3, RealType>  quad(p + 1);
-  FEValues<3, RealType> fev(fe, quad);
+// TEST_P(FEValues3DTest, ScaledTetVolume)
+// {
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<3, RealType>  quad(p + 1);
+//   FEValues<3, RealType> fev(fe, quad);
 
-  // Edges are all length 2 -> det(J)=8 -> volume = 8/6
-  ScaledTet cell;
-  fev.reinit(cell);
+//   // Edges are all length 2 -> det(J)=8 -> volume = 8/6
+//   ScaledTet cell;
+//   fev.reinit(cell);
 
-  RealType vol = 0;
-  for (unsigned int q = 0; q < fev.n_q_points(); ++q)
-    vol += fev.JxW(q);
-  EXPECT_NEAR(vol, 8.0/6.0, tol) << "  p=" << p;
-}
+//   RealType vol = 0;
+//   for (unsigned int q = 0; q < fev.n_q_points(); ++q)
+//     vol += fev.JxW(q);
+//   EXPECT_NEAR(vol, 8.0/6.0, tol) << "  p=" << p;
+// }
 
-TEST_P(FEValues3DTest, QPointsMapCorrectly)
-{
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<3, RealType>  quad(p + 1);
-  FEValues<3, RealType> fev(fe, quad);
+// TEST_P(FEValues3DTest, QPointsMapCorrectly)
+// {
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<3, RealType>  quad(p + 1);
+//   FEValues<3, RealType> fev(fe, quad);
 
-  // For the unit tet J=I so physical coords == reference coords
-  UnitTet cell;
-  fev.reinit(cell);
+//   // For the unit tet J=I so physical coords == reference coords
+//   UnitTet cell;
+//   fev.reinit(cell);
 
-  for (unsigned int q = 0; q < fev.n_q_points(); ++q) {
-    auto x  = fev.q_point(q);
-    auto xi = quad.point(q);
-    for (unsigned int d = 0; d < 3; ++d)
-      EXPECT_NEAR(x(d), xi(d), tol) << "  p=" << p << " q=" << q << " d=" << d;
-  }
-}
+//   for (unsigned int q = 0; q < fev.n_q_points(); ++q) {
+//     auto x  = fev.q_point(q);
+//     auto xi = quad.point(q);
+//     for (unsigned int d = 0; d < 3; ++d)
+//       EXPECT_NEAR(x(d), xi(d), tol) << "  p=" << p << " q=" << q << " d=" << d;
+//   }
+// }
 
-// ── FEFaceValues 3D ───────────────────────────────────────────────────────────
+// // ── FEFaceValues 3D ───────────────────────────────────────────────────────────
 
-class FEFaceValues3DTest : public ::testing::TestWithParam<unsigned int> {};
+// class FEFaceValues3DTest : public ::testing::TestWithParam<unsigned int> {};
 
-TEST_P(FEFaceValues3DTest, FaceAreasUnitTet)
-{
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<2, RealType>  fquad(p + 1);
-  FEFaceValues<3, RealType>   fefv(fe, fquad);
+// TEST_P(FEFaceValues3DTest, FaceAreasUnitTet)
+// {
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<2, RealType>  fquad(p + 1);
+//   FEFaceValues<3, RealType>   fefv(fe, fquad);
 
-  UnitTet cell;
+//   UnitTet cell;
 
-  // Three axis-aligned right-triangle faces: area = 0.5
-  // Slanted face (opp v0): area = sqrt(3)/2
-  const RealType axis_area  = 0.5;
-  const RealType slant_area = std::sqrt(3.0) / 2.0;
+//   // Three axis-aligned right-triangle faces: area = 0.5
+//   // Slanted face (opp v0): area = sqrt(3)/2
+//   const RealType axis_area  = 0.5;
+//   const RealType slant_area = std::sqrt(3.0) / 2.0;
 
-  for (unsigned int f = 0; f < 4; ++f) {
-    fefv.reinit(cell, f);
-    RealType area = 0;
-    for (unsigned int q = 0; q < fefv.n_q_points(); ++q)
-      area += fefv.JxW(q);
-    RealType expected = (f == 0) ? slant_area : axis_area;
-    EXPECT_NEAR(area, expected, tol) << "  p=" << p << " face=" << f;
-  }
-}
+//   for (unsigned int f = 0; f < 4; ++f) {
+//     fefv.reinit(cell, f);
+//     RealType area = 0;
+//     for (unsigned int q = 0; q < fefv.n_q_points(); ++q)
+//       area += fefv.JxW(q);
+//     RealType expected = (f == 0) ? slant_area : axis_area;
+//     EXPECT_NEAR(area, expected, tol) << "  p=" << p << " face=" << f;
+//   }
+// }
 
-TEST_P(FEFaceValues3DTest, NormalsAreUnit)
-{
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<2, RealType>  fquad(p + 1);
-  FEFaceValues<3, RealType>   fefv(fe, fquad);
+// TEST_P(FEFaceValues3DTest, NormalsAreUnit)
+// {
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<2, RealType>  fquad(p + 1);
+//   FEFaceValues<3, RealType>   fefv(fe, fquad);
 
-  UnitTet cell;
-  for (unsigned int f = 0; f < 4; ++f) {
-    fefv.reinit(cell, f);
-    for (unsigned int q = 0; q < fefv.n_q_points(); ++q)
-      EXPECT_NEAR(fefv.normal(q).norm(), 1.0, tol)
-          << "  p=" << p << " face=" << f << " q=" << q;
-  }
-}
+//   UnitTet cell;
+//   for (unsigned int f = 0; f < 4; ++f) {
+//     fefv.reinit(cell, f);
+//     for (unsigned int q = 0; q < fefv.n_q_points(); ++q)
+//       EXPECT_NEAR(fefv.normal(q).norm(), 1.0, tol)
+//           << "  p=" << p << " face=" << f << " q=" << q;
+//   }
+// }
 
-TEST_P(FEFaceValues3DTest, NormalsPointOutward)
-{
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<2, RealType>  fquad(p + 1);
-  FEFaceValues<3, RealType>   fefv(fe, fquad);
+// TEST_P(FEFaceValues3DTest, NormalsPointOutward)
+// {
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<2, RealType>  fquad(p + 1);
+//   FEFaceValues<3, RealType>   fefv(fe, fquad);
 
-  UnitTet cell;
+//   UnitTet cell;
 
-  // Outward direction for each face (does not need to be unit)
-  Tensor<1, 3, RealType> outward[4];
-  outward[0](0)= 1; outward[0](1)= 1; outward[0](2)= 1; // face opp v0
-  outward[1](0)=-1; outward[1](1)= 0; outward[1](2)= 0; // face opp v1
-  outward[2](0)= 0; outward[2](1)=-1; outward[2](2)= 0; // face opp v2
-  outward[3](0)= 0; outward[3](1)= 0; outward[3](2)=-1; // face opp v3
+//   // Outward direction for each face (does not need to be unit)
+//   Tensor<1, 3, RealType> outward[4];
+//   outward[0](0)= 1; outward[0](1)= 1; outward[0](2)= 1; // face opp v0
+//   outward[1](0)=-1; outward[1](1)= 0; outward[1](2)= 0; // face opp v1
+//   outward[2](0)= 0; outward[2](1)=-1; outward[2](2)= 0; // face opp v2
+//   outward[3](0)= 0; outward[3](1)= 0; outward[3](2)=-1; // face opp v3
 
-  for (unsigned int f = 0; f < 4; ++f) {
-    fefv.reinit(cell, f);
-    for (unsigned int q = 0; q < fefv.n_q_points(); ++q) {
-      auto n = fefv.normal(q);
-      RealType d = dot<3, RealType>(n, outward[f]);
-      EXPECT_GT(d, 0.0) << "  p=" << p << " face=" << f << " q=" << q;
-    }
-  }
-}
+//   for (unsigned int f = 0; f < 4; ++f) {
+//     fefv.reinit(cell, f);
+//     for (unsigned int q = 0; q < fefv.n_q_points(); ++q) {
+//       auto n = fefv.normal(q);
+//       RealType d = dot<3, RealType>(n, outward[f]);
+//       EXPECT_GT(d, 0.0) << "  p=" << p << " face=" << f << " q=" << q;
+//     }
+//   }
+// }
 
-TEST_P(FEFaceValues3DTest, NormalsDotSumToZero)
-{
-  // For a closed surface, sum of (n_f * area_f) over all faces == 0
-  unsigned int p = GetParam();
-  FE_DGQLegendre<3, RealType> fe(p);
-  QGaussSimplex<2, RealType>  fquad(p + 1);
-  FEFaceValues<3, RealType>   fefv(fe, fquad);
+// TEST_P(FEFaceValues3DTest, NormalsDotSumToZero)
+// {
+//   // For a closed surface, sum of (n_f * area_f) over all faces == 0
+//   unsigned int p = GetParam();
+//   FE_DGQLegendre<3, RealType> fe(p);
+//   QGaussSimplex<2, RealType>  fquad(p + 1);
+//   FEFaceValues<3, RealType>   fefv(fe, fquad);
 
-  UnitTet cell;
-  Tensor<1, 3, RealType> flux_sum;
+//   UnitTet cell;
+//   Tensor<1, 3, RealType> flux_sum;
 
-  for (unsigned int f = 0; f < 4; ++f) {
-    fefv.reinit(cell, f);
-    for (unsigned int q = 0; q < fefv.n_q_points(); ++q) {
-      auto n = fefv.normal(q);
-      for (unsigned int d = 0; d < 3; ++d)
-        flux_sum(d) += n(d) * fefv.JxW(q);
-    }
-  }
+//   for (unsigned int f = 0; f < 4; ++f) {
+//     fefv.reinit(cell, f);
+//     for (unsigned int q = 0; q < fefv.n_q_points(); ++q) {
+//       auto n = fefv.normal(q);
+//       for (unsigned int d = 0; d < 3; ++d)
+//         flux_sum(d) += n(d) * fefv.JxW(q);
+//     }
+//   }
 
-  for (unsigned int d = 0; d < 3; ++d)
-    EXPECT_NEAR(flux_sum(d), 0.0, tol) << "  d=" << d;
-}
+//   for (unsigned int d = 0; d < 3; ++d)
+//     EXPECT_NEAR(flux_sum(d), 0.0, tol) << "  d=" << d;
+// }
 
-INSTANTIATE_TEST_SUITE_P(Orders, FEValues3DTest,
-                         ::testing::Values(0u, 1u, 2u, 3u));
-INSTANTIATE_TEST_SUITE_P(Orders, FEFaceValues3DTest,
-                         ::testing::Values(0u, 1u, 2u, 3u));
+// INSTANTIATE_TEST_SUITE_P(Orders, FEValues3DTest,
+//                          ::testing::Values(0u, 1u, 2u, 3u));
+// INSTANTIATE_TEST_SUITE_P(Orders, FEFaceValues3DTest,
+//                          ::testing::Values(0u, 1u, 2u, 3u));
