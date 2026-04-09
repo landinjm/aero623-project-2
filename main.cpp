@@ -1140,7 +1140,7 @@ int main(int argc, char** argv)
     Triangulation<3> tria; // 3D Triangulation
     
     // Replace with your actual mesh file path
-    read_gri(tria, "mesh.gri");
+    read_gri(tria, "../grids/coarse_local_refinement.gri");
 
     // 3D Initial Condition (Returns 5-Tuple)
     auto ic = [](double x, double y, double z) {
