@@ -99,9 +99,12 @@ public:
     // Only meaningful in 2D
     if constexpr (dim == 2) {
       for (unsigned int i = 0; i < data_.n_elements; ++i) {
-        const double ax = data_.x[data_.node_1[i]], ay = data_.y[data_.node_1[i]];
-        const double bx = data_.x[data_.node_2[i]], by = data_.y[data_.node_2[i]];
-        const double cx = data_.x[data_.node_3[i]], cy = data_.y[data_.node_3[i]];
+        const double ax = data_.x[data_.node_1[i]],
+                     ay = data_.y[data_.node_1[i]];
+        const double bx = data_.x[data_.node_2[i]],
+                     by = data_.y[data_.node_2[i]];
+        const double cx = data_.x[data_.node_3[i]],
+                     cy = data_.y[data_.node_3[i]];
 
         // z-component of AB x AC
         const double cross = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
@@ -189,7 +192,8 @@ private:
     }
 
     for (auto& rf : raw_faces) {
-      if (rf.cells[1] != CellIndexType(-1)) continue;
+      if (rf.cells[1] != CellIndexType(-1))
+        continue;
 
       const auto a = rf.v0, b = rf.v1;
 
@@ -290,7 +294,8 @@ private:
   {
     const unsigned int n_cells = data_.n_elements;
 
-    // A face in 3D is a triangle, identified by a sorted triple of vertex indices
+    // A face in 3D is a triangle, identified by a sorted triple of vertex
+    // indices
     using TriKey = std::tuple<unsigned int, unsigned int, unsigned int>;
 
     struct RawFace3
@@ -310,14 +315,15 @@ private:
     // Local face k uses the 3 vertices that are NOT vertex k.
     // face 0: v1,v2,v3   face 1: v0,v2,v3   face 2: v0,v1,v3   face 3: v0,v1,v2
     constexpr unsigned int face_verts[4][3] = {
-      {1,2,3}, {0,2,3}, {0,1,3}, {0,1,2}
+      { 1, 2, 3 }, { 0, 2, 3 }, { 0, 1, 3 }, { 0, 1, 2 }
     };
 
     std::vector<std::array<FaceIndexType, 4>> cell_face_ids(n_cells);
 
     for (unsigned int c = 0; c < n_cells; ++c) {
-      const unsigned int vi[4] = { data_.node_1[c], data_.node_2[c],
-                                   data_.node_3[c], data_.node_4[c] };
+      const unsigned int vi[4] = {
+        data_.node_1[c], data_.node_2[c], data_.node_3[c], data_.node_4[c]
+      };
 
       for (unsigned int lf = 0; lf < 4; ++lf) {
         unsigned int a = vi[face_verts[lf][0]];
@@ -325,10 +331,13 @@ private:
         unsigned int cc = vi[face_verts[lf][2]];
 
         // Sort for canonical key
-        unsigned int s[3] = {a, b, cc};
-        if (s[0] > s[1]) std::swap(s[0], s[1]);
-        if (s[1] > s[2]) std::swap(s[1], s[2]);
-        if (s[0] > s[1]) std::swap(s[0], s[1]);
+        unsigned int s[3] = { a, b, cc };
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
+        if (s[1] > s[2])
+          std::swap(s[1], s[2]);
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
         const TriKey key = { s[0], s[1], s[2] };
 
         auto it = tri_to_face.find(key);
@@ -338,7 +347,9 @@ private:
           cell_face_ids[c][lf] = face_index;
           tri_to_face[key] = face_index;
           RawFace3 rf;
-          rf.v0 = a; rf.v1 = b; rf.v2 = cc;
+          rf.v0 = a;
+          rf.v1 = b;
+          rf.v2 = cc;
           rf.cells[0] = static_cast<CellIndexType>(c);
           raw_faces.push_back(rf);
         } else {
@@ -357,7 +368,8 @@ private:
     }
 
     for (auto& rf : raw_faces) {
-      if (rf.cells[1] != CellIndexType(-1)) continue;
+      if (rf.cells[1] != CellIndexType(-1))
+        continue;
 
       const auto a = rf.v0, b = rf.v1, cc = rf.v2;
 
@@ -366,10 +378,13 @@ private:
         unsigned int pa = periodic_nodes[a];
         unsigned int pb = periodic_nodes[b];
         unsigned int pc = periodic_nodes[cc];
-        unsigned int s[3] = {pa, pb, pc};
-        if (s[0] > s[1]) std::swap(s[0], s[1]);
-        if (s[1] > s[2]) std::swap(s[1], s[2]);
-        if (s[0] > s[1]) std::swap(s[0], s[1]);
+        unsigned int s[3] = { pa, pb, pc };
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
+        if (s[1] > s[2])
+          std::swap(s[1], s[2]);
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
         const TriKey key = { s[0], s[1], s[2] };
         auto it = tri_to_face.find(key);
         if (it != tri_to_face.end()) {
@@ -387,13 +402,16 @@ private:
       for (unsigned int g = 0; g < data_.n_boundary_groups; ++g) {
         const BoundaryIdType bid = static_cast<BoundaryIdType>(g + 1);
         for (unsigned int i = 0; i < data_.boundary_group_n_faces[g]; ++i) {
-          const unsigned int a  = data_.boundary_node_1[offset + i];
-          const unsigned int b  = data_.boundary_node_2[offset + i];
+          const unsigned int a = data_.boundary_node_1[offset + i];
+          const unsigned int b = data_.boundary_node_2[offset + i];
           const unsigned int cc = data_.boundary_node_3[offset + i];
-          unsigned int s[3] = {a, b, cc};
-          if (s[0] > s[1]) std::swap(s[0], s[1]);
-          if (s[1] > s[2]) std::swap(s[1], s[2]);
-          if (s[0] > s[1]) std::swap(s[0], s[1]);
+          unsigned int s[3] = { a, b, cc };
+          if (s[0] > s[1])
+            std::swap(s[0], s[1]);
+          if (s[1] > s[2])
+            std::swap(s[1], s[2]);
+          if (s[0] > s[1])
+            std::swap(s[0], s[1]);
           const TriKey key = { s[0], s[1], s[2] };
           auto it = tri_to_face.find(key);
           ASSERT(it != tri_to_face.end(),
@@ -446,9 +464,16 @@ private:
         const unsigned int neighbor = raw_faces[f].neighbor;
         // Offset = centroid of neighbor face minus centroid of this face
         for (unsigned int d = 0; d < 3; ++d) {
-          const double* coord = (d==0?data_.x.data():d==1?data_.y.data():data_.z.data());
-          const double mc0 = (coord[raw_faces[f].v0]  + coord[raw_faces[f].v1]  + coord[raw_faces[f].v2])  / 3.0;
-          const double mc1 = (coord[raw_faces[neighbor].v0] + coord[raw_faces[neighbor].v1] + coord[raw_faces[neighbor].v2]) / 3.0;
+          const double* coord = (d == 0   ? data_.x.data()
+                                 : d == 1 ? data_.y.data()
+                                          : data_.z.data());
+          const double mc0 = (coord[raw_faces[f].v0] + coord[raw_faces[f].v1] +
+                              coord[raw_faces[f].v2]) /
+                             3.0;
+          const double mc1 =
+            (coord[raw_faces[neighbor].v0] + coord[raw_faces[neighbor].v1] +
+             coord[raw_faces[neighbor].v2]) /
+            3.0;
           tria.periodic_face_offset(f, d) = mc1 - mc0;
         }
       } else {
@@ -457,15 +482,17 @@ private:
       }
 
       uint32_t flags = 0;
-      if (raw_faces[f].is_boundary)  flags |= FaceFlags::Boundary;
-      if (raw_faces[f].is_periodic)  flags |= FaceFlags::Periodic;
+      if (raw_faces[f].is_boundary)
+        flags |= FaceFlags::Boundary;
+      if (raw_faces[f].is_periodic)
+        flags |= FaceFlags::Periodic;
       tria.face_flags(f) = flags;
     }
   }
 };
 
 // ---------------------------------------------------------------------------
-// read_gri implementation for dim == 2
+// read_gri implementation
 // ---------------------------------------------------------------------------
 template<unsigned int dim>
 void
@@ -481,9 +508,9 @@ GriReader<dim>::read_gri(const std::string& filename)
   data_.set_n_elements(dummy);
   in >> dummy;
 
-  ASSERT(data_.n_nodes > 0,    "Number of nodes must be greater than zero.");
+  ASSERT(data_.n_nodes > 0, "Number of nodes must be greater than zero.");
   ASSERT(data_.n_elements > 0, "Number of elements must be greater than zero.");
-  ASSERT(dummy == (int)dim,    "File has different dimension than mesh.");
+  ASSERT(dummy == (int)dim, "File has different dimension than mesh.");
 
   // Node coordinates
   for (unsigned int i = 0; i < data_.n_nodes; ++i) {
@@ -500,15 +527,19 @@ GriReader<dim>::read_gri(const std::string& filename)
     in >> data_.boundary_group_n_faces[i];
     ASSERT(data_.boundary_group_n_faces[i] > 0,
            "Boundary groups must have at least one face");
-    in >> dummy; // nodes per boundary face (dim for 2D edges, dim-1+1=dim for 3D tris)
+    in >> dummy; // nodes per boundary face (dim for 2D edges, dim-1+1=dim for
+                 // 3D tris)
     std::getline(in >> std::ws, data_.boundary_group_names[i]);
 
     // NOTE: 1-based indexing in .gri files
     for (unsigned int j = 0; j < data_.boundary_group_n_faces[i]; ++j) {
-      in >> dummy; data_.boundary_node_1.emplace_back(dummy - 1);
-      in >> dummy; data_.boundary_node_2.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.boundary_node_1.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.boundary_node_2.emplace_back(dummy - 1);
       if constexpr (dim == 3) {
-        in >> dummy; data_.boundary_node_3.emplace_back(dummy - 1);
+        in >> dummy;
+        data_.boundary_node_3.emplace_back(dummy - 1);
       }
     }
   }
@@ -524,11 +555,15 @@ GriReader<dim>::read_gri(const std::string& filename)
   ASSERT(element_group_order == 1, "Only first order elements are supported");
 
   for (unsigned int i = 0; i < data_.n_elements; ++i) {
-    in >> dummy; data_.node_1[i] = dummy - 1;
-    in >> dummy; data_.node_2[i] = dummy - 1;
-    in >> dummy; data_.node_3[i] = dummy - 1;
+    in >> dummy;
+    data_.node_1[i] = dummy - 1;
+    in >> dummy;
+    data_.node_2[i] = dummy - 1;
+    in >> dummy;
+    data_.node_3[i] = dummy - 1;
     if constexpr (dim == 3) {
-      in >> dummy; data_.node_4[i] = dummy - 1;
+      in >> dummy;
+      data_.node_4[i] = dummy - 1;
     }
   }
 
@@ -553,8 +588,10 @@ GriReader<dim>::read_gri(const std::string& filename)
            "Invalid periodicity type " + periodic_group_type);
 
     for (unsigned int j = 0; j < data_.periodic_group_n_nodes[i]; ++j) {
-      in >> dummy; data_.periodic_node_1.emplace_back(dummy - 1);
-      in >> dummy; data_.periodic_node_2.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.periodic_node_1.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.periodic_node_2.emplace_back(dummy - 1);
     }
   }
 }
