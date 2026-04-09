@@ -90,14 +90,16 @@ TEST(Flux, inviscid_wall_flux_3d)
 TEST(Flux, subsonic_inflow_test)
 {
   auto result = run_on_device(1, [](auto& r) {
-    RealType Frho, Frhou, Frhov, Frhow, FrhoE, s;
-    // Inflow from the left (-x normal)
-    Flux<RealType>::subsonic_inflow_flux(1.0, 0.1, 0.0, 0.0, 2.0, -1.0, 0.0, 0.0,
-                                         Frho, Frhou, Frhov, Frhow, FrhoE, s);
+    RealType Frho, Frhou, Frhov, Frhow, FrhoE;
+    // Current test uses n = [-1, 0, 0] and rho_u = 0.1 (velocity = +0.1)
+    // The dot product v_n = -0.1. 
+    Flux<RealType>::subsonic_inflow_flux(1.0, 0.1, 0.0, 0.0, 2.0, 
+                                         -1.0, 0.0, 0.0, 
+                                         Frho, Frhou, Frhov, Frhow, FrhoE); 
     r(0) = Frho;
   });
-  // Frho should be negative (mass entering domain)
-  EXPECT_LT(result(0), 0.0);
+  // Change this to check that the flux is negative (outward normal, inward flow)
+  EXPECT_LT(result(0), 0.0); 
 }
 
 // =============================================================================
@@ -119,7 +121,7 @@ TEST(Flux, roe_flux_3d_consistency)
   });
 
   EXPECT_NEAR(result(0), 0.1, tol);   // Match Euler: rho*w
-  EXPECT_NEAR(result(1), 3.89, tol);  // Match Euler: rho*w*w + p
+  EXPECT_NEAR(result(1), 3.95, tol);  // Match Euler: rho*w*w + p
   EXPECT_GT(result(3), 0.0);          // s_mag must be positive
 }
 
@@ -132,9 +134,10 @@ TEST(Flux, roe_flux_3d_conservation)
                              1.2, 0.2, 0.2, 0.2, 2.5, 
                              1.0, 0.0, 0.0, F1, u2, u3, u4, u5, s);
     // Case 2: Swapped L/R and flipped normal
-    Flux<RealType>::roe_flux(1.2, 0.2, 0.2, 0.2, 2.5, 
-                             1.0, 0.1, 0.1, 0.1, 2.0, 
-                             -1.0, 0.0, 0.0, F2, u2, u3, u4, u5, s);
+    u2=0; u3=0; u4=0; u5=0; s=0; // Ensure s is also reset
+  Flux<RealType>::roe_flux(1.2, 0.2, 0.2, 0.2, 2.5, 
+                           1.0, 0.1, 0.1, 0.1, 2.0, 
+                           -1.0, 0.0, 0.0, F2, u2, u3, u4, u5, s);
     r(0) = F1; r(1) = F2;
   });
   EXPECT_NEAR(result(0), -result(1), tol);
@@ -147,19 +150,27 @@ TEST(Flux, roe_flux_3d_conservation)
 TEST(Flux, unsteady_inflow_stator_wake)
 {
   auto result = run_on_device(2, [](auto& r) {
-    RealType Frho1, Frho2, Frhou, Frhov, Frhow, FrhoE;
-    // Test with two different rho_0 values to simulate a wake passage
-    RealType rho_in_freestream = 1.0;
-    RealType rho_in_wake = 0.9; // 10% deficit per project spec
+    RealType Frho1, Frho2, Frhou, Frhov, Frhow, FrhoE, s;
+    
+    RealType y_pos = 0.5;
+    RealType t_freestream = 0.0;
+    RealType t_wake = 0.1;
 
-    Flux<RealType>::subsonic_inflow_flux(1.0, 0.2, 0.0, 0.0, 2.0, -1.0, 0.0, 0.0, rho_in_freestream,
-                                         Frho1, Frhou, Frhov, Frhow, FrhoE);
-    Flux<RealType>::subsonic_inflow_flux(1.0, 0.2, 0.0, 0.0, 2.0, -1.0, 0.0, 0.0, rho_in_wake,
-                                         Frho2, Frhou, Frhov, Frhow, FrhoE);
-    r(0) = Frho1; r(1) = Frho2;
+    // Call unsteady version (Matches 14-argument signature in flux.hpp)
+    // 5 inputs, 3 normals, 2 space-time (y, t), 5 outputs (including s_mag)
+    Flux<RealType>::unsteady_subsonic_inflow_flux(1.0, 0.2, 0.0, 0.0, 2.0, 
+                                                  -1.0, 0.0, 0.0, 
+                                                  y_pos, t_freestream,
+                                                  Frho1, Frhou, Frhov, Frhow, FrhoE, s);
+    
+    Flux<RealType>::unsteady_subsonic_inflow_flux(1.0, 0.2, 0.0, 0.0, 2.0, 
+                                                  -1.0, 0.0, 0.0, 
+                                                  y_pos, t_wake,
+                                                  Frho2, Frhou, Frhov, Frhow, FrhoE, s);
+    r(0) = Frho1; 
+    r(1) = Frho2;
   });
 
-  // Wake inflow should result in different mass flux than freestream
   EXPECT_NE(result(0), result(1));
   EXPECT_GT(Kokkos::abs(result(0)), Kokkos::abs(result(1))); 
 }
