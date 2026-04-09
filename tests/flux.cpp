@@ -147,15 +147,15 @@ TEST(Flux, roe_flux_3d_conservation)
 TEST(Flux, unsteady_inflow_stator_wake)
 {
   auto result = run_on_device(2, [](auto& r) {
-    RealType Frho1, Frho2, u2, u3, u4, u5, s;
+    RealType Frho1, Frho2, Frhou, Frhov, Frhow, FrhoE;
     // Test with two different rho_0 values to simulate a wake passage
     RealType rho_in_freestream = 1.0;
     RealType rho_in_wake = 0.9; // 10% deficit per project spec
 
     Flux<RealType>::subsonic_inflow_flux(1.0, 0.2, 0.0, 0.0, 2.0, -1.0, 0.0, 0.0, rho_in_freestream,
-                                         Frho1, u2, u3, u4, u5, s);
+                                         Frho1, Frhou, Frhov, Frhow, FrhoE);
     Flux<RealType>::subsonic_inflow_flux(1.0, 0.2, 0.0, 0.0, 2.0, -1.0, 0.0, 0.0, rho_in_wake,
-                                         Frho2, u2, u3, u4, u5, s);
+                                         Frho2, Frhou, Frhov, Frhow, FrhoE);
     r(0) = Frho1; r(1) = Frho2;
   });
 
