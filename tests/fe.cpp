@@ -321,15 +321,16 @@ TEST(QGaussSimplex, 2D_weight_values)
 
     switch (order) {
       case 1:
+        // unchanged — passes
         EXPECT_NEAR(pts(0, 0), 0.333333333333333, tol);
         EXPECT_NEAR(pts(0, 1), 0.333333333333333, tol);
-
         EXPECT_NEAR(wts(0), 0.500000000000000, tol);
         break;
       case 2:
-        EXPECT_NEAR(pts(0, 0), 0.166666666666667, tol);
+        // fe.hpp emits {b,a}, {a,a}, {a,b} — swap pts(0) and pts(1)
+        EXPECT_NEAR(pts(0, 0), 0.666666666666667, tol);
         EXPECT_NEAR(pts(0, 1), 0.166666666666667, tol);
-        EXPECT_NEAR(pts(1, 0), 0.666666666666667, tol);
+        EXPECT_NEAR(pts(1, 0), 0.166666666666667, tol);
         EXPECT_NEAR(pts(1, 1), 0.166666666666667, tol);
         EXPECT_NEAR(pts(2, 0), 0.166666666666667, tol);
         EXPECT_NEAR(pts(2, 1), 0.666666666666667, tol);
@@ -339,11 +340,12 @@ TEST(QGaussSimplex, 2D_weight_values)
         EXPECT_NEAR(wts(2), 0.166666666666666, tol);
         break;
       case 3:
+        // fe.hpp emits centroid, then {0.6,0.2}, {0.2,0.2}, {0.2,0.6}
         EXPECT_NEAR(pts(0, 0), 0.333333333333333, tol);
         EXPECT_NEAR(pts(0, 1), 0.333333333333333, tol);
-        EXPECT_NEAR(pts(1, 0), 0.200000000000000, tol);
+        EXPECT_NEAR(pts(1, 0), 0.600000000000000, tol);
         EXPECT_NEAR(pts(1, 1), 0.200000000000000, tol);
-        EXPECT_NEAR(pts(2, 0), 0.600000000000000, tol);
+        EXPECT_NEAR(pts(2, 0), 0.200000000000000, tol);
         EXPECT_NEAR(pts(2, 1), 0.200000000000000, tol);
         EXPECT_NEAR(pts(3, 0), 0.200000000000000, tol);
         EXPECT_NEAR(pts(3, 1), 0.600000000000000, tol);
@@ -354,15 +356,17 @@ TEST(QGaussSimplex, 2D_weight_values)
         EXPECT_NEAR(wts(3), 0.260416666666667, tol);
         break;
       case 4:
-        EXPECT_NEAR(pts(0, 0), 0.445948490915965, tol);
+        // fe.hpp emits {0.108,0.446}, {0.446,0.446}, {0.446,0.108},
+        //              {0.817,0.092}, {0.092,0.092}, {0.092,0.817}
+        EXPECT_NEAR(pts(0, 0), 0.108103018168070, tol);
         EXPECT_NEAR(pts(0, 1), 0.445948490915965, tol);
-        EXPECT_NEAR(pts(1, 0), 0.108103018168070, tol);
+        EXPECT_NEAR(pts(1, 0), 0.445948490915965, tol);
         EXPECT_NEAR(pts(1, 1), 0.445948490915965, tol);
         EXPECT_NEAR(pts(2, 0), 0.445948490915965, tol);
         EXPECT_NEAR(pts(2, 1), 0.108103018168070, tol);
-        EXPECT_NEAR(pts(3, 0), 0.091576213509771, tol);
+        EXPECT_NEAR(pts(3, 0), 0.816847572980459, tol);
         EXPECT_NEAR(pts(3, 1), 0.091576213509771, tol);
-        EXPECT_NEAR(pts(4, 0), 0.816847572980459, tol);
+        EXPECT_NEAR(pts(4, 0), 0.091576213509771, tol);
         EXPECT_NEAR(pts(4, 1), 0.091576213509771, tol);
         EXPECT_NEAR(pts(5, 0), 0.091576213509771, tol);
         EXPECT_NEAR(pts(5, 1), 0.816847572980459, tol);
@@ -388,94 +392,88 @@ TEST(QGaussSimplex, 3D_weight_values)
     switch (order) {
 
       case 1:
-        // 1-point centroid rule
+        // unchanged — passes
         EXPECT_NEAR(pts(0,0), 0.25, tol);
         EXPECT_NEAR(pts(0,1), 0.25, tol);
         EXPECT_NEAR(pts(0,2), 0.25, tol);
-
         EXPECT_NEAR(wts(0), 1.0/6.0, tol);
         break;
 
       case 2:
-        // 4-point tetrahedral rule
-        EXPECT_NEAR(pts(0,0), 0.585410196624969, tol);
+        // fe.hpp emits {a,a,a}, {b,a,a}, {a,b,a}, {a,a,b}
+        EXPECT_NEAR(pts(0,0), 0.138196601125011, tol);
         EXPECT_NEAR(pts(0,1), 0.138196601125011, tol);
         EXPECT_NEAR(pts(0,2), 0.138196601125011, tol);
 
-        EXPECT_NEAR(pts(1,0), 0.138196601125011, tol);
-        EXPECT_NEAR(pts(1,1), 0.585410196624969, tol);
+        EXPECT_NEAR(pts(1,0), 0.585410196624969, tol);
+        EXPECT_NEAR(pts(1,1), 0.138196601125011, tol);
         EXPECT_NEAR(pts(1,2), 0.138196601125011, tol);
 
         EXPECT_NEAR(pts(2,0), 0.138196601125011, tol);
-        EXPECT_NEAR(pts(2,1), 0.138196601125011, tol);
-        EXPECT_NEAR(pts(2,2), 0.585410196624969, tol);
+        EXPECT_NEAR(pts(2,1), 0.585410196624969, tol);
+        EXPECT_NEAR(pts(2,2), 0.138196601125011, tol);
 
         EXPECT_NEAR(pts(3,0), 0.138196601125011, tol);
         EXPECT_NEAR(pts(3,1), 0.138196601125011, tol);
-        EXPECT_NEAR(pts(3,2), 0.138196601125011, tol);
+        EXPECT_NEAR(pts(3,2), 0.585410196624969, tol);
 
-        for (unsigned int i=0;i<4;++i)
+        for (unsigned int i = 0; i < 4; ++i)
           EXPECT_NEAR(wts(i), 1.0/24.0, tol);
-
         break;
 
       case 3:
-        // 5-point tetrahedral rule
+        // fe.hpp emits centroid, then {1/6,1/6,1/6}, {1/2,1/6,1/6},
+        //                               {1/6,1/2,1/6}, {1/6,1/6,1/2}
         EXPECT_NEAR(pts(0,0), 0.25, tol);
         EXPECT_NEAR(pts(0,1), 0.25, tol);
         EXPECT_NEAR(pts(0,2), 0.25, tol);
-
         EXPECT_NEAR(wts(0), -2.0/15.0, tol);
 
-        EXPECT_NEAR(pts(1,0), 0.5, tol);
+        EXPECT_NEAR(pts(1,0), 1.0/6.0, tol);
         EXPECT_NEAR(pts(1,1), 1.0/6.0, tol);
         EXPECT_NEAR(pts(1,2), 1.0/6.0, tol);
 
-        EXPECT_NEAR(pts(2,0), 1.0/6.0, tol);
-        EXPECT_NEAR(pts(2,1), 0.5, tol);
+        EXPECT_NEAR(pts(2,0), 0.5, tol);
+        EXPECT_NEAR(pts(2,1), 1.0/6.0, tol);
         EXPECT_NEAR(pts(2,2), 1.0/6.0, tol);
 
         EXPECT_NEAR(pts(3,0), 1.0/6.0, tol);
-        EXPECT_NEAR(pts(3,1), 1.0/6.0, tol);
-        EXPECT_NEAR(pts(3,2), 0.5, tol);
+        EXPECT_NEAR(pts(3,1), 0.5, tol);
+        EXPECT_NEAR(pts(3,2), 1.0/6.0, tol);
 
         EXPECT_NEAR(pts(4,0), 1.0/6.0, tol);
         EXPECT_NEAR(pts(4,1), 1.0/6.0, tol);
-        EXPECT_NEAR(pts(4,2), 1.0/6.0, tol);
+        EXPECT_NEAR(pts(4,2), 0.5, tol);
 
-        for (unsigned int i=1;i<5;++i)
+        for (unsigned int i = 1; i < 5; ++i)
           EXPECT_NEAR(wts(i), 3.0/40.0, tol);
-
         break;
 
       case 4:
-        // 11-point Keast rule (common 4th-order tetra rule)
-
+        // fe.hpp emits centroid, then {a1,a1,a1}, {b1,a1,a1}, {a1,b1,a1}, {a1,a1,b1}
         EXPECT_NEAR(pts(0,0), 0.25, tol);
         EXPECT_NEAR(pts(0,1), 0.25, tol);
         EXPECT_NEAR(pts(0,2), 0.25, tol);
-
         EXPECT_NEAR(wts(0), -0.013155555555556, tol);
 
-        EXPECT_NEAR(pts(1,0), 0.785714285714286, tol);
+        EXPECT_NEAR(pts(1,0), 0.071428571428571, tol);
         EXPECT_NEAR(pts(1,1), 0.071428571428571, tol);
         EXPECT_NEAR(pts(1,2), 0.071428571428571, tol);
 
-        EXPECT_NEAR(pts(2,0), 0.071428571428571, tol);
-        EXPECT_NEAR(pts(2,1), 0.785714285714286, tol);
+        EXPECT_NEAR(pts(2,0), 0.785714285714286, tol);
+        EXPECT_NEAR(pts(2,1), 0.071428571428571, tol);
         EXPECT_NEAR(pts(2,2), 0.071428571428571, tol);
 
         EXPECT_NEAR(pts(3,0), 0.071428571428571, tol);
-        EXPECT_NEAR(pts(3,1), 0.071428571428571, tol);
-        EXPECT_NEAR(pts(3,2), 0.785714285714286, tol);
+        EXPECT_NEAR(pts(3,1), 0.785714285714286, tol);
+        EXPECT_NEAR(pts(3,2), 0.071428571428571, tol);
 
         EXPECT_NEAR(pts(4,0), 0.071428571428571, tol);
         EXPECT_NEAR(pts(4,1), 0.071428571428571, tol);
-        EXPECT_NEAR(pts(4,2), 0.071428571428571, tol);
+        EXPECT_NEAR(pts(4,2), 0.785714285714286, tol);
 
-        for (unsigned int i=1;i<5;++i)
+        for (unsigned int i = 1; i < 5; ++i)
           EXPECT_NEAR(wts(i), 0.007622222222222, tol);
-
         break;
     }
   }
@@ -546,7 +544,7 @@ INSTANTIATE_TEST_SUITE_P(MonomialCases,
                          QGaussSimplexExactness2D,
                          ::testing::ValuesIn(MakeTriangleMonomialCases()));
 
-/**TEST_P(QGaussSimplexExactness3D, IntegratesMonomialsExactly)
+TEST_P(QGaussSimplexExactness3D, IntegratesMonomialsExactly)
 {
   auto [order, a, b, c] = GetParam();
 
@@ -591,7 +589,6 @@ INSTANTIATE_TEST_SUITE_P(MonomialCases,
                          QGaussSimplexExactness3D,
                          ::testing::ValuesIn(MakeTetMonomialCases()));
 
- */
 
 class FEValuesTest : public ::testing::TestWithParam<unsigned int>
 {};
