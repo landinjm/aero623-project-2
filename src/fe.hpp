@@ -11,6 +11,337 @@
  * @brief Discontinuous full-order Langrange basis
  */
 template<unsigned int dim, typename RealType>
+class FE_DGLagrangeSimplex
+{
+public:
+  static constexpr unsigned int n_dofs_per_cell(unsigned int p)
+  {
+    unsigned int result = 1;
+    for (unsigned int i = 0; i < dim; ++i) {
+      result = result * (p + 1 + i) / (i + 1);
+    }
+    return result;
+  }
+
+  explicit FE_DGLagrangeSimplex(unsigned int p)
+    : p_(p)
+    , n_dofs_(n_dofs_per_cell(p))
+  {
+    static_assert(dim >= 1 && dim <= 3, "Only dim=1,2,3 supported");
+    nodes_.resize(n_dofs_, std::array<RealType, dim>{});
+    init_nodes();
+    check_basis();
+  }
+
+  unsigned int degree() const { return p_; }
+  unsigned int n_dofs() const { return n_dofs_; }
+
+  RealType shape_value(unsigned int i, const Tensor<1, dim, RealType>& pt) const
+  {
+    ASSERT(i < n_dofs_, "Index out of range");
+    return eval(i, pt);
+  }
+
+  Tensor<1, dim, RealType> shape_gradient(
+    unsigned int i,
+    const Tensor<1, dim, RealType>& pt) const
+  {
+    ASSERT(i < n_dofs_, "Index out of range");
+    return eval_gradient(i, pt);
+  }
+
+  Tensor<1, dim, RealType> node(unsigned int i) const
+  {
+    ASSERT(i < n_dofs_, "Index out of range");
+    Tensor<1, dim, RealType> x;
+    for (unsigned int d = 0; d < dim; ++d) {
+      x(d) = nodes_[i][d];
+    }
+    return x;
+  }
+
+private:
+  unsigned int p_;
+  unsigned int n_dofs_;
+
+  std::vector<std::array<RealType, dim>> nodes_;
+
+  /**
+   * Initialize the equally spaced nodes on the reference simplex
+   */
+  void init_nodes()
+  {
+    // Special case p = 0 has one node at the centroid
+    if (p_ == 0) {
+      for (unsigned int d = 0; d < dim; ++d) {
+        nodes_[0][d] = RealType(1) / RealType(dim + 1);
+      }
+      return;
+    }
+
+    unsigned int idx = 0;
+
+    // For dim = 1 evenly place nodes
+    if constexpr (dim == 1) {
+      for (unsigned int i0 = 0; i0 <= p_; ++i0) {
+        nodes_[idx][0] = RealType(i0) / p_;
+        ++idx;
+      }
+    }
+    // For dim = 2 evenly place nodes in barycentric coords
+    else if constexpr (dim == 2) {
+      for (unsigned int i1 = 0; i1 <= p_; ++i1) {
+        for (unsigned int i0 = 0; i0 <= p_ - i1; ++i0) {
+          nodes_[idx][0] = RealType(i0) / p_;
+          nodes_[idx][1] = RealType(i1) / p_;
+          ++idx;
+        }
+      }
+    }
+    // For dim = 3 evenly placec nodes in barycentric coords
+    else if constexpr (dim == 3) {
+      for (unsigned int i2 = 0; i2 <= p_; ++i2) {
+        for (unsigned int i1 = 0; i1 <= p_ - i2; ++i1) {
+          for (unsigned int i0 = 0; i0 <= p_ - i1 - i2; ++i0) {
+            nodes_[idx][0] = RealType(i0) / p_;
+            nodes_[idx][1] = RealType(i1) / p_;
+            nodes_[idx][2] = RealType(i2) / p_;
+            ++idx;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * @brief 1-D Lagrange basis polynomial
+   */
+  RealType lagrange_1d(unsigned int a, unsigned int deg, RealType t) const
+  {
+    RealType result = RealType(1);
+    for (unsigned int j = 0; j <= deg; ++j) {
+      if (j == a) {
+        continue;
+      }
+      result *= (RealType(deg) * t - RealType(j)) / (RealType(a) - RealType(j));
+    }
+    return result;
+  }
+
+  /**
+   * @brief 1-D gradient of Lagrange basis polynomial
+   */
+  RealType lagrange_1d_deriv(unsigned int a, unsigned int deg, RealType t) const
+  {
+    RealType deriv = RealType(0);
+    for (unsigned int m = 0; m <= deg; ++m) {
+      if (m == a) {
+        continue;
+      }
+      RealType term = RealType(deg) / (RealType(a) - RealType(m));
+      for (unsigned int j = 0; j <= deg; ++j) {
+        if (j == a || j == m) {
+          continue;
+        }
+        term *= (RealType(deg) * t - RealType(j)) / (RealType(a) - RealType(j));
+      }
+      deriv += term;
+    }
+    return deriv;
+  }
+
+  /**
+   * Given an index return the three indices that where used to generate the
+   * evenly spaced nodes.
+   *
+   * These correspond to i0, i1, and i2 above.
+   */
+  std::array<unsigned int, dim> multi_index(unsigned int i) const
+  {
+    std::array<unsigned int, dim> a{};
+    // dim = 1 is a flat index
+    if constexpr (dim == 1) {
+      a[0] = i;
+    }
+    // dim = 2 is barycentric
+    else if constexpr (dim == 2) {
+      unsigned int idx = 0;
+      for (unsigned int i1 = 0; i1 <= p_; ++i1) {
+        for (unsigned int i0 = 0; i0 <= p_ - i1; ++i0, ++idx) {
+          if (idx == i) {
+            a[0] = i0;
+            a[1] = i1;
+            return a;
+          }
+        }
+      }
+    }
+    // dim = 3 is barycentric
+    else if constexpr (dim == 3) {
+      unsigned int idx = 0;
+      for (unsigned int i2 = 0; i2 <= p_; ++i2) {
+        for (unsigned int i1 = 0; i1 <= p_ - i2; ++i1) {
+          for (unsigned int i0 = 0; i0 <= p_ - i1 - i2; ++i0, ++idx) {
+            if (idx == i) {
+              a[0] = i0;
+              a[1] = i1;
+              a[2] = i2;
+              return a;
+            }
+          }
+        }
+      }
+    }
+    return a;
+  }
+
+  /**
+   * Take a point in cartesian space and map it to barycentric space
+   */
+  std::array<RealType, dim + 1> barycentric(
+    const Tensor<1, dim, RealType>& pt) const
+  {
+    std::array<RealType, dim + 1> lam{};
+    RealType sum = RealType(0);
+    for (unsigned int d = 0; d < dim; ++d) {
+      lam[d] = pt(d);
+      sum += pt(d);
+    }
+    lam[dim] = RealType(1) - sum;
+    return lam;
+  }
+
+  RealType eval(unsigned int i, const Tensor<1, dim, RealType>& pt) const
+  {
+    // Special case p = 0
+    if (p_ == 0) {
+      return RealType(1);
+    }
+
+    auto a = multi_index(i);
+    auto lam = barycentric(pt);
+
+    RealType result = RealType(1);
+    unsigned int used = 0;
+    RealType remaining = RealType(1);
+
+    for (unsigned int k = 0; k < dim; ++k) {
+      const unsigned int deg = p_ - used;
+
+      if (remaining < RealType(1e-14)) {
+        if (a[k] != 0) {
+          return RealType(0);
+        }
+      } else {
+        const RealType t = lam[k] / remaining;
+        result *= lagrange_1d(a[k], deg, t);
+      }
+
+      remaining -= lam[k];
+      used += a[k];
+    }
+
+    return result;
+  }
+
+  Tensor<1, dim, RealType> eval_gradient(
+    unsigned int i,
+    const Tensor<1, dim, RealType>& pt) const
+  {
+    // Special case p = 0
+    Tensor<1, dim, RealType> grad;
+    if (p_ == 0) {
+      return grad;
+    }
+
+    auto a = multi_index(i);
+    auto lam = barycentric(pt);
+
+    struct FactorInfo
+    {
+      RealType t;
+      RealType R;
+      RealType L;
+      RealType Ld;
+      unsigned int deg;
+      unsigned int used_before;
+    };
+
+    std::array<FactorInfo, dim> finfo{};
+    unsigned int used = 0;
+    RealType remaining = RealType(1);
+
+    for (unsigned int k = 0; k < dim; ++k) {
+      finfo[k].R = remaining;
+      finfo[k].used_before = used;
+      finfo[k].deg = p_ - used;
+
+      if (remaining < RealType(1e-14)) {
+        finfo[k].t = RealType(0);
+        finfo[k].L = (a[k] == 0) ? RealType(1) : RealType(0);
+        finfo[k].Ld = RealType(0);
+      } else {
+        finfo[k].t = lam[k] / remaining;
+        finfo[k].L = lagrange_1d(a[k], finfo[k].deg, finfo[k].t);
+        finfo[k].Ld = lagrange_1d_deriv(a[k], finfo[k].deg, finfo[k].t);
+      }
+
+      remaining -= lam[k];
+      used += a[k];
+    }
+
+    std::array<RealType, dim + 1> prefix{}, suffix{};
+    prefix[0] = RealType(1);
+    for (unsigned int k = 0; k < dim; ++k) {
+      prefix[k + 1] = prefix[k] * finfo[k].L;
+    }
+
+    suffix[dim] = RealType(1);
+    for (int k = int(dim) - 1; k >= 0; --k) {
+      suffix[k] = suffix[k + 1] * finfo[k].L;
+    }
+
+    for (unsigned int d = 0; d < dim; ++d) {
+      RealType g = RealType(0);
+
+      for (unsigned int k = 0; k < dim; ++k) {
+        if (finfo[k].R < RealType(1e-14)) {
+          continue;
+        }
+
+        RealType dtk_dxd = RealType(0);
+        if (d == k) {
+          dtk_dxd += RealType(1) / finfo[k].R;
+        }
+        if (d < k) {
+          dtk_dxd += lam[k] / (finfo[k].R * finfo[k].R);
+        }
+        RealType dphidk = prefix[k] * finfo[k].Ld * dtk_dxd * suffix[k + 1];
+        g += dphidk;
+      }
+
+      grad(d) = g;
+    }
+
+    return grad;
+  }
+
+  /**
+   * Check for the kronecker delta rule of basis functions
+   */
+  void check_basis() const
+  {
+    for (unsigned int i = 0; i < n_dofs_; ++i) {
+      for (unsigned int j = 0; j < n_dofs_; ++j) {
+        RealType val = eval(i, node(j));
+        RealType expected = (i == j) ? RealType(1) : RealType(0);
+        ASSERT(std::abs(val - expected) < 1.0e-10, "Failed basis check");
+      }
+    }
+  }
+};
+
+template<unsigned int dim, typename RealType>
 class FE_DGQLegendre
 {
 public:
