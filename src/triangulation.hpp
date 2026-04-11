@@ -184,13 +184,35 @@ public:
 
   double measure() const
   {
-    if constexpr (dim == 2) {
+    if constexpr (dim == 1) {
+      const auto v0 = vertex(0);
+      const auto v1 = vertex(1);
+
+      return Kokkos::abs(v1[0] - v0[0]);
+    } else if constexpr (dim == 2) {
       const auto v0 = vertex(0);
       const auto v1 = vertex(1);
       const auto v2 = vertex(2);
+
       const double a0 = v1[0] - v0[0], a1 = v1[1] - v0[1];
       const double b0 = v2[0] - v0[0], b1 = v2[1] - v0[1];
+
       return 0.5 * Kokkos::abs(a0 * b1 - a1 * b0);
+    } else if constexpr (dim == 3) {
+      const auto v0 = vertex(0);
+      const auto v1 = vertex(1);
+      const auto v2 = vertex(2);
+      const auto v3 = vertex(3);
+
+      const double a0 = v1[0] - v0[0], a1 = v1[1] - v0[1], a2 = v1[2] - v0[2];
+      const double b0 = v2[0] - v0[0], b1 = v2[1] - v0[1], b2 = v2[2] - v0[2];
+      const double c0 = v3[0] - v0[0], c1 = v3[1] - v0[1], c2 = v3[2] - v0[2];
+
+      const double bxc0 = b1 * c2 - b2 * c1;
+      const double bxc1 = b2 * c0 - b0 * c2;
+      const double bxc2 = b0 * c1 - b1 * c0;
+
+      return (1.0 / 6.0) * Kokkos::abs(a0 * bxc0 + a1 * bxc1 + a2 * bxc2);
     }
     return 0.0;
   }
@@ -305,9 +327,11 @@ struct FaceAccessor
     const auto neighbor_cell_idx = tria->face_cells(neighbor_face_idx, 0);
     const auto neighbor_cell = tria->get_cell(neighbor_cell_idx);
 
-    for (LocalIndexType lf = 0; lf < Topo::faces_per_cell; ++lf)
-      if (neighbor_cell.face_index(lf) == neighbor_face_idx)
+    for (LocalIndexType lf = 0; lf < Topo::faces_per_cell; ++lf) {
+      if (neighbor_cell.face_index(lf) == neighbor_face_idx) {
         return lf;
+      }
+    }
 
     ASSERT(false, "Could not find periodic neighbor face index");
     return 0;
@@ -324,11 +348,27 @@ struct FaceAccessor
 
   double measure() const
   {
-    if constexpr (dim == 2) {
+    if constexpr (dim == 1) {
+      return 1.0;
+    } else if constexpr (dim == 2) {
       const auto v0 = vertex(0);
       const auto v1 = vertex(1);
+
       const auto e = v1 - v0;
+
       return Kokkos::sqrt(e(0) * e(0) + e(1) * e(1));
+    } else if constexpr (dim == 3) {
+      const auto v0 = vertex(0);
+      const auto v1 = vertex(1);
+      const auto v2 = vertex(2);
+
+      const double a0 = v1[0] - v0[0], a1 = v1[1] - v0[1], a2 = v1[2] - v0[2];
+      const double b0 = v2[0] - v0[0], b1 = v2[1] - v0[1], b2 = v2[2] - v0[2];
+
+      const double cx = a1 * b2 - a2 * b1;
+      const double cy = a2 * b0 - a0 * b2;
+      const double cz = a0 * b1 - a1 * b0;
+      return 0.5 * Kokkos::sqrt(cx * cx + cy * cy + cz * cz);
     }
     return 0.0;
   }
@@ -337,15 +377,37 @@ struct FaceAccessor
   {
     Tensor<1, dim, double> n;
 
+    if constexpr (dim == 1) {
+      n(0) = 1.0;
+    }
     if constexpr (dim == 2) {
       const auto v0 = vertex(0);
       const auto v1 = vertex(1);
+
       const auto e = v1 - v0;
 
       const double len = Kokkos::sqrt(e(0) * e(0) + e(1) * e(1));
+
       // Rotate tangent 90 degrees to get a candidate normal
       n(0) = e(1) / len;
       n(1) = -e(0) / len;
+    } else if constexpr (dim == 3) {
+      const auto v0 = vertex(0);
+      const auto v1 = vertex(1);
+      const auto v2 = vertex(2);
+
+      const double a0 = v1[0] - v0[0], a1 = v1[1] - v0[1], a2 = v1[2] - v0[2];
+      const double b0 = v2[0] - v0[0], b1 = v2[1] - v0[1], b2 = v2[2] - v0[2];
+
+      const double cx = a1 * b2 - a2 * b1;
+      const double cy = a2 * b0 - a0 * b2;
+      const double cz = a0 * b1 - a1 * b0;
+
+      const double len = Kokkos::sqrt(cx * cx + cy * cy + cz * cz);
+
+      n(0) = cx / len;
+      n(1) = cy / len;
+      n(2) = cz / len;
     }
 
     // Orient away from owner cell center
