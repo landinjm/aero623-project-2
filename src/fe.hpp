@@ -770,23 +770,25 @@ private:
         break;
       }
       case 4: {
-        // 11-point, exact degree 4 (Keast rule)
-        const RealType a1 = 0.0714285714285714;
-        const RealType b1 = 0.7142857142857143;
-        const RealType a2 = 0.0990169452354533;
-        const RealType b2 = 0.7029490017670679;
-        const RealType a3 = 0.4319580241992353;
-        const RealType b3 = 0.1021489756935209;
+        const RealType a1 = 0.0714285714285714;   // (1/14)
+        const RealType b1 = 1.0 - 3.0*a1;         // 11/14
+        const RealType a2 = 0.3994035761667992;
+        const RealType b2 = 1.0 - 3.0*a2;         // = 1 - 3*a2, but this is a 6-orbit
+        // For the 6-orbit, barycentric coords are permutations of (a2, a2, b2, b2)
+        // with a2+a2+b2+b2 = 1, so b2 = 0.5 - a2
+        const RealType c2 = 0.5 - a2;             // ~0.1005964...
         const RealType w0 = -0.013155555555556;
         const RealType w1 =  0.007622222222222;
         const RealType w2 =  0.024888888888889;
         pts = {
-          { { 0.25, 0.25, 0.25 } },
-          { { a1,a1,a1 } }, { { b1,a1,a1 } }, { { a1,b1,a1 } }, { { a1,a1,b1 } },
-          { { a2,a2,b2 } }, { { a2,b2,a2 } }, { { b2,a2,a2 } },
-          { { a3,a3,b3 } }, { { a3,b3,a3 } }, { { b3,a3,a3 } }
+          { { 0.25,  0.25,  0.25  } },
+          // 4-orbit: permutations of (a1,a1,a1,b1)
+          { { a1, a1, a1 } }, { { b1, a1, a1 } }, { { a1, b1, a1 } }, { { a1, a1, b1 } },
+          // 6-orbit: permutations of (a2,a2,c2,c2) — all 6 permutations
+          { { a2, a2, c2 } }, { { a2, c2, a2 } }, { { c2, a2, a2 } },
+          { { a2, c2, c2 } }, { { c2, a2, c2 } }, { { c2, c2, a2 } }
         };
-        wts = { w0, w1,w1,w1,w1, w2,w2,w2, w2,w2,w2 };
+        wts = { w0, w1,w1,w1,w1, w2,w2,w2,w2,w2,w2 };
         break;
       }
       case 5: {
@@ -894,147 +896,106 @@ public:
     , n_dofs_(fe.n_dofs())
     , n_q_(quad.n_points())
   {
-    JxW_ = Kokkos::View<RealType*, Layout, HostMemSpace>("JxW", n_q_);
-    q_point_ =
-      Kokkos::View<RealType**, Layout, HostMemSpace>("q_point", n_q_, dim);
-    phi_ = Kokkos::View<RealType**, Layout, HostMemSpace>("phi", n_dofs_, n_q_);
-    grad_phi_ = Kokkos::View<RealType***, Layout, HostMemSpace>(
-      "grad_phi", n_dofs_, n_q_, dim);
+    JxW_      = Kokkos::View<RealType*,   Layout, HostMemSpace>("JxW",      n_q_);
+    q_point_  = Kokkos::View<RealType**,  Layout, HostMemSpace>("q_point",  n_q_, dim);
+    phi_      = Kokkos::View<RealType**,  Layout, HostMemSpace>("phi",      n_dofs_, n_q_);
+    grad_phi_ = Kokkos::View<RealType***, Layout, HostMemSpace>("grad_phi", n_dofs_, n_q_, dim);
   }
-
+ 
   /**
-   * @brief Reinit the cell so JxW and quadrature point values reflect the
-   * real geometry.
+   * @brief Reinitialise for @p cell so that JxW, quadrature points, shape
+   * values, and physical gradients reflect the real cell geometry.
+   *
+   * The affine map from the reference simplex to the physical cell is
+   *
+   *   x(xi) = x0 + J * xi,   J_dk = vertex_{k+1}(d) - vertex_0(d)
+   *
+   * Physical gradients are obtained via the covariant (inverse-transpose)
+   * push-forward:  grad_phi_phys = J^{-T} * grad_phi_ref.
    */
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell)
   {
     static_assert(dim == 2 || dim == 3);
-
-    if constexpr (dim == 2) {
-      RealType J[2][2], x0[2];
-      for (unsigned int d = 0; d < 2; ++d)
-        x0[d] = cell.vertex(0)(d);
-      for (unsigned int d = 0; d < 2; ++d) {
-        J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
-        J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
-      }
-      const RealType det_J = J[0][0]*J[1][1] - J[0][1]*J[1][0];
-      const RealType J_inv[2][2] = { { J[1][1]/det_J, -J[0][1]/det_J },
-                                     { -J[1][0]/det_J, J[0][0]/det_J } };
-
-      ASSERT(det_J > 0,
-             "Negative Jacobian on cell " + std::to_string(cell.index()) +
-               ", det_J = " + std::to_string(det_J));
-
-      for (unsigned int q = 0; q < n_q_; ++q) {
-        const auto xi = quad_.point(q);
-        const RealType xv = xi(0), yv = xi(1);
-        ASSERT(xv >= -1e-10 && yv >= -1e-10 && xv+yv <= 1.0+1e-10,
-               "Quadrature point outside reference triangle: (" +
-                 std::to_string(xv) + ", " + std::to_string(yv) + ")");
-      }
-
-      for (unsigned int q = 0; q < n_q_; ++q) {
-        JxW_(q) = std::abs(det_J) * quad_.weight(q);
-        const auto xi = quad_.point(q);
-        for (unsigned int i = 0; i < n_dofs_; ++i) {
-          phi_(i, q) = fe_.shape_value(i, xi);
-          const auto tmp = fe_.shape_gradient(i, xi);
-          for (unsigned int d = 0; d < 2; ++d)
-            grad_phi_(i, q, d) = J_inv[0][d]*tmp(0) + J_inv[1][d]*tmp(1);
-        }
-        for (unsigned int d = 0; d < 2; ++d)
-          q_point_(q, d) = x0[d] + J[d][0]*xi(0) + J[d][1]*xi(1);
-      }
-    }
-
-    if constexpr (dim == 3) {
-      // 3×3 Jacobian: columns are edge vectors from vertex 0
-      RealType J[3][3], x0[3];
-      for (unsigned int d = 0; d < 3; ++d)
-        x0[d] = cell.vertex(0)(d);
-      for (unsigned int d = 0; d < 3; ++d) {
-        J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
-        J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
-        J[d][2] = cell.vertex(3)(d) - cell.vertex(0)(d);
-      }
-
-      const RealType det_J =
-          J[0][0]*(J[1][1]*J[2][2] - J[1][2]*J[2][1])
-        - J[0][1]*(J[1][0]*J[2][2] - J[1][2]*J[2][0])
-        + J[0][2]*(J[1][0]*J[2][1] - J[1][1]*J[2][0]);
-
-      ASSERT(det_J > 0,
-             "Negative Jacobian on cell " + std::to_string(cell.index()) +
-               ", det_J = " + std::to_string(det_J));
-
-      // 3×3 inverse (J^{-T} used for gradient transform)
-      RealType Ji[3][3];
-      Ji[0][0] =  (J[1][1]*J[2][2]-J[1][2]*J[2][1])/det_J;
-      Ji[0][1] = -(J[0][1]*J[2][2]-J[0][2]*J[2][1])/det_J;
-      Ji[0][2] =  (J[0][1]*J[1][2]-J[0][2]*J[1][1])/det_J;
-      Ji[1][0] = -(J[1][0]*J[2][2]-J[1][2]*J[2][0])/det_J;
-      Ji[1][1] =  (J[0][0]*J[2][2]-J[0][2]*J[2][0])/det_J;
-      Ji[1][2] = -(J[0][0]*J[1][2]-J[0][2]*J[1][0])/det_J;
-      Ji[2][0] =  (J[1][0]*J[2][1]-J[1][1]*J[2][0])/det_J;
-      Ji[2][1] = -(J[0][0]*J[2][1]-J[0][1]*J[2][0])/det_J;
-      Ji[2][2] =  (J[0][0]*J[1][1]-J[0][1]*J[1][0])/det_J;
-
-      for (unsigned int q = 0; q < n_q_; ++q) {
-        JxW_(q) = std::abs(det_J) * quad_.weight(q);
-        const auto xi = quad_.point(q);
-        for (unsigned int i = 0; i < n_dofs_; ++i) {
-          phi_(i, q) = fe_.shape_value(i, xi);
-          const auto tmp = fe_.shape_gradient(i, xi);
-          // physical gradient = J^{-T} * ref_gradient
-          for (unsigned int d = 0; d < 3; ++d)
-            grad_phi_(i, q, d) = Ji[0][d]*tmp(0) + Ji[1][d]*tmp(1) + Ji[2][d]*tmp(2);
-        }
-        for (unsigned int d = 0; d < 3; ++d)
-          q_point_(q, d) = x0[d] + J[d][0]*xi(0) + J[d][1]*xi(1) + J[d][2]*xi(2);
+ 
+    // ── Build Jacobian J and reference origin x0 ────────────────────────
+    // J(:, k) = vertex_{k+1} - vertex_0  (columns are edge vectors)
+    Tensor<2, dim, RealType> J;
+    Tensor<1, dim, RealType> x0;
+    for (unsigned int d = 0; d < dim; ++d)
+      x0(d) = cell.vertex(0)(d);
+    for (unsigned int k = 0; k < dim; ++k)
+      for (unsigned int d = 0; d < dim; ++d)
+        J(d, k) = cell.vertex(k + 1)(d) - cell.vertex(0)(d);
+ 
+    const RealType det_J = det(J);
+    ASSERT(det_J > 0,
+           "Negative Jacobian on cell " + std::to_string(cell.index()) +
+             ", det_J = " + std::to_string(det_J));
+ 
+    // J^{-T}: maps reference gradients to physical gradients
+    const Tensor<2, dim, RealType> JinvT = transpose(inverse(J));
+ 
+    // ── Fill per-quadrature-point data ───────────────────────────────────
+    for (unsigned int q = 0; q < n_q_; ++q) {
+      const auto xi = quad_.point(q);   // Tensor<1,dim,RealType>
+ 
+      JxW_(q) = det_J * quad_.weight(q);
+ 
+      // Physical quadrature point:  x = x0 + J * xi
+      const Tensor<1, dim, RealType> x_phys = x0 + J * xi;
+      for (unsigned int d = 0; d < dim; ++d)
+        q_point_(q, d) = x_phys(d);
+ 
+      for (unsigned int i = 0; i < n_dofs_; ++i) {
+        phi_(i, q) = fe_.shape_value(i, xi);
+ 
+        // Physical gradient = J^{-T} * reference gradient
+        const Tensor<1, dim, RealType> grad_phys = JinvT * fe_.shape_gradient(i, xi);
+        for (unsigned int d = 0; d < dim; ++d)
+          grad_phi_(i, q, d) = grad_phys(d);
       }
     }
   }
-
-  unsigned int n_dofs() const { return n_dofs_; }
+ 
+  unsigned int n_dofs()     const { return n_dofs_; }
   unsigned int n_q_points() const { return n_q_; }
-
-  RealType JxW(unsigned int q) { return JxW_(q); };
-
-  Tensor<1, dim, RealType> q_point(unsigned int q)
+ 
+  RealType JxW(unsigned int q) { return JxW_(q); }
+ 
+  Tensor<1, dim, RealType> q_point(unsigned int q) const
   {
     Tensor<1, dim, RealType> p;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       p(d) = q_point_(q, d);
-    }
     return p;
   }
-
+ 
   RealType shape_value(unsigned int i, unsigned int q) { return phi_(i, q); }
-
-  Tensor<1, dim, RealType> shape_gradient(unsigned int i, unsigned int q)
+ 
+  Tensor<1, dim, RealType> shape_gradient(unsigned int i, unsigned int q) const
   {
     Tensor<1, dim, RealType> grad;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       grad(d) = grad_phi_(i, q, d);
-    }
     return grad;
   }
-
+ 
 private:
   const FE_DGQLegendre<dim, RealType>& fe_;
-  const QGaussSimplex<dim, RealType>& quad_;
-
+  const QGaussSimplex<dim, RealType>&  quad_;
+ 
   unsigned int n_dofs_;
   unsigned int n_q_;
-
-  Kokkos::View<RealType*, Layout, HostMemSpace> JxW_;        // [q]
-  Kokkos::View<RealType**, Layout, HostMemSpace> q_point_;   // [q, dim]
-  Kokkos::View<RealType**, Layout, HostMemSpace> phi_;       // [dof, q]
-  Kokkos::View<RealType***, Layout, HostMemSpace> grad_phi_; // [dof, q, dim]
+ 
+  Kokkos::View<RealType*,   Layout, HostMemSpace> JxW_;        // [q]
+  Kokkos::View<RealType**,  Layout, HostMemSpace> q_point_;    // [q, dim]
+  Kokkos::View<RealType**,  Layout, HostMemSpace> phi_;        // [dof, q]
+  Kokkos::View<RealType***, Layout, HostMemSpace> grad_phi_;   // [dof, q, dim]
 };
-
+ 
+// ============================================================================
+ 
 template<unsigned int dim, typename RealType>
 class FEFaceValues
 {
@@ -1046,245 +1007,236 @@ public:
     , n_dofs_(fe.n_dofs())
     , n_q_(quad.n_points())
   {
-    JxW_ = Kokkos::View<RealType*, Layout, HostMemSpace>("JxW", n_q_);
-    q_point_ =
-      Kokkos::View<RealType**, Layout, HostMemSpace>("q_point", n_q_, dim);
-    normal_ =
-      Kokkos::View<RealType**, Layout, HostMemSpace>("normal", n_q_, dim);
-    phi_ = Kokkos::View<RealType**, Layout, HostMemSpace>("phi", n_dofs_, n_q_);
-    grad_phi_ = Kokkos::View<RealType***, Layout, HostMemSpace>(
-      "grad_phi", n_dofs_, n_q_, dim);
+    JxW_      = Kokkos::View<RealType*,   Layout, HostMemSpace>("JxW",      n_q_);
+    q_point_  = Kokkos::View<RealType**,  Layout, HostMemSpace>("q_point",  n_q_, dim);
+    normal_   = Kokkos::View<RealType**,  Layout, HostMemSpace>("normal",   n_q_, dim);
+    phi_      = Kokkos::View<RealType**,  Layout, HostMemSpace>("phi",      n_dofs_, n_q_);
+    grad_phi_ = Kokkos::View<RealType***, Layout, HostMemSpace>("grad_phi", n_dofs_, n_q_, dim);
   }
-
+ 
   /**
-   * @brief Reinit the cell so JxW and quadrature point values reflect the
-   * real geometry.
+   * @brief Reinitialise for face @p face_no of @p cell.
+   *
+   * Face numbering convention (face k is opposite vertex k):
+   *
+   *   2D (triangle): face 0 = edge v1–v2, face 1 = edge v0–v2, face 2 = edge v0–v1
+   *   3D (tet):      face 0 = triangle v1–v2–v3, face 1 = v0–v2–v3,
+   *                  face 2 = v0–v1–v3,           face 3 = v0–v1–v2
+   *
+   * The outward unit normal is obtained via the cofactor (J^{-T}) map applied
+   * to the reference outward normal, then normalised.
+   *
+   * JxW is the physical face measure (length in 2D, area in 3D) times the
+   * quadrature weight.
    */
   template<typename CellAccessor>
-  void reinit(const CellAccessor& cell, unsigned int face)
+  void reinit(const CellAccessor& cell, unsigned int face_no)
   {
     static_assert(dim == 2 || dim == 3);
-
-    ASSERT(face < SimplexTopology<dim>::faces_per_cell,
+ 
+    ASSERT(face_no < SimplexTopology<dim>::faces_per_cell,
            "Local face number must be less than the number of faces per cell");
-
+ 
+    // ── Build Jacobian J and reference origin x0 ────────────────────────
+    Tensor<2, dim, RealType> J;
+    Tensor<1, dim, RealType> x0;
+    for (unsigned int d = 0; d < dim; ++d)
+      x0(d) = cell.vertex(0)(d);
+    for (unsigned int k = 0; k < dim; ++k)
+      for (unsigned int d = 0; d < dim; ++d)
+        J(d, k) = cell.vertex(k + 1)(d) - cell.vertex(0)(d);
+ 
+    const RealType det_J = det(J);
+    ASSERT(det_J > 0,
+           "Negative Jacobian on cell " + std::to_string(cell.index()) +
+             ", det_J = " + std::to_string(det_J));
+ 
+    const Tensor<2, dim, RealType> Jinv  = inverse(J);
+    const Tensor<2, dim, RealType> JinvT = transpose(Jinv);
+ 
     if constexpr (dim == 2) {
-      RealType J[2][2], x0[2];
-      for (unsigned int d = 0; d < 2; ++d)
-        x0[d] = cell.vertex(0)(d);
-      for (unsigned int d = 0; d < 2; ++d) {
-        J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
-        J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
-      }
-      const RealType det_J = J[0][0]*J[1][1] - J[0][1]*J[1][0];
-      const RealType J_inv[2][2] = { { J[1][1]/det_J, -J[0][1]/det_J },
-                                     { -J[1][0]/det_J, J[0][0]/det_J } };
-
-      RealType ref_tangent[2], ref_origin[2], ref_normal[2];
-      switch (face) {
+      // ── Reference face geometry ────────────────────────────────────────
+      // Each face is a line segment parameterised by t in [0,1].
+      // ref_origin + t * ref_tangent traces the edge.
+      // ref_normal points outward on the reference triangle.
+      //
+      // Face 0 (opposite v0): v1 → v2,  ref_n = ( 1,  1) (unnormalised)
+      // Face 1 (opposite v1): v0 → v2,  ref_n = (-1,  0)  (i.e. -xi direction)
+      // Face 2 (opposite v2): v0 → v1,  ref_n = ( 0, -1)  (i.e. -eta direction)
+      Tensor<1, 2, RealType> ref_origin, ref_tangent, ref_normal;
+      switch (face_no) {
         case 0:
-          ref_origin[0]=1.0; ref_origin[1]=0.0;
-          ref_tangent[0]=-1.0; ref_tangent[1]=1.0;
-          ref_normal[0]=1.0; ref_normal[1]=1.0;
+          ref_origin  = {1.0, 0.0};
+          ref_tangent = {-1.0, 1.0};
+          ref_normal  = { 1.0, 1.0};
           break;
         case 1:
-          ref_origin[0]=0.0; ref_origin[1]=1.0;
-          ref_tangent[0]=0.0; ref_tangent[1]=-1.0;
-          ref_normal[0]=-1.0; ref_normal[1]=0.0;
+          ref_origin  = {0.0, 1.0};
+          ref_tangent = { 0.0, -1.0};
+          ref_normal  = {-1.0,  0.0};
+          break;
+        default: // case 2
+          ref_origin  = {0.0, 0.0};
+          ref_tangent = {1.0, 0.0};
+          ref_normal  = {0.0, -1.0};
+          break;
+      }
+ 
+      // Physical tangent: t_phys = J * ref_tangent
+      const Tensor<1, 2, RealType> t_phys = J * ref_tangent;
+      const RealType phys_edge_len = t_phys.norm();
+ 
+      // Outward unit normal via cofactor map: n_phys = J^{-T} * ref_normal
+      const Tensor<1, 2, RealType> n_phys_unnorm = JinvT * ref_normal;
+      const RealType n_mag = n_phys_unnorm.norm();
+ 
+      for (unsigned int q = 0; q < n_q_; ++q) {
+        const RealType t = quad_.point(q)(0);  // 1-D quadrature coordinate
+ 
+        // Map face quadrature point to reference triangle
+        const Tensor<1, 2, RealType> xi = ref_origin + t * ref_tangent;
+ 
+        JxW_(q) = phys_edge_len * quad_.weight(q);
+ 
+        // Physical quadrature point
+        const Tensor<1, 2, RealType> x_phys = x0 + J * xi;
+        for (unsigned int d = 0; d < 2; ++d)
+          q_point_(q, d) = x_phys(d);
+ 
+        for (unsigned int d = 0; d < 2; ++d)
+          normal_(q, d) = n_phys_unnorm(d) / n_mag;
+ 
+        for (unsigned int i = 0; i < n_dofs_; ++i) {
+          phi_(i, q) = fe_.shape_value(i, xi);
+          const Tensor<1, 2, RealType> grad_phys = JinvT * fe_.shape_gradient(i, xi);
+          for (unsigned int d = 0; d < 2; ++d)
+            grad_phi_(i, q, d) = grad_phys(d);
+        }
+      }
+    }
+ 
+    if constexpr (dim == 3) {
+      // ── Reference face geometry ────────────────────────────────────────
+      // Each face is a triangle parameterised by (s, t) with s,t >= 0,
+      // s+t <= 1:  ref_origin + s*ref_t1 + t*ref_t2.
+      // ref_normal points outward on the reference tetrahedron.
+      //
+      // Face k is the triangle opposite vertex k:
+      //   Face 0 (v1,v2,v3): ref_n = ( 1, 1, 1)
+      //   Face 1 (v0,v2,v3): ref_n = (-1, 0, 0)
+      //   Face 2 (v0,v1,v3): ref_n = ( 0,-1, 0)
+      //   Face 3 (v0,v1,v2): ref_n = ( 0, 0,-1)
+      Tensor<1, 3, RealType> ref_orig, ref_t1, ref_t2, ref_normal;
+      switch (face_no) {
+        case 0:
+          ref_orig   = {1.0, 0.0, 0.0};
+          ref_t1     = {-1.0, 1.0, 0.0};
+          ref_t2     = {-1.0, 0.0, 1.0};
+          ref_normal = { 1.0, 1.0, 1.0};
+          break;
+        case 1:
+          ref_orig   = {0.0, 0.0, 0.0};
+          ref_t1     = {0.0, 1.0, 0.0};
+          ref_t2     = {0.0, 0.0, 1.0};
+          ref_normal = {-1.0, 0.0, 0.0};
           break;
         case 2:
-          ref_origin[0]=0.0; ref_origin[1]=0.0;
-          ref_tangent[0]=1.0; ref_tangent[1]=0.0;
-          ref_normal[0]=0.0; ref_normal[1]=-1.0;
+          ref_orig   = {0.0, 0.0, 0.0};
+          ref_t1     = {1.0, 0.0, 0.0};
+          ref_t2     = {0.0, 0.0, 1.0};
+          ref_normal = {0.0, -1.0, 0.0};
+          break;
+        default: // case 3
+          ref_orig   = {0.0, 0.0, 0.0};
+          ref_t1     = {1.0, 0.0, 0.0};
+          ref_t2     = {0.0, 1.0, 0.0};
+          ref_normal = {0.0, 0.0, -1.0};
           break;
       }
-
-      RealType n_phys[2];
-      n_phys[0] = J_inv[0][0]*ref_normal[0] + J_inv[1][0]*ref_normal[1];
-      n_phys[1] = J_inv[0][1]*ref_normal[0] + J_inv[1][1]*ref_normal[1];
-      RealType t_phys[2];
-      t_phys[0] = J[0][0]*ref_tangent[0] + J[0][1]*ref_tangent[1];
-      t_phys[1] = J[1][0]*ref_tangent[0] + J[1][1]*ref_tangent[1];
-      const RealType phys_edge_len = std::sqrt(t_phys[0]*t_phys[0]+t_phys[1]*t_phys[1]);
-      const RealType n_phys_norm   = std::sqrt(n_phys[0]*n_phys[0]+n_phys[1]*n_phys[1]);
-
-      for (unsigned int q = 0; q < n_q_; ++q) {
-        const auto xi_face = quad_.point(q);
-        const RealType t = xi_face(0);
-        RealType xi_ref[2];
-        xi_ref[0] = ref_origin[0] + t*ref_tangent[0];
-        xi_ref[1] = ref_origin[1] + t*ref_tangent[1];
-        Tensor<1, 2, RealType> xi; xi(0)=xi_ref[0]; xi(1)=xi_ref[1];
-
-        JxW_(q) = phys_edge_len * quad_.weight(q);
-        for (unsigned int d = 0; d < 2; ++d)
-          q_point_(q,d) = x0[d] + J[d][0]*xi_ref[0] + J[d][1]*xi_ref[1];
-        for (unsigned int d = 0; d < 2; ++d)
-          normal_(q,d) = n_phys[d] / n_phys_norm;
-        for (unsigned int i = 0; i < n_dofs_; ++i) {
-          phi_(i,q) = fe_.shape_value(i, xi);
-          const auto tmp = fe_.shape_gradient(i, xi);
-          for (unsigned int d = 0; d < 2; ++d)
-            grad_phi_(i,q,d) = J_inv[0][d]*tmp(0) + J_inv[1][d]*tmp(1);
-        }
-      }
-    }
-
-    if constexpr (dim == 3) {
-      // Build 3×3 Jacobian from cell vertices
-      RealType J[3][3], x0[3];
-      for (unsigned int d = 0; d < 3; ++d)
-        x0[d] = cell.vertex(0)(d);
-      for (unsigned int d = 0; d < 3; ++d) {
-        J[d][0] = cell.vertex(1)(d) - cell.vertex(0)(d);
-        J[d][1] = cell.vertex(2)(d) - cell.vertex(0)(d);
-        J[d][2] = cell.vertex(3)(d) - cell.vertex(0)(d);
-      }
-      const RealType det_J =
-          J[0][0]*(J[1][1]*J[2][2]-J[1][2]*J[2][1])
-        - J[0][1]*(J[1][0]*J[2][2]-J[1][2]*J[2][0])
-        + J[0][2]*(J[1][0]*J[2][1]-J[1][1]*J[2][0]);
-
-      RealType Ji[3][3];
-      Ji[0][0] =  (J[1][1]*J[2][2]-J[1][2]*J[2][1])/det_J;
-      Ji[0][1] = -(J[0][1]*J[2][2]-J[0][2]*J[2][1])/det_J;
-      Ji[0][2] =  (J[0][1]*J[1][2]-J[0][2]*J[1][1])/det_J;
-      Ji[1][0] = -(J[1][0]*J[2][2]-J[1][2]*J[2][0])/det_J;
-      Ji[1][1] =  (J[0][0]*J[2][2]-J[0][2]*J[2][0])/det_J;
-      Ji[1][2] = -(J[0][0]*J[1][2]-J[0][2]*J[1][0])/det_J;
-      Ji[2][0] =  (J[1][0]*J[2][1]-J[1][1]*J[2][0])/det_J;
-      Ji[2][1] = -(J[0][0]*J[2][1]-J[0][1]*J[2][0])/det_J;
-      Ji[2][2] =  (J[0][0]*J[1][1]-J[0][1]*J[1][0])/det_J;
-
-      // Reference tet: v0=(0,0,0), v1=(1,0,0), v2=(0,1,0), v3=(0,0,1)
-      // Face k is opposite vertex k.
-      // We parameterise each face with two reference tangents.
-      RealType ref_orig[3], ref_t1[3], ref_t2[3], ref_n[3];
-      switch (face) {
-        case 0: // opposite v0: triangle v1,v2,v3
-          ref_orig[0]=1.0; ref_orig[1]=0.0; ref_orig[2]=0.0;
-          ref_t1[0]=-1.0; ref_t1[1]=1.0; ref_t1[2]=0.0;
-          ref_t2[0]=-1.0; ref_t2[1]=0.0; ref_t2[2]=1.0;
-          ref_n[0]=1.0; ref_n[1]=1.0; ref_n[2]=1.0;
-          break;
-        case 1: // opposite v1: triangle v0,v2,v3
-          ref_orig[0]=0.0; ref_orig[1]=0.0; ref_orig[2]=0.0;
-          ref_t1[0]=0.0; ref_t1[1]=1.0; ref_t1[2]=0.0;
-          ref_t2[0]=0.0; ref_t2[1]=0.0; ref_t2[2]=1.0;
-          ref_n[0]=-1.0; ref_n[1]=0.0; ref_n[2]=0.0;
-          break;
-        case 2: // opposite v2: triangle v0,v1,v3
-          ref_orig[0]=0.0; ref_orig[1]=0.0; ref_orig[2]=0.0;
-          ref_t1[0]=1.0; ref_t1[1]=0.0; ref_t1[2]=0.0;
-          ref_t2[0]=0.0; ref_t2[1]=0.0; ref_t2[2]=1.0;
-          ref_n[0]=0.0; ref_n[1]=-1.0; ref_n[2]=0.0;
-          break;
-        case 3: // opposite v3: triangle v0,v1,v2
-          ref_orig[0]=0.0; ref_orig[1]=0.0; ref_orig[2]=0.0;
-          ref_t1[0]=1.0; ref_t1[1]=0.0; ref_t1[2]=0.0;
-          ref_t2[0]=0.0; ref_t2[1]=1.0; ref_t2[2]=0.0;
-          ref_n[0]=0.0; ref_n[1]=0.0; ref_n[2]=-1.0;
-          break;
-        default:
-          for(int d=0;d<3;d++) ref_orig[d]=ref_t1[d]=ref_t2[d]=ref_n[d]=0.0;
-      }
-
+ 
       // Physical tangents: t_phys = J * ref_tangent
-      RealType t1p[3], t2p[3];
-      for (unsigned int d = 0; d < 3; ++d) {
-        t1p[d] = J[d][0]*ref_t1[0] + J[d][1]*ref_t1[1] + J[d][2]*ref_t1[2];
-        t2p[d] = J[d][0]*ref_t2[0] + J[d][1]*ref_t2[1] + J[d][2]*ref_t2[2];
-      }
-
-      // Cross product gives un-normalised face area vector
-      RealType cross[3];
-      cross[0] = t1p[1]*t2p[2] - t1p[2]*t2p[1];
-      cross[1] = t1p[2]*t2p[0] - t1p[0]*t2p[2];
-      cross[2] = t1p[0]*t2p[1] - t1p[1]*t2p[0];
-      const RealType cross_mag = std::sqrt(cross[0]*cross[0]+cross[1]*cross[1]+cross[2]*cross[2]);
-
-      // Physical outward normal via cofactor map: n_phys = J^{-T} * ref_n
-      RealType n_phys[3];
-      n_phys[0] = Ji[0][0]*ref_n[0] + Ji[1][0]*ref_n[1] + Ji[2][0]*ref_n[2];
-      n_phys[1] = Ji[0][1]*ref_n[0] + Ji[1][1]*ref_n[1] + Ji[2][1]*ref_n[2];
-      n_phys[2] = Ji[0][2]*ref_n[0] + Ji[1][2]*ref_n[1] + Ji[2][2]*ref_n[2];
-      const RealType n_mag = std::sqrt(n_phys[0]*n_phys[0]+n_phys[1]*n_phys[1]+n_phys[2]*n_phys[2]);
-
-      // 2D quad on the reference triangle face (s,t), s>=0, t>=0, s+t<=1
+      const Tensor<1, 3, RealType> t1_phys = J * ref_t1;
+      const Tensor<1, 3, RealType> t2_phys = J * ref_t2;
+ 
+      // Physical face area vector = t1_phys × t2_phys.
+      // Its magnitude is twice the area of the physical triangle
+      // (the 2-D quadrature weights already integrate over the unit triangle,
+      // so JxW = 0.5 * |cross| * w_q).
+      const Tensor<1, 3, RealType> area_vec = cross(t1_phys, t2_phys);
+      const RealType cross_mag = area_vec.norm();
+ 
+      // Outward unit normal via cofactor map: n_phys = J^{-T} * ref_normal
+      const Tensor<1, 3, RealType> n_phys_unnorm = JinvT * ref_normal;
+      const RealType n_mag = n_phys_unnorm.norm();
+ 
       for (unsigned int q = 0; q < n_q_; ++q) {
-        const auto xi_face = quad_.point(q);
-        const RealType s = xi_face(0), t = xi_face(1);
-
-        RealType xi_ref[3];
+        const RealType s = quad_.point(q)(0);
+        const RealType t = quad_.point(q)(1);
+ 
+        // Map face quadrature point to reference tetrahedron
+        const Tensor<1, 3, RealType> xi = ref_orig + s * ref_t1 + t * ref_t2;
+ 
+        JxW_(q) = RealType(0.5) * cross_mag * quad_.weight(q);
+ 
+        // Physical quadrature point
+        const Tensor<1, 3, RealType> x_phys = x0 + J * xi;
         for (unsigned int d = 0; d < 3; ++d)
-          xi_ref[d] = ref_orig[d] + s*ref_t1[d] + t*ref_t2[d];
-
-        Tensor<1, 3, RealType> xi;
-        xi(0)=xi_ref[0]; xi(1)=xi_ref[1]; xi(2)=xi_ref[2];
-
-        // 0.5 * |cross| because quad_.weight already integrates over a unit triangle
-        JxW_(q) = 0.5 * cross_mag * quad_.weight(q);
-
+          q_point_(q, d) = x_phys(d);
+ 
         for (unsigned int d = 0; d < 3; ++d)
-          q_point_(q,d) = x0[d] + J[d][0]*xi_ref[0] + J[d][1]*xi_ref[1] + J[d][2]*xi_ref[2];
-
-        for (unsigned int d = 0; d < 3; ++d)
-          normal_(q,d) = n_phys[d] / n_mag;
-
+          normal_(q, d) = n_phys_unnorm(d) / n_mag;
+ 
         for (unsigned int i = 0; i < n_dofs_; ++i) {
-          phi_(i,q) = fe_.shape_value(i, xi);
-          const auto tmp = fe_.shape_gradient(i, xi);
+          phi_(i, q) = fe_.shape_value(i, xi);
+          const Tensor<1, 3, RealType> grad_phys = JinvT * fe_.shape_gradient(i, xi);
           for (unsigned int d = 0; d < 3; ++d)
-            grad_phi_(i,q,d) = Ji[0][d]*tmp(0) + Ji[1][d]*tmp(1) + Ji[2][d]*tmp(2);
+            grad_phi_(i, q, d) = grad_phys(d);
         }
       }
     }
   }
-
-  unsigned int n_dofs() const { return n_dofs_; }
+ 
+  unsigned int n_dofs()     const { return n_dofs_; }
   unsigned int n_q_points() const { return n_q_; }
-
-  RealType JxW(unsigned int q) { return JxW_(q); };
-
-  Tensor<1, dim, RealType> q_point(unsigned int q)
+ 
+  RealType JxW(unsigned int q) { return JxW_(q); }
+ 
+  Tensor<1, dim, RealType> q_point(unsigned int q) const
   {
     Tensor<1, dim, RealType> p;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       p(d) = q_point_(q, d);
-    }
     return p;
   }
-
+ 
   Tensor<1, dim, RealType> normal(unsigned int q) const
   {
     Tensor<1, dim, RealType> n;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       n(d) = normal_(q, d);
-    }
     return n;
   }
-
+ 
   RealType shape_value(unsigned int i, unsigned int q) { return phi_(i, q); }
-
-  Tensor<1, dim, RealType> shape_gradient(unsigned int i, unsigned int q)
+ 
+  Tensor<1, dim, RealType> shape_gradient(unsigned int i, unsigned int q) const
   {
     Tensor<1, dim, RealType> grad;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       grad(d) = grad_phi_(i, q, d);
-    }
     return grad;
   }
-
+ 
 private:
-  const FE_DGQLegendre<dim, RealType>& fe_;
-  const QGaussSimplex<dim - 1, RealType>& quad_;
-
+  const FE_DGQLegendre<dim, RealType>&      fe_;
+  const QGaussSimplex<dim - 1, RealType>&   quad_;
+ 
   unsigned int n_dofs_;
   unsigned int n_q_;
-
-  Kokkos::View<RealType*, Layout, HostMemSpace> JxW_;        // [q]
-  Kokkos::View<RealType**, Layout, HostMemSpace> q_point_;   // [q, dim]
-  Kokkos::View<RealType**, Layout, HostMemSpace> normal_;    // [q, dim]
-  Kokkos::View<RealType**, Layout, HostMemSpace> phi_;       // [dof, q]
-  Kokkos::View<RealType***, Layout, HostMemSpace> grad_phi_; // [dof, q, dim]
+ 
+  Kokkos::View<RealType*,   Layout, HostMemSpace> JxW_;        // [q]
+  Kokkos::View<RealType**,  Layout, HostMemSpace> q_point_;    // [q, dim]
+  Kokkos::View<RealType**,  Layout, HostMemSpace> normal_;     // [q, dim]
+  Kokkos::View<RealType**,  Layout, HostMemSpace> phi_;        // [dof, q]
+  Kokkos::View<RealType***, Layout, HostMemSpace> grad_phi_;   // [dof, q, dim]
 };

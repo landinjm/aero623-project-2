@@ -10,7 +10,7 @@ template<unsigned int rank, unsigned int dim, typename RealType>
 class Tensor
 {
 public:
-  static constexpr int n_components = []() constexpr {
+  static constexpr unsigned int n_components = []() constexpr {
     unsigned int n = 1;
     for (unsigned int i = 0; i < rank; ++i) {
       n *= dim;
@@ -86,7 +86,7 @@ public:
   KOKKOS_INLINE_FUNCTION
   Tensor& operator+=(const Tensor& other)
   {
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       data_[i] += other.data_[i];
     }
     return *this;
@@ -95,7 +95,7 @@ public:
   KOKKOS_INLINE_FUNCTION
   Tensor& operator-=(const Tensor& other)
   {
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       data_[i] -= other.data_[i];
     }
     return *this;
@@ -104,7 +104,7 @@ public:
   KOKKOS_INLINE_FUNCTION
   Tensor& operator*=(const RealType scalar)
   {
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       data_[i] *= scalar;
     }
     return *this;
@@ -114,7 +114,7 @@ public:
   Tensor& operator/=(const RealType scalar)
   {
     ASSERT(scalar != RealType(0), "Division by zero");
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       data_[i] /= scalar;
     }
     return *this;
@@ -124,7 +124,7 @@ public:
   Tensor operator+(const Tensor& other) const
   {
     Tensor result;
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       result.data_[i] = data_[i] + other.data_[i];
     }
     return result;
@@ -134,7 +134,7 @@ public:
   Tensor operator-(const Tensor& other) const
   {
     Tensor result;
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       result.data_[i] = data_[i] - other.data_[i];
     }
     return result;
@@ -144,7 +144,7 @@ public:
   Tensor operator*(const RealType scalar) const
   {
     Tensor result;
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       result.data_[i] = data_[i] * scalar;
     }
     return result;
@@ -154,7 +154,7 @@ public:
   Tensor operator/(const RealType scalar) const
   {
     Tensor result;
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       result.data_[i] = data_[i] / scalar;
     }
     return result;
@@ -164,7 +164,7 @@ public:
   Tensor operator-() const
   {
     Tensor result;
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       result.data_[i] = -data_[i];
     }
     return result;
@@ -173,7 +173,7 @@ public:
   KOKKOS_INLINE_FUNCTION
   void clear()
   {
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       data_[i] = RealType(0);
     }
   }
@@ -185,7 +185,7 @@ public:
   RealType norm_square() const
   {
     RealType sum = RealType(0);
-    for (int i = 0; i < n_components; ++i) {
+    for (unsigned int i = 0; i < n_components; ++i) {
       sum += data_[i] * data_[i];
     }
     return sum;
@@ -201,98 +201,153 @@ private:
   RealType data_[n_components];
 };
 
-template<int rank, int dim, typename RealType>
+// ── Scalar * Tensor ────────────────────────────────────────────────────────
+
+template<unsigned int rank, unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION Tensor<rank, dim, RealType>
 operator*(RealType scalar, const Tensor<rank, dim, RealType>& t)
 {
   return t * scalar;
 }
 
-template<int dim, typename RealType>
+// ── Rank-1 operations ──────────────────────────────────────────────────────
+
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION RealType
 dot(const Tensor<1, dim, RealType>& a, const Tensor<1, dim, RealType>& b)
 {
   RealType sum = RealType(0);
-  for (int i = 0; i < dim; ++i) {
+  for (unsigned int i = 0; i < dim; ++i) {
     sum += a(i) * b(i);
   }
   return sum;
 }
 
-template<int dim, typename RealType>
+// ── Rank-2 × Rank-1 ────────────────────────────────────────────────────────
+
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION Tensor<1, dim, RealType>
 operator*(const Tensor<2, dim, RealType>& A, const Tensor<1, dim, RealType>& v)
 {
   Tensor<1, dim, RealType> result;
-  for (int i = 0; i < dim; ++i) {
-    for (int j = 0; j < dim; ++j) {
+  for (unsigned int i = 0; i < dim; ++i) {
+    for (unsigned int j = 0; j < dim; ++j) {
       result(i) += A(i, j) * v(j);
     }
   }
   return result;
 }
 
-template<int dim, typename RealType>
+// ── Rank-2 × Rank-2 ────────────────────────────────────────────────────────
+
+template<unsigned int dim, typename RealType>
+KOKKOS_INLINE_FUNCTION Tensor<2, dim, RealType>
+operator*(const Tensor<2, dim, RealType>& A, const Tensor<2, dim, RealType>& B)
+{
+  Tensor<2, dim, RealType> result;
+  for (unsigned int i = 0; i < dim; ++i) {
+    for (unsigned int j = 0; j < dim; ++j) {
+      for (unsigned int k = 0; k < dim; ++k) {
+        result(i, j) += A(i, k) * B(k, j);
+      }
+    }
+  }
+  return result;
+}
+
+// ── Outer product ──────────────────────────────────────────────────────────
+
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION Tensor<2, dim, RealType>
 outer(const Tensor<1, dim, RealType>& a, const Tensor<1, dim, RealType>& b)
 {
   Tensor<2, dim, RealType> result;
-  for (int i = 0; i < dim; ++i) {
-    for (int j = 0; j < dim; ++j) {
+  for (unsigned int i = 0; i < dim; ++i) {
+    for (unsigned int j = 0; j < dim; ++j) {
       result(i, j) = a(i) * b(j);
     }
   }
   return result;
 }
 
-template<int dim, typename RealType>
+// ── Transpose ──────────────────────────────────────────────────────────────
+
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION Tensor<2, dim, RealType>
 transpose(const Tensor<2, dim, RealType>& A)
 {
   Tensor<2, dim, RealType> result;
-  for (int i = 0; i < dim; ++i) {
-    for (int j = 0; j < dim; ++j) {
+  for (unsigned int i = 0; i < dim; ++i) {
+    for (unsigned int j = 0; j < dim; ++j) {
       result(i, j) = A(j, i);
     }
   }
   return result;
 }
 
-template<int dim, typename RealType>
+// ── Trace ──────────────────────────────────────────────────────────────────
+
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION RealType
 trace(const Tensor<2, dim, RealType>& A)
 {
   RealType sum = RealType(0);
-  for (int i = 0; i < dim; ++i) {
+  for (unsigned int i = 0; i < dim; ++i) {
     sum += A(i, i);
   }
   return sum;
 }
 
-template<int dim, typename RealType>
+// ── Double contraction ─────────────────────────────────────────────────────
+
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION RealType
 double_contract(const Tensor<2, dim, RealType>& A,
                 const Tensor<2, dim, RealType>& B)
 {
   RealType sum = RealType(0);
-  for (int i = 0; i < dim; ++i) {
-    for (int j = 0; j < dim; ++j) {
+  for (unsigned int i = 0; i < dim; ++i) {
+    for (unsigned int j = 0; j < dim; ++j) {
       sum += A(i, j) * B(i, j);
     }
   }
   return sum;
 }
 
-// ── dim=3 specialisations ─────────────────────────────────────────────────
+// ── dim=2 specialisations ──────────────────────────────────────────────────
+
+template<typename RealType>
+KOKKOS_INLINE_FUNCTION RealType
+det(const Tensor<2, 2, RealType>& A)
+{
+  return A(0,0)*A(1,1) - A(0,1)*A(1,0);
+}
+
+template<typename RealType>
+KOKKOS_INLINE_FUNCTION Tensor<2, 2, RealType>
+inverse(const Tensor<2, 2, RealType>& A)
+{
+  const RealType d = det(A);
+  ASSERT(d != RealType(0), "Matrix is singular");
+  const RealType inv_d = RealType(1) / d;
+  Tensor<2, 2, RealType> result;
+  result(0,0) =  A(1,1) * inv_d;
+  result(0,1) = -A(0,1) * inv_d;
+  result(1,0) = -A(1,0) * inv_d;
+  result(1,1) =  A(0,0) * inv_d;
+  return result;
+}
+
+// ── dim=3 specialisations ──────────────────────────────────────────────────
 
 template<typename RealType>
 KOKKOS_INLINE_FUNCTION Tensor<1, 3, RealType>
 cross(const Tensor<1, 3, RealType>& a, const Tensor<1, 3, RealType>& b)
 {
   Tensor<1, 3, RealType> result;
-  result(0) = a(1) * b(2) - a(2) * b(1);
-  result(1) = a(2) * b(0) - a(0) * b(2);
-  result(2) = a(0) * b(1) - a(1) * b(0);
+  result(0) = a(1)*b(2) - a(2)*b(1);
+  result(1) = a(2)*b(0) - a(0)*b(2);
+  result(2) = a(0)*b(1) - a(1)*b(0);
   return result;
 }
 
@@ -311,21 +366,16 @@ inverse(const Tensor<2, 3, RealType>& A)
 {
   const RealType d = det(A);
   ASSERT(d != RealType(0), "Matrix is singular");
-
   const RealType inv_d = RealType(1) / d;
   Tensor<2, 3, RealType> result;
-
   result(0,0) =  (A(1,1)*A(2,2) - A(1,2)*A(2,1)) * inv_d;
   result(0,1) = -(A(0,1)*A(2,2) - A(0,2)*A(2,1)) * inv_d;
   result(0,2) =  (A(0,1)*A(1,2) - A(0,2)*A(1,1)) * inv_d;
-
   result(1,0) = -(A(1,0)*A(2,2) - A(1,2)*A(2,0)) * inv_d;
   result(1,1) =  (A(0,0)*A(2,2) - A(0,2)*A(2,0)) * inv_d;
   result(1,2) = -(A(0,0)*A(1,2) - A(0,2)*A(1,0)) * inv_d;
-
   result(2,0) =  (A(1,0)*A(2,1) - A(1,1)*A(2,0)) * inv_d;
   result(2,1) = -(A(0,0)*A(2,1) - A(0,1)*A(2,0)) * inv_d;
   result(2,2) =  (A(0,0)*A(1,1) - A(0,1)*A(1,0)) * inv_d;
-
   return result;
 }

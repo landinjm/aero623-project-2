@@ -19,7 +19,7 @@ exact_tet_integral(unsigned int a, unsigned int b, unsigned int c)
     }
     return f;
   };
-  return factorial(a) * factorial(b) * factorial(b) / factorial(a + b + c + 3);
+  return factorial(a) * factorial(b) * factorial(c) / factorial(a + b + c + 3);
 }
 
 static RealType
@@ -321,18 +321,19 @@ TEST(QGaussSimplex, 2D_weight_values)
 
     switch (order) {
       case 1:
-        EXPECT_NEAR(pts(0, 0), 1.0/3.0, tol);
-        EXPECT_NEAR(pts(0, 1), 1.0/3.0, tol);
+        // unchanged — passes
+        EXPECT_NEAR(pts(0, 0), 0.333333333333333, tol);
+        EXPECT_NEAR(pts(0, 1), 0.333333333333333, tol);
         EXPECT_NEAR(wts(0), 0.500000000000000, tol);
         break;
       case 2:
-        // Order 2: 3-point rule.
-        EXPECT_NEAR(pts(0, 0), 2.0/3.0, tol); 
-        EXPECT_NEAR(pts(0, 1), 1.0/6.0, tol);
-        
-        // Update these two based on your log output:
-        EXPECT_NEAR(pts(1, 0), 1.0/6.0, tol);
-        EXPECT_NEAR(pts(1, 1), 1.0/6.0, tol); // Was 2/3, log says 1/6
+        // fe.hpp emits {b,a}, {a,a}, {a,b} — swap pts(0) and pts(1)
+        EXPECT_NEAR(pts(0, 0), 0.666666666666667, tol);
+        EXPECT_NEAR(pts(0, 1), 0.166666666666667, tol);
+        EXPECT_NEAR(pts(1, 0), 0.166666666666667, tol);
+        EXPECT_NEAR(pts(1, 1), 0.166666666666667, tol);
+        EXPECT_NEAR(pts(2, 0), 0.166666666666667, tol);
+        EXPECT_NEAR(pts(2, 1), 0.666666666666667, tol);
 
         EXPECT_NEAR(pts(2, 0), 1.0/6.0, tol); 
         EXPECT_NEAR(pts(2, 1), 2.0/3.0, tol); // Was 1/6, log says 2/3
@@ -356,15 +357,20 @@ TEST(QGaussSimplex, 2D_weight_values)
           EXPECT_NEAR(wts(i), 0.260416666666667, tol);
         break;
       case 4:
+        // fe.hpp emits {0.108,0.446}, {0.446,0.446}, {0.446,0.108},
+        //              {0.817,0.092}, {0.092,0.092}, {0.092,0.817}
         EXPECT_NEAR(pts(0, 0), 0.108103018168070, tol);
         EXPECT_NEAR(pts(0, 1), 0.445948490915965, tol);
-        
-        // Swapped from previous version based on your fail log
         EXPECT_NEAR(pts(1, 0), 0.445948490915965, tol);
-        EXPECT_NEAR(pts(1, 1), 0.445948490915965, tol); // Index 1,1 is 0.445...
-        
+        EXPECT_NEAR(pts(1, 1), 0.445948490915965, tol);
         EXPECT_NEAR(pts(2, 0), 0.445948490915965, tol);
-        EXPECT_NEAR(pts(2, 1), 0.108103018168070, tol); // Index 2,1 is 0.108...
+        EXPECT_NEAR(pts(2, 1), 0.108103018168070, tol);
+        EXPECT_NEAR(pts(3, 0), 0.816847572980459, tol);
+        EXPECT_NEAR(pts(3, 1), 0.091576213509771, tol);
+        EXPECT_NEAR(pts(4, 0), 0.091576213509771, tol);
+        EXPECT_NEAR(pts(4, 1), 0.091576213509771, tol);
+        EXPECT_NEAR(pts(5, 0), 0.091576213509771, tol);
+        EXPECT_NEAR(pts(5, 1), 0.816847572980459, tol);
 
         EXPECT_NEAR(pts(3, 0), 0.816847572980459, tol);
         EXPECT_NEAR(pts(3, 1), 0.091576213509771, tol);
@@ -390,7 +396,9 @@ TEST(QGaussSimplex, 3D_weight_values)
     auto wts = quad.weights_host();
 
     switch (order) {
+
       case 1:
+        // unchanged — passes
         EXPECT_NEAR(pts(0,0), 0.25, tol);
         EXPECT_NEAR(pts(0,1), 0.25, tol);
         EXPECT_NEAR(pts(0,2), 0.25, tol);
@@ -398,20 +406,35 @@ TEST(QGaussSimplex, 3D_weight_values)
         break;
 
       case 2:
-        // 4-point rule
-        for (int i=0; i<4; ++i) {
-           EXPECT_NEAR(wts(i), 1.0/24.0, tol);
-        }
+        // fe.hpp emits {a,a,a}, {b,a,a}, {a,b,a}, {a,a,b}
+        EXPECT_NEAR(pts(0,0), 0.138196601125011, tol);
+        EXPECT_NEAR(pts(0,1), 0.138196601125011, tol);
+        EXPECT_NEAR(pts(0,2), 0.138196601125011, tol);
+
+        EXPECT_NEAR(pts(1,0), 0.585410196624969, tol);
+        EXPECT_NEAR(pts(1,1), 0.138196601125011, tol);
+        EXPECT_NEAR(pts(1,2), 0.138196601125011, tol);
+
+        EXPECT_NEAR(pts(2,0), 0.138196601125011, tol);
+        EXPECT_NEAR(pts(2,1), 0.585410196624969, tol);
+        EXPECT_NEAR(pts(2,2), 0.138196601125011, tol);
+
+        EXPECT_NEAR(pts(3,0), 0.138196601125011, tol);
+        EXPECT_NEAR(pts(3,1), 0.138196601125011, tol);
+        EXPECT_NEAR(pts(3,2), 0.585410196624969, tol);
+
+        for (unsigned int i = 0; i < 4; ++i)
+          EXPECT_NEAR(wts(i), 1.0/24.0, tol);
         break;
 
       case 3:
-        // 5-point rule: 1 Centroid + 4 Near-vertex points
+        // fe.hpp emits centroid, then {1/6,1/6,1/6}, {1/2,1/6,1/6},
+        //                               {1/6,1/2,1/6}, {1/6,1/6,1/2}
         EXPECT_NEAR(pts(0,0), 0.25, tol);
         EXPECT_NEAR(pts(0,1), 0.25, tol);
         EXPECT_NEAR(pts(0,2), 0.25, tol);
         EXPECT_NEAR(wts(0), -2.0/15.0, tol);
 
-        // Permutations of (1/6, 1/6, 1/6) and (1/2, 1/6, 1/6)
         EXPECT_NEAR(pts(1,0), 1.0/6.0, tol);
         EXPECT_NEAR(pts(1,1), 1.0/6.0, tol);
         EXPECT_NEAR(pts(1,2), 1.0/6.0, tol);
@@ -428,24 +451,35 @@ TEST(QGaussSimplex, 3D_weight_values)
         EXPECT_NEAR(pts(4,1), 1.0/6.0, tol);
         EXPECT_NEAR(pts(4,2), 0.5, tol);
 
-        for (unsigned int i=1; i<5; ++i)
+        for (unsigned int i = 1; i < 5; ++i)
           EXPECT_NEAR(wts(i), 3.0/40.0, tol);
         break;
 
       case 4:
-        // 11-point Keast Rule
+        // fe.hpp emits centroid, then {a1,a1,a1}, {b1,a1,a1}, {a1,b1,a1}, {a1,a1,b1}
         EXPECT_NEAR(pts(0,0), 0.25, tol);
+        EXPECT_NEAR(pts(0,1), 0.25, tol);
+        EXPECT_NEAR(pts(0,2), 0.25, tol);
         EXPECT_NEAR(wts(0), -0.013155555555556, tol);
 
-        // Near-vertex group (Alpha)
         EXPECT_NEAR(pts(1,0), 0.071428571428571, tol);
         EXPECT_NEAR(pts(1,1), 0.071428571428571, tol);
         EXPECT_NEAR(pts(1,2), 0.071428571428571, tol);
 
-        // Near-face group (Beta) - indices may vary, ensure permutations are checked
-        EXPECT_NEAR(pts(2,0), 0.714285714285714, tol);
+        EXPECT_NEAR(pts(2,0), 0.785714285714286, tol);
         EXPECT_NEAR(pts(2,1), 0.071428571428571, tol);
         EXPECT_NEAR(pts(2,2), 0.071428571428571, tol);
+
+        EXPECT_NEAR(pts(3,0), 0.071428571428571, tol);
+        EXPECT_NEAR(pts(3,1), 0.785714285714286, tol);
+        EXPECT_NEAR(pts(3,2), 0.071428571428571, tol);
+
+        EXPECT_NEAR(pts(4,0), 0.071428571428571, tol);
+        EXPECT_NEAR(pts(4,1), 0.071428571428571, tol);
+        EXPECT_NEAR(pts(4,2), 0.785714285714286, tol);
+
+        for (unsigned int i = 1; i < 5; ++i)
+          EXPECT_NEAR(wts(i), 0.007622222222222, tol);
         break;
     }
   }
@@ -516,7 +550,7 @@ INSTANTIATE_TEST_SUITE_P(MonomialCases,
                          QGaussSimplexExactness2D,
                          ::testing::ValuesIn(MakeTriangleMonomialCases()));
 
-/**TEST_P(QGaussSimplexExactness3D, IntegratesMonomialsExactly)
+TEST_P(QGaussSimplexExactness3D, IntegratesMonomialsExactly)
 {
   auto [order, a, b, c] = GetParam();
 
@@ -561,7 +595,6 @@ INSTANTIATE_TEST_SUITE_P(MonomialCases,
                          QGaussSimplexExactness3D,
                          ::testing::ValuesIn(MakeTetMonomialCases()));
 
- */
 
 class FEValuesTest : public ::testing::TestWithParam<unsigned int>
 {};
@@ -694,167 +727,176 @@ INSTANTIATE_TEST_SUITE_P(Orders,
                          FEValuesTest,
                          ::testing::Values(0u, 1u, 2u, 3u));
 
-/**
-TEST_P(FEValuesTest3D, basic)
-{
-  unsigned int problem_degree = GetParam();
+// class FEValuesTest3D : public ::testing::TestWithParam<unsigned int>
+// {};
+ 
 
-  GriReader<3> gri;
-  Triangulation<3> tria;
-  FE_DGQLegendre<3,double> fe(problem_degree);
-
-  QGaussSimplex<3,double> quad(problem_degree+1);
-  QGaussSimplex<2,double> face_quad(problem_degree+1);
-
-  gri.read_gri("../tests/test_3.gri");
-  gri.transfer_to_triangulation(tria);
-
-  DoFHandler<3,double> dof_handler(tria,fe);
-
-  FEValues<3,double> fe_values(fe,quad);
-  FEFaceValues<3,double> fe_face_values(fe,face_quad);
-
-  double tol = 1e-12;
-
-  for (auto cell : dof_handler.active_cell_range()) {
-
-    fe_values.reinit(cell);
-
-    double volume = 0;
-    for (unsigned int q=0;q<fe_values.n_q_points();++q) {
-      double sum = 0;
-
-      volume += fe_values.JxW(q);
-
-      for (unsigned int i=0;i<fe_values.n_dofs();++i)
-        sum += fe_values.shape_value(i,q);
-
-      EXPECT_NEAR(sum,1.0,tol);
-    }
-
-    EXPECT_NEAR(volume, cell.measure(), tol);
-
-    // faces
-    for (unsigned int lf=0; lf<4; ++lf) {
-
-      fe_face_values.reinit(cell,lf);
-
-      double area = 0;
-
-      for (unsigned int q=0;q<fe_face_values.n_q_points();++q) {
-
-        area += fe_face_values.JxW(q);
-
-        auto n = fe_face_values.normal(q);
-        EXPECT_NEAR(n.norm(),1.0,tol);
-      }
-
-      EXPECT_NEAR(area, cell.face(lf).measure(), tol);
-    }
-  }
-}
-
-TEST_P(FEValuesTest3D, advection_residual)
-{
-  unsigned int problem_degree = GetParam();
-
-  GriReader<3> gri;
-  Triangulation<3> tria;
-
-  FE_DGQLegendre<3,double> fe(problem_degree);
-  QGaussSimplex<3,double> quad(problem_degree+1);
-  QGaussSimplex<2,double> face_quad(problem_degree+1);
-
-  gri.read_gri("../tests/test_3.gri");
-  gri.transfer_to_triangulation(tria);
-
-  DoFHandler<3,double> dof_handler(tria,fe);
-
-  FEValues<3,double> fe_values(fe,quad);
-  FEFaceValues<3,double> fe_face_values(fe,face_quad);
-
-  struct TestCase {
-    double a[3];
-    std::function<double(double,double,double)> u;
-  };
-
-  std::vector<TestCase> cases = {
-
-    {{1,0,0}, [](double x,double y,double z){ return y; }},
-    {{0,1,0}, [](double x,double y,double z){ return z; }},
-    {{0,0,1}, [](double x,double y,double z){ return x; }},
-    {{1,1,1}, [](double x,double y,double z){ return x-y; }},
-    {{1,1,0}, [](double x,double y,double z){ return x-y; }}
-  };
-
-  std::vector<uint32_t> dof_indices;
-
-  for (auto& tc : cases) {
-
-    std::vector<double> residual(dof_handler.n_dofs(),0.0);
-
-    for (auto cell : dof_handler.active_cell_range()) {
-
-      fe_values.reinit(cell);
-      cell.get_dof_indices(dof_indices);
-
-      // volume
-      for (unsigned int q=0;q<fe_values.n_q_points();++q) {
-
-        auto p = fe_values.q_point(q);
-        double u_h = tc.u(p(0),p(1),p(2));
-
-        for (unsigned int i=0;i<fe_values.n_dofs();++i) {
-
-          auto grad_v = fe_values.shape_gradient(i,q);
-
-          double a_dot =
-            tc.a[0]*grad_v(0) +
-            tc.a[1]*grad_v(1) +
-            tc.a[2]*grad_v(2);
-
-          residual[dof_indices[i]] +=
-            a_dot * u_h * fe_values.JxW(q);
-        }
-      }
-
-      // faces
-      for (unsigned int lf=0; lf<4; ++lf) {
-
-        fe_face_values.reinit(cell,lf);
-
-        for (unsigned int q=0;q<fe_face_values.n_q_points();++q) {
-
-          auto p = fe_face_values.q_point(q);
-          auto n = fe_face_values.normal(q);
-
-          double a_dot_n =
-            tc.a[0]*n(0) +
-            tc.a[1]*n(1) +
-            tc.a[2]*n(2);
-
-          double u_h = tc.u(p(0),p(1),p(2));
-
-          for (unsigned int i=0;i<fe_face_values.n_dofs();++i) {
-
-            residual[dof_indices[i]] -=
-              fe_face_values.shape_value(i,q)
-              * a_dot_n * u_h * fe_face_values.JxW(q);
-          }
-        }
-      }
-    }
-
-    double max_res = 0;
-    for (auto r : residual)
-      max_res = std::max(max_res,std::abs(r));
-
-    EXPECT_NEAR(max_res,0.0,tol);
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-  Orders,
-  FEValuesTest3D,
-  ::testing::Values(0u,1u,2u,3u));
-  */
+// TEST_P(FEValuesTest3D, basic)
+// {
+//   unsigned int problem_degree = GetParam();
+ 
+//   GriReader<3> gri;
+//   Triangulation<3> tria;
+//   FE_DGQLegendre<3, double> fe(problem_degree);
+//   QGaussSimplex<3, double> quad(problem_degree + 1);
+//   QGaussSimplex<2, double> face_quad(problem_degree + 1);
+ 
+//   gri.read_gri("../tests/test3D.gri");
+//   gri.transfer_to_triangulation(tria);
+ 
+//   DoFHandler<3, double> dof_handler(tria, fe);
+ 
+//   FEValues<3, double>     fe_values(fe, quad);
+//   FEFaceValues<3, double> fe_face_values(fe, face_quad);
+ 
+//   const double tol = 1.0e-12;
+ 
+//   for (auto cell : dof_handler.active_cell_range()) {
+//     // ── Cell checks ───────────────────────────────────────────────────────
+//     // sum(JxW) == cell volume; shape values partition unity at every q-point.
+//     fe_values.reinit(cell);
+ 
+//     double volume = 0.0;
+//     for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
+//       double sum = 0.0;
+//       volume += fe_values.JxW(q);
+//       for (unsigned int i = 0; i < fe_values.n_dofs(); ++i)
+//         sum += fe_values.shape_value(i, q);
+//       EXPECT_NEAR(sum, 1.0, tol);
+//     }
+//     EXPECT_NEAR(volume, cell.measure(), tol);
+ 
+//     // ── Face checks ───────────────────────────────────────────────────────
+//     // sum(JxW) == face area; outward normal is unit length.
+//     for (unsigned int lf = 0; lf < 4; ++lf) {
+//       fe_face_values.reinit(cell, lf);
+ 
+//       double area = 0.0;
+//       for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+//         area += fe_face_values.JxW(q);
+ 
+//         auto n = fe_face_values.normal(q);
+//         EXPECT_NEAR(n.norm(), 1.0, tol);
+//       }
+//       EXPECT_NEAR(area, cell.face(lf).measure(), tol);
+//     }
+//   }
+// }
+ 
+// TEST_P(FEValuesTest3D, advection_residual)
+// {
+//   unsigned int problem_degree = GetParam();
+ 
+//   GriReader<3> gri;
+//   Triangulation<3> tria;
+//   FE_DGQLegendre<3, double> fe(problem_degree);
+//   QGaussSimplex<3, double> quad(problem_degree + 1);
+//   QGaussSimplex<2, double> face_quad(problem_degree + 1);
+ 
+//   gri.read_gri("../tests/test3D.gri");
+//   gri.transfer_to_triangulation(tria);
+ 
+//   DoFHandler<3, double> dof_handler(tria, fe);
+ 
+//   FEValues<3, double>     fe_values(fe, quad);
+//   FEFaceValues<3, double> fe_face_values(fe, face_quad);
+ 
+//   // Each case satisfies a·∇u = 0 exactly, so the DG residual must vanish
+//   // for any u_h that interpolates u exactly (which it does for polynomials
+//   // up to the degree of the FE space).
+//   struct TestCase
+//   {
+//     double a[3];
+//     std::function<double(double, double, double)> u;
+//     std::string name;
+//   };
+ 
+//   std::vector<TestCase> cases = {
+//     // ── Advection along a single axis, u constant in that direction ───────
+//     { {1.0, 0.0, 0.0},
+//       [](double /*x*/, double y, double z) { return y + z; },
+//       "a=(1,0,0) u=y+z" },
+//     { {0.0, 1.0, 0.0},
+//       [](double x, double /*y*/, double z) { return x + z; },
+//       "a=(0,1,0) u=x+z" },
+//     { {0.0, 0.0, 1.0},
+//       [](double x, double y, double /*z*/) { return x + y; },
+//       "a=(0,0,1) u=x+y" },
+ 
+//     // ── Diagonal advection, u chosen so a·∇u = 0 ─────────────────────────
+//     // a=(1,1,0), u=x-y  →  a·∇u = 1-1 = 0
+//     { {1.0, 1.0, 0.0},
+//       [](double x, double y, double /*z*/) { return x - y; },
+//       "a=(1,1,0) u=x-y" },
+//     // a=(1,0,1), u=x-z  →  a·∇u = 1-1 = 0
+//     { {1.0, 0.0, 1.0},
+//       [](double x, double /*y*/, double z) { return x - z; },
+//       "a=(1,0,1) u=x-z" },
+//     // a=(0,1,1), u=y-z  →  a·∇u = 1-1 = 0
+//     { {0.0, 1.0, 1.0},
+//       [](double /*x*/, double y, double z) { return y - z; },
+//       "a=(0,1,1) u=y-z" },
+//     // a=(1,1,1), u=x-y  →  a·∇u = 1-1+0 = 0
+//     { {1.0, 1.0, 1.0},
+//       [](double x, double y, double /*z*/) { return x - y; },
+//       "a=(1,1,1) u=x-y" },
+//     // a=(1,-1,1), u=x+y  →  a·∇u = 1-1+0 = 0  (z-component irrelevant)
+//     { {1.0, -1.0, 1.0},
+//       [](double x, double y, double /*z*/) { return x + y; },
+//       "a=(1,-1,1) u=x+y" },
+//   };
+ 
+//   // Tolerance scales mildly with degree because floating-point cancellation
+//   // grows with the number of quadrature points.
+//   const double tol = 1.0e-10;
+ 
+//   std::vector<uint32_t> dof_indices;
+ 
+//   for (auto& tc : cases) {
+//     std::vector<double> residual(dof_handler.n_dofs(), 0.0);
+ 
+//     for (auto cell : dof_handler.active_cell_range()) {
+//       fe_values.reinit(cell);
+//       cell.get_dof_indices(dof_indices);
+ 
+//       // ── Volume term:  ∫ (a·∇v) u dV ─────────────────────────────────────
+//       for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
+//         auto p   = fe_values.q_point(q);
+//         double u_h = tc.u(p(0), p(1), p(2));
+//         for (unsigned int i = 0; i < fe_values.n_dofs(); ++i) {
+//           auto   grad_v    = fe_values.shape_gradient(i, q);
+//           double a_dot_gv  = tc.a[0]*grad_v(0)
+//                            + tc.a[1]*grad_v(1)
+//                            + tc.a[2]*grad_v(2);
+//           residual[dof_indices[i]] += a_dot_gv * u_h * fe_values.JxW(q);
+//         }
+//       }
+ 
+//       // ── Face terms:  -∫ v (a·n) u dS  (all 4 faces of the tet) ─────────
+//       for (unsigned int lf = 0; lf < 4; ++lf) {
+//         fe_face_values.reinit(cell, lf);
+//         for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+//           auto   p       = fe_face_values.q_point(q);
+//           auto   n       = fe_face_values.normal(q);
+//           double a_dot_n = tc.a[0]*n(0) + tc.a[1]*n(1) + tc.a[2]*n(2);
+//           double u_h     = tc.u(p(0), p(1), p(2));
+//           for (unsigned int i = 0; i < fe_face_values.n_dofs(); ++i)
+//             residual[dof_indices[i]] -= fe_face_values.shape_value(i, q)
+//                                       * a_dot_n * u_h
+//                                       * fe_face_values.JxW(q);
+//         }
+//       }
+//     }
+ 
+//     double max_res = 0.0;
+//     for (unsigned int i = 0; i < dof_handler.n_dofs(); ++i)
+//       max_res = std::max(max_res, std::abs(residual[i]));
+ 
+//     EXPECT_NEAR(max_res, 0.0, tol) << "Failed for case: " << tc.name
+//                                    << " at degree " << problem_degree;
+//   }
+// }
+ 
+// INSTANTIATE_TEST_SUITE_P(Orders,
+//                          FEValuesTest3D,
+//                          ::testing::Values(0u, 1u, 2u, 3u));
