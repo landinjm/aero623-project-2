@@ -8,7 +8,7 @@ TEST(ReadGri3D, BasicParsing)
   GriReader<3> reader;
 
   // Make sure path is correct relative to build directory
-  reader.read_gri("../tests/test3D.gri");
+  reader.read_gri("../tests/test3d.gri");
 
   MeshData data = reader.data();
 
@@ -32,7 +32,7 @@ TEST(ReadGri3D, BasicParsing)
 TEST(ReadGri3D, TransferToTriangulation)
 {
   GriReader<3> reader;
-  reader.read_gri("../tests/test3D.gri");
+  reader.read_gri("../tests/test3d.gri");
 
   Triangulation<3> tria;
 

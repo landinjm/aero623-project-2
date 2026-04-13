@@ -508,7 +508,7 @@ GriReader<dim>::read_gri(const std::string& filename)
   data_.set_n_elements(dummy);
   in >> dummy;
 
-  ASSERT(data_.n_nodes > 0,    "Number of nodes must be greater than zero.");
+  ASSERT(data_.n_nodes > 0, "Number of nodes must be greater than zero.");
   ASSERT(data_.n_elements > 0, "Number of elements must be greater than zero.");
   ASSERT(dummy == (int)dim, "File has different dimension than mesh.");
 
@@ -540,7 +540,6 @@ GriReader<dim>::read_gri(const std::string& filename)
       if constexpr (dim == 3) {
         in >> dummy;
         data_.boundary_node_3.emplace_back(dummy - 1);
-
       }
     }
   }
@@ -565,27 +564,6 @@ GriReader<dim>::read_gri(const std::string& filename)
     if constexpr (dim == 3) {
       in >> dummy;
       data_.node_4[i] = dummy - 1;
-
-      // // Ensure positive orientation: det(J) > 0 where
-      // // J columns are edge vectors from vertex 0.
-      // // If negative, swap node_3 and node_4 to flip orientation.
-      // const unsigned int n0 = data_.node_1[i];
-      // const unsigned int n1 = data_.node_2[i];
-      // const unsigned int n2 = data_.node_3[i];
-      // const unsigned int n3 = data_.node_4[i];
-
-      // // J[:,k] = v_{k+1} - v_0
-      // const double j00 = data_.x[n1]-data_.x[n0], j10 = data_.y[n1]-data_.y[n0], j20 = data_.z[n1]-data_.z[n0];
-      // const double j01 = data_.x[n2]-data_.x[n0], j11 = data_.y[n2]-data_.y[n0], j21 = data_.z[n2]-data_.z[n0];
-      // const double j02 = data_.x[n3]-data_.x[n0], j12 = data_.y[n3]-data_.y[n0], j22 = data_.z[n3]-data_.z[n0];
-
-      // const double det_J = j00 * (j11*j22 - j12*j21)
-      //                   - j01 * (j10*j22 - j12*j20)
-      //                   + j02 * (j10*j21 - j11*j20);
-      // //std::cout << det_J << std::endl;
-
-      // if (det_J < 0.0)
-      //   std::swap(data_.node_3[i], data_.node_4[i]);
     }
   }
 
@@ -610,8 +588,10 @@ GriReader<dim>::read_gri(const std::string& filename)
            "Invalid periodicity type " + periodic_group_type);
 
     for (unsigned int j = 0; j < data_.periodic_group_n_nodes[i]; ++j) {
-      in >> dummy; data_.periodic_node_1.emplace_back(dummy - 1);
-      in >> dummy; data_.periodic_node_2.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.periodic_node_1.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.periodic_node_2.emplace_back(dummy - 1);
     }
   }
 }
