@@ -212,7 +212,7 @@ public:
       const double bxc1 = b2 * c0 - b0 * c2;
       const double bxc2 = b0 * c1 - b1 * c0;
 
-      return (1.0 / 6.0) * Kokkos::abs(a0 * bxc0 + a1 * bxc1 + a2 * bxc2);
+      return 1.0 / 6.0 * Kokkos::abs(a0 * bxc0 + a1 * bxc1 + a2 * bxc2);
     }
     return 0.0;
   }
