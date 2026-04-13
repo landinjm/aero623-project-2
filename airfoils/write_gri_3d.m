@@ -1,4 +1,6 @@
 function write_grid(filename, nodes, elements)
+    % modified write_gri from project 1 to be capable of writing our stl
+    % files
 
     n_nodes = size(nodes, 1);
     n_elements = size(elements, 1);
