@@ -632,15 +632,6 @@ public:
     invm_ = invm.device_inverse();
   }
 
-  double solve(unsigned int max_iter = 100000,
-               RealType cfl = Parameters<RealType>::cfl_max,
-               unsigned int write_interval = 1000,
-               bool use_abs_tol = false,
-               double abs_tol = 1e-5)
-  {
-    return 0.0;
-  }
-
   double solve_steady_state(unsigned int max_iter = 100000,
                             RealType cfl = Parameters<RealType>::cfl_max,
                             unsigned int write_interval = 1000,
@@ -975,54 +966,41 @@ public:
 
         for (unsigned int q = 0; q < n_q_points; ++q) {
           // Reconstruct conservative state at quad point
-          RealType rho = 0;
-          RealType rho_u = 0;
-          RealType rho_v = 0;
-          RealType rho_E = 0;
+          Tensor<1, dim, RealType> rho_v;
+          RealType rho = 0, rho_E = 0;
           for (unsigned int j = 0; j < n_dofs_per_cell; ++j) {
             const RealType phi_j = phi(k, j, q);
             const uint32_t dof_j = indices(k, j);
             rho += d_rho(dof_j) * phi_j;
-            rho_u += d_rho_u(dof_j) * phi_j;
-            rho_v += d_rho_v(dof_j) * phi_j;
+            rho_v(0) += d_rho_u(dof_j) * phi_j;
+            rho_v(1) += d_rho_v(dof_j) * phi_j;
             rho_E += d_rho_E(dof_j) * phi_j;
           }
 
           // Compute primitive variables
-          RealType u = 0, v = 0, p = 0;
-          /*
-Flux<RealType>::conservative_to_primitive(
-rho, rho_u, rho_v, rho_E, u, v, p);*/
+          Tensor<1, dim, RealType> v;
+          RealType p = 0;
+
+          Flux<dim, RealType>::conservative_to_primitive(
+            rho, rho_v, rho_E, v, p);
 
           // x-direction flux
-          RealType Fx_rho, Fx_rho_u, Fx_rho_v, Fx_rho_E;
-          /*
-Flux<RealType>::euler_flux(rho,
-       u,
-       v,
-       p,
-       rho_E,
-       RealType(1),
-       RealType(0),
-       Fx_rho,
-       Fx_rho_u,
-       Fx_rho_v,
-       Fx_rho_E);*/
+          Tensor<1, dim, RealType> Fx_rho_v, nx;
+          RealType Fx_rho, Fx_rho_E;
+
+          nx(0) = RealType(1);
+
+          Flux<dim, RealType>::euler_flux(
+            rho, v, p, rho_E, nx, Fx_rho, Fx_rho_v, Fx_rho_E);
 
           // y-direction flux
-          RealType Fy_rho, Fy_rho_u, Fy_rho_v, Fy_rho_E;
-          /*
-Flux<RealType>::euler_flux(rho,
-       u,
-       v,
-       p,
-       rho_E,
-       RealType(0),
-       RealType(1),
-       Fy_rho,
-       Fy_rho_u,
-       Fy_rho_v,
-       Fy_rho_E);*/
+          Tensor<1, dim, RealType> Fy_rho_v, ny;
+          RealType Fy_rho, Fy_rho_E;
+
+          ny(1) = RealType(1);
+
+          Flux<dim, RealType>::euler_flux(
+            rho, v, p, rho_E, ny, Fy_rho, Fy_rho_v, Fy_rho_E);
 
           // Accumulate
           const RealType jxw = JxW(k, q);
@@ -1030,8 +1008,10 @@ Flux<RealType>::euler_flux(rho,
           const RealType dphi_dy = grad_phi(k, i, q, 1);
 
           local_res_rho -= (dphi_dx * Fx_rho + dphi_dy * Fy_rho) * jxw;
-          local_res_rho_u -= (dphi_dx * Fx_rho_u + dphi_dy * Fy_rho_u) * jxw;
-          local_res_rho_v -= (dphi_dx * Fx_rho_v + dphi_dy * Fy_rho_v) * jxw;
+          local_res_rho_u -=
+            (dphi_dx * Fx_rho_v(0) + dphi_dy * Fy_rho_v(0)) * jxw;
+          local_res_rho_v -=
+            (dphi_dx * Fx_rho_v(1) + dphi_dy * Fy_rho_v(1)) * jxw;
           local_res_rho_E -= (dphi_dx * Fx_rho_E + dphi_dy * Fy_rho_E) * jxw;
         }
 
@@ -1136,50 +1116,50 @@ Flux<RealType>::euler_flux(rho,
     Kokkos::parallel_for(
       "interior_face_residual", n_interior_faces_, KOKKOS_LAMBDA(int f) {
         for (unsigned int q = 0; q < n_q_face; ++q) {
-          const RealType nx = normal(f, q, 0);
-          const RealType ny = normal(f, q, 1);
+          Tensor<1, dim, RealType> n;
+          n(0) = normal(f, q, 0);
+          n(1) = normal(f, q, 1);
           const RealType jxw = JxW(f, q);
 
           // Reconstruct left state
-          RealType rho_L = 0, rho_u_L = 0, rho_v_L = 0, rho_E_L = 0;
+          Tensor<1, dim, RealType> rho_v_L;
+          RealType rho_L = 0, rho_E_L = 0;
           for (unsigned int j = 0; j < n_dofs_per_cell; ++j) {
             const RealType phi_j = phi_L(f, q, j);
             const uint32_t dof_j = dofs_L(f, j);
             rho_L += d_rho(dof_j) * phi_j;
-            rho_u_L += d_rho_u(dof_j) * phi_j;
-            rho_v_L += d_rho_v(dof_j) * phi_j;
+            rho_v_L(0) += d_rho_u(dof_j) * phi_j;
+            rho_v_L(1) += d_rho_v(dof_j) * phi_j;
             rho_E_L += d_rho_E(dof_j) * phi_j;
           }
 
           // Reconstruct right state
-          RealType rho_R = 0, rho_u_R = 0, rho_v_R = 0, rho_E_R = 0;
+          Tensor<1, dim, RealType> rho_v_R;
+          RealType rho_R = 0, rho_E_R = 0;
           for (unsigned int j = 0; j < n_dofs_per_cell; ++j) {
             const RealType phi_j = phi_R(f, q, j);
             const uint32_t dof_j = dofs_R(f, j);
             rho_R += d_rho(dof_j) * phi_j;
-            rho_u_R += d_rho_u(dof_j) * phi_j;
-            rho_v_R += d_rho_v(dof_j) * phi_j;
+            rho_v_R(0) += d_rho_u(dof_j) * phi_j;
+            rho_v_R(1) += d_rho_v(dof_j) * phi_j;
             rho_E_R += d_rho_E(dof_j) * phi_j;
           }
 
           // Numerical flux
-          RealType flux_rho, flux_rho_u, flux_rho_v, flux_rho_E, smag;
-          /*
-Flux<RealType>::roe_flux(rho_L,
-     rho_u_L,
-     rho_v_L,
-     rho_E_L,
-     rho_R,
-     rho_u_R,
-     rho_v_R,
-     rho_E_R,
-     nx,
-     ny,
-     flux_rho,
-     flux_rho_u,
-     flux_rho_v,
-     flux_rho_E,
-     smag);*/
+          Tensor<1, dim, RealType> flux_rho_v;
+          RealType flux_rho, flux_rho_E, smag;
+
+          Flux<dim, RealType>::roe_flux(rho_L,
+                                        rho_v_L,
+                                        rho_E_L,
+                                        rho_R,
+                                        rho_v_R,
+                                        rho_E_R,
+                                        n,
+                                        flux_rho,
+                                        flux_rho_v,
+                                        flux_rho_E,
+                                        smag);
 
           // Scatter to left cell (+flux) and right cell (-flux)
           for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
@@ -1189,13 +1169,13 @@ Flux<RealType>::roe_flux(rho_L,
             const uint32_t dof_i_R = dofs_R(f, i);
 
             Kokkos::atomic_add(&d_res_rho(dof_i_L), phi_i_L * flux_rho);
-            Kokkos::atomic_add(&d_res_rho_u(dof_i_L), phi_i_L * flux_rho_u);
-            Kokkos::atomic_add(&d_res_rho_v(dof_i_L), phi_i_L * flux_rho_v);
+            Kokkos::atomic_add(&d_res_rho_u(dof_i_L), phi_i_L * flux_rho_v(0));
+            Kokkos::atomic_add(&d_res_rho_v(dof_i_L), phi_i_L * flux_rho_v(1));
             Kokkos::atomic_add(&d_res_rho_E(dof_i_L), phi_i_L * flux_rho_E);
 
             Kokkos::atomic_add(&d_res_rho(dof_i_R), -phi_i_R * flux_rho);
-            Kokkos::atomic_add(&d_res_rho_u(dof_i_R), -phi_i_R * flux_rho_u);
-            Kokkos::atomic_add(&d_res_rho_v(dof_i_R), -phi_i_R * flux_rho_v);
+            Kokkos::atomic_add(&d_res_rho_u(dof_i_R), -phi_i_R * flux_rho_v(0));
+            Kokkos::atomic_add(&d_res_rho_v(dof_i_R), -phi_i_R * flux_rho_v(1));
             Kokkos::atomic_add(&d_res_rho_E(dof_i_R), -phi_i_R * flux_rho_E);
           }
         }
@@ -1229,50 +1209,50 @@ Flux<RealType>::roe_flux(rho_L,
     Kokkos::parallel_for(
       "periodic_face_residual", n_periodic_faces_, KOKKOS_LAMBDA(int f) {
         for (unsigned int q = 0; q < n_q_face; ++q) {
-          const RealType nx = normal(f, q, 0);
-          const RealType ny = normal(f, q, 1);
+          Tensor<1, dim, RealType> n;
+          n(0) = normal(f, q, 0);
+          n(1) = normal(f, q, 1);
           const RealType jxw = JxW(f, q);
 
           // Reconstruct left state
-          RealType rho_L = 0, rho_u_L = 0, rho_v_L = 0, rho_E_L = 0;
+          Tensor<1, dim, RealType> rho_v_L;
+          RealType rho_L = 0, rho_E_L = 0;
           for (unsigned int j = 0; j < n_dofs_per_cell; ++j) {
             const RealType phi_j = phi_L(f, q, j);
             const uint32_t dof_j = dofs_L(f, j);
             rho_L += d_rho(dof_j) * phi_j;
-            rho_u_L += d_rho_u(dof_j) * phi_j;
-            rho_v_L += d_rho_v(dof_j) * phi_j;
+            rho_v_L(0) += d_rho_u(dof_j) * phi_j;
+            rho_v_L(1) += d_rho_v(dof_j) * phi_j;
             rho_E_L += d_rho_E(dof_j) * phi_j;
           }
 
           // Reconstruct right state
-          RealType rho_R = 0, rho_u_R = 0, rho_v_R = 0, rho_E_R = 0;
+          Tensor<1, dim, RealType> rho_v_R;
+          RealType rho_R = 0, rho_E_R = 0;
           for (unsigned int j = 0; j < n_dofs_per_cell; ++j) {
             const RealType phi_j = phi_R(f, q, j);
             const uint32_t dof_j = dofs_R(f, j);
             rho_R += d_rho(dof_j) * phi_j;
-            rho_u_R += d_rho_u(dof_j) * phi_j;
-            rho_v_R += d_rho_v(dof_j) * phi_j;
+            rho_v_R(0) += d_rho_u(dof_j) * phi_j;
+            rho_v_R(1) += d_rho_v(dof_j) * phi_j;
             rho_E_R += d_rho_E(dof_j) * phi_j;
           }
 
           // Numerical flux
-          RealType flux_rho, flux_rho_u, flux_rho_v, flux_rho_E, smag;
-          /*
-Flux<RealType>::roe_flux(rho_L,
-     rho_u_L,
-     rho_v_L,
-     rho_E_L,
-     rho_R,
-     rho_u_R,
-     rho_v_R,
-     rho_E_R,
-     nx,
-     ny,
-     flux_rho,
-     flux_rho_u,
-     flux_rho_v,
-     flux_rho_E,
-     smag);*/
+          Tensor<1, dim, RealType> flux_rho_v;
+          RealType flux_rho, flux_rho_E, smag;
+
+          Flux<dim, RealType>::roe_flux(rho_L,
+                                        rho_v_L,
+                                        rho_E_L,
+                                        rho_R,
+                                        rho_v_R,
+                                        rho_E_R,
+                                        n,
+                                        flux_rho,
+                                        flux_rho_v,
+                                        flux_rho_E,
+                                        smag);
 
           // Scatter to left cell (+flux) and right cell (-flux)
           for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
@@ -1282,13 +1262,13 @@ Flux<RealType>::roe_flux(rho_L,
             const uint32_t dof_i_R = dofs_R(f, i);
 
             Kokkos::atomic_add(&d_res_rho(dof_i_L), phi_i_L * flux_rho);
-            Kokkos::atomic_add(&d_res_rho_u(dof_i_L), phi_i_L * flux_rho_u);
-            Kokkos::atomic_add(&d_res_rho_v(dof_i_L), phi_i_L * flux_rho_v);
+            Kokkos::atomic_add(&d_res_rho_u(dof_i_L), phi_i_L * flux_rho_v(0));
+            Kokkos::atomic_add(&d_res_rho_v(dof_i_L), phi_i_L * flux_rho_v(1));
             Kokkos::atomic_add(&d_res_rho_E(dof_i_L), phi_i_L * flux_rho_E);
 
             Kokkos::atomic_add(&d_res_rho(dof_i_R), -phi_i_R * flux_rho);
-            Kokkos::atomic_add(&d_res_rho_u(dof_i_R), -phi_i_R * flux_rho_u);
-            Kokkos::atomic_add(&d_res_rho_v(dof_i_R), -phi_i_R * flux_rho_v);
+            Kokkos::atomic_add(&d_res_rho_u(dof_i_R), -phi_i_R * flux_rho_v(0));
+            Kokkos::atomic_add(&d_res_rho_v(dof_i_R), -phi_i_R * flux_rho_v(1));
             Kokkos::atomic_add(&d_res_rho_E(dof_i_R), -phi_i_R * flux_rho_E);
           }
         }
@@ -1323,104 +1303,44 @@ Flux<RealType>::roe_flux(rho_L,
         const uint32_t id = ids(f);
 
         for (unsigned int q = 0; q < n_q_face; ++q) {
-          const RealType nx = normal(f, q, 0);
-          const RealType ny = normal(f, q, 1);
+          Tensor<1, dim, RealType> n;
+          n(0) = normal(f, q, 0);
+          n(1) = normal(f, q, 1);
           const RealType jxw = JxW(f, q);
 
           // Reconstruct interior state
-          RealType rho_L = 0, rho_u_L = 0, rho_v_L = 0, rho_E_L = 0;
+          Tensor<1, dim, RealType> rho_v_L;
+          RealType rho_L = 0, rho_E_L = 0;
           for (unsigned int j = 0; j < n_dofs_per_cell; ++j) {
             const RealType phi_j = phi(f, q, j);
             const uint32_t dof_j = dofs(f, j);
             rho_L += d_rho(dof_j) * phi_j;
-            rho_u_L += d_rho_u(dof_j) * phi_j;
-            rho_v_L += d_rho_v(dof_j) * phi_j;
+            rho_v_L(0) += d_rho_u(dof_j) * phi_j;
+            rho_v_L(1) += d_rho_v(dof_j) * phi_j;
             rho_E_L += d_rho_E(dof_j) * phi_j;
           }
 
           // Numerical flux
-          RealType flux_rho, flux_rho_u, flux_rho_v, flux_rho_E, smag;
-          /*
-switch (id) {
-case BoundaryId::InviscidWall: {
-Flux<RealType>::inviscid_wall_flux(rho_L,
-                   rho_u_L,
-                   rho_v_L,
-                   rho_E_L,
-                   nx,
-                   ny,
-                   flux_rho,
-                   flux_rho_u,
-                   flux_rho_v,
-                   flux_rho_E,
-                   smag);
-break;
-}
-case BoundaryId::SubsonicInflow: {
-Flux<RealType>::subsonic_inflow_flux(rho_L,
-                     rho_u_L,
-                     rho_v_L,
-                     rho_E_L,
-                     nx,
-                     ny,
-                     flux_rho,
-                     flux_rho_u,
-                     flux_rho_v,
-                     flux_rho_E,
-                     smag);
-break;
-}
-case BoundaryId::SubsonicOutflow: {
-Flux<RealType>::subsonic_outflow_flux(rho_L,
-                      rho_u_L,
-                      rho_v_L,
-                      rho_E_L,
-                      nx,
-                      ny,
-                      flux_rho,
-                      flux_rho_u,
-                      flux_rho_v,
-                      flux_rho_E,
-                      smag);
-break;
-}
-case BoundaryId::UnsteadySubsonicInflow: {
-const RealType y_face = q_point(f, q, 1);
-Flux<RealType>::unsteady_subsonic_inflow_flux(rho_L,
-                              rho_u_L,
-                              rho_v_L,
-                              rho_E_L,
-                              nx,
-                              ny,
-                              y_face,
-                              t,
-                              flux_rho,
-                              flux_rho_u,
-                              flux_rho_v,
-                              flux_rho_E,
-                              smag);
-break;
-}
-default: {
-// Freestream / do-nothing
-Flux<RealType>::roe_flux(rho_L,
-         rho_u_L,
-         rho_v_L,
-         rho_E_L,
-         rho_L,
-         rho_u_L,
-         rho_v_L,
-         rho_E_L,
-         nx,
-         ny,
-         flux_rho,
-         flux_rho_u,
-         flux_rho_v,
-         flux_rho_E,
-         smag);
-break;
-}
-}*/
+          Tensor<1, dim, RealType> flux_rho_v;
+          RealType flux_rho, flux_rho_E, smag;
+
+          switch (id) {
+            default: {
+              // Freestream / do-nothing
+              Flux<dim, RealType>::roe_flux(rho_L,
+                                            rho_v_L,
+                                            rho_E_L,
+                                            rho_L,
+                                            rho_v_L,
+                                            rho_E_L,
+                                            n,
+                                            flux_rho,
+                                            flux_rho_v,
+                                            flux_rho_E,
+                                            smag);
+              break;
+            }
+          }
 
           // Scatter to interior cell only (no neighbor)
           for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
@@ -1428,8 +1348,8 @@ break;
             const uint32_t dof_i = dofs(f, i);
 
             Kokkos::atomic_add(&d_res_rho(dof_i), phi_i * flux_rho);
-            Kokkos::atomic_add(&d_res_rho_u(dof_i), phi_i * flux_rho_u);
-            Kokkos::atomic_add(&d_res_rho_v(dof_i), phi_i * flux_rho_v);
+            Kokkos::atomic_add(&d_res_rho_u(dof_i), phi_i * flux_rho_v(0));
+            Kokkos::atomic_add(&d_res_rho_v(dof_i), phi_i * flux_rho_v(1));
             Kokkos::atomic_add(&d_res_rho_E(dof_i), phi_i * flux_rho_E);
           }
         }
@@ -1520,7 +1440,7 @@ main(int argc, char* argv[])
   {
     GriReader<2> gri;
     Triangulation<2> tria;
-    gri.read_gri("../grids/coarse_local_refinement_2.gri");
+    gri.read_gri("../tests/test_2.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh())
       std::runtime_error("Verify mesh failed");
@@ -1550,118 +1470,18 @@ main(int argc, char* argv[])
       return std::make_tuple(rho, u, v, p);
     };
 
-    // Helper to interpolate between two degrees
-    auto interpolate = [&](unsigned int deg_lo,
-                           unsigned int deg_hi,
-                           const Vector<double, HostMemSpace>& rho_in,
-                           const Vector<double, HostMemSpace>& rhou_in,
-                           const Vector<double, HostMemSpace>& rhov_in,
-                           const Vector<double, HostMemSpace>& rhoE_in,
-                           Vector<double, HostMemSpace>& rho_out,
-                           Vector<double, HostMemSpace>& rhou_out,
-                           Vector<double, HostMemSpace>& rhov_out,
-                           Vector<double, HostMemSpace>& rhoE_out) {
-      FE_DGLagrangeSimplex<2, double> fe_l(deg_lo), fe_h(deg_hi);
-      DoFHandler<2, double> dh_l(tria, fe_l), dh_h(tria, fe_h);
-      interpolate_solution(dh_l,
-                           dh_h,
-                           fe_l,
-                           fe_h,
-                           rho_in.view(),
-                           rhou_in.view(),
-                           rhov_in.view(),
-                           rhoE_in.view(),
-                           rho_out.view(),
-                           rhou_out.view(),
-                           rhov_out.view(),
-                           rhoE_out.view());
-    };
+    constexpr unsigned int degree = 1;
 
-    double abs_tol = 0.0;
-
-    // --- Degree 0 ---
-    FE_DGLagrangeSimplex<2, double> fe0(0);
-    QGaussSimplex<2, double> q0(1);
-    QGaussSimplex<1, double> fq0(1);
+    FE_DGLagrangeSimplex<2, double> fe0(degree);
+    QGaussSimplex<2, double> q0(degree + 1);
+    QGaussSimplex<1, double> fq0(degree + 1);
     DoFHandler<2, double> dh0(tria, fe0);
     FEValues<2, double> fev0(fe0, q0);
     FEFaceValues<2, double> ffev0(fe0, fq0);
-    EulerSolver<2, double> s0(dh0, fev0, ffev0, 0);
+    EulerSolver<2, double> s0(dh0, fev0, ffev0, degree);
     s0.set_initial_condition(ic);
-    abs_tol = s0.solve_steady_state(30000, 0.5, 1000, false, 1.0e-5);
-    s0.write_solution("solution_steady_state_p0.vtu");
-    Vector<double, HostMemSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
-      rhov0(dh0.n_dofs()), rhoE0(dh0.n_dofs());
-    s0.copy_state_to_host(rho0, rhou0, rhov0, rhoE0);
-
-    // --- Degree 1 (seeded from degree 0) ---
-    FE_DGLagrangeSimplex<2, double> fe1(1);
-    QGaussSimplex<2, double> q1(3);
-    QGaussSimplex<1, double> fq1(3);
-    DoFHandler<2, double> dh1(tria, fe1);
-    FEValues<2, double> fev1(fe1, q1);
-    FEFaceValues<2, double> ffev1(fe1, fq1);
-    Vector<double, HostMemSpace> rho1(dh1.n_dofs()), rhou1(dh1.n_dofs()),
-      rhov1(dh1.n_dofs()), rhoE1(dh1.n_dofs());
-    interpolate(0, 1, rho0, rhou0, rhov0, rhoE0, rho1, rhou1, rhov1, rhoE1);
-    EulerSolver<2, double> s1(dh1, fev1, ffev1, 1);
-    s1.set_state_from_host(rho1, rhou1, rhov1, rhoE1);
-    s1.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
-    s1.write_solution("solution_steady_state_p1.vtu");
-    s1.copy_state_to_host(rho1, rhou1, rhov1, rhoE1);
-
-    // --- Degree 2 (seeded from degree 1) ---
-    FE_DGLagrangeSimplex<2, double> fe2(2);
-    QGaussSimplex<2, double> q2(5);
-    QGaussSimplex<1, double> fq2(5);
-    DoFHandler<2, double> dh2(tria, fe2);
-    FEValues<2, double> fev2(fe2, q2);
-    FEFaceValues<2, double> ffev2(fe2, fq2);
-    Vector<double, HostMemSpace> rho2(dh2.n_dofs()), rhou2(dh2.n_dofs()),
-      rhov2(dh2.n_dofs()), rhoE2(dh2.n_dofs());
-    interpolate(1, 2, rho1, rhou1, rhov1, rhoE1, rho2, rhou2, rhov2, rhoE2);
-    EulerSolver<2, double> s2(dh2, fev2, ffev2, 2);
-    s2.set_state_from_host(rho2, rhou2, rhov2, rhoE2);
-    s2.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
-    s2.write_solution("solution_steady_state_p2.vtu");
-    s2.copy_state_to_host(rho2, rhou2, rhov2, rhoE2);
-
-    // --- Degree 3 (seeded from degree 2) ---
-    FE_DGLagrangeSimplex<2, double> fe3(3);
-    QGaussSimplex<2, double> q3(7);
-    QGaussSimplex<1, double> fq3(7);
-    DoFHandler<2, double> dh3(tria, fe3);
-    FEValues<2, double> fev3(fe3, q3);
-    FEFaceValues<2, double> ffev3(fe3, fq3);
-    Vector<double, HostMemSpace> rho3(dh3.n_dofs()), rhou3(dh3.n_dofs()),
-      rhov3(dh3.n_dofs()), rhoE3(dh3.n_dofs());
-    interpolate(2, 3, rho2, rhou2, rhov2, rhoE2, rho3, rhou3, rhov3, rhoE3);
-    EulerSolver<2, double> s3(dh3, fev3, ffev3, 3);
-    s3.set_state_from_host(rho3, rhou3, rhov3, rhoE3);
-    s3.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
-    s3.write_solution("solution_steady_state_p3.vtu");
-
-    // Unsteady
-    id_map = { { 2, BoundaryId::UnsteadySubsonicInflow } };
-    tria.remap_boundary_ids(id_map);
-
-    s0.precompute_geometry();
-    s1.precompute_geometry();
-    s2.precompute_geometry();
-    s3.precompute_geometry();
-
-    // s0.solve_unsteady(250);
-    // s1.solve_unsteady(250);
-    // s2.solve_unsteady(250);
-    s3.solve_unsteady(500);
-
-    // Hmm this might've fixed things with some lifetime stuff, so I'm going
-    // to leave this here.
-    DataOut<2> data_out;
-    Vector<double, HostMemSpace> temp(dh3.n_dofs());
-    data_out.attach_dof_handler(dh3);
-    data_out.add_data_vector(temp, "solution");
-    data_out.write_vtu("test.vtu");
+    s0.test_freestream_preservation(10000);
+    s0.write_solution("solution_freestream_p0.vtu");
   }
   Kokkos::finalize();
   return 0;
