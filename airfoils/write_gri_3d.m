@@ -164,7 +164,8 @@ function write_grid(filename, nodes, elements)
     for i = 1:n_element_groups
         fprintf(fstream, '%d %d %s\n', n_elements, element_order, basis_function);
         for j = 1:n_elements
-            fprintf(fstream, '%d %d %d\n', elements(j,1), elements(j,2), elements(j,3));
+            fprintf(fstream, '%d %d %d %d\n', ...
+                elements(j,1), elements(j,2), elements(j,3), elements(j,4));
         end
     end
 
