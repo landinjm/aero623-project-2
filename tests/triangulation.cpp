@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-TEST(ReadGri, basic)
+TEST(ReadGri, 2d_basic)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test.gri");
@@ -16,7 +16,7 @@ TEST(ReadGri, basic)
   EXPECT_EQ(data.n_boundary_faces(), 6);
 }
 
-TEST(ReadGri, basic_2)
+TEST(ReadGri, 2d_basic_2)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_2.gri");
@@ -29,7 +29,7 @@ TEST(ReadGri, basic_2)
   EXPECT_EQ(data.n_boundary_faces(), 10);
 }
 
-TEST(ReadGri, basic_3)
+TEST(ReadGri, 2d_basic_3)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_3.gri");
@@ -42,7 +42,7 @@ TEST(ReadGri, basic_3)
   EXPECT_EQ(data.n_boundary_faces(), 6);
 }
 
-TEST(ReadGri, basic_4)
+TEST(ReadGri, 2d_basic_4)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_4.gri");
@@ -55,7 +55,7 @@ TEST(ReadGri, basic_4)
   EXPECT_EQ(data.n_boundary_faces(), 12);
 }
 
-TEST(ReadGri, basic_5)
+TEST(ReadGri, 2d_basic_5)
 {
   GriReader<2> gri;
   gri.read_gri("../tests/test_5.gri");
@@ -68,7 +68,33 @@ TEST(ReadGri, basic_5)
   EXPECT_EQ(data.n_boundary_faces(), 24);
 }
 
-TEST(TriangulationImport, basic)
+TEST(ReadGri, 3d_basic)
+{
+  GriReader<3> gri;
+  gri.read_gri("../tests/test3D.gri");
+  auto data = gri.data();
+
+  EXPECT_EQ(data.n_nodes, 12);
+  EXPECT_EQ(data.n_elements, 10);
+  EXPECT_EQ(data.n_boundary_groups, 6);
+  EXPECT_EQ(data.n_periodic_groups, 1);
+  EXPECT_EQ(data.n_boundary_faces(), 20);
+}
+
+TEST(ReadGri, 3d_basic_2)
+{
+  GriReader<3> gri;
+  gri.read_gri("../tests/test3Dhalf.gri");
+  auto data = gri.data();
+
+  EXPECT_EQ(data.n_nodes, 9);
+  EXPECT_EQ(data.n_elements, 6);
+  EXPECT_EQ(data.n_boundary_groups, 5);
+  EXPECT_EQ(data.n_periodic_groups, 1);
+  EXPECT_EQ(data.n_boundary_faces(), 14);
+}
+
+TEST(TriangulationImport, 2d_basic)
 {
   Triangulation<2> tria;
   GriReader<2> gri;
@@ -82,7 +108,7 @@ TEST(TriangulationImport, basic)
   EXPECT_TRUE(tria.verify_mesh());
 }
 
-TEST(TriangulationImport, basic_2)
+TEST(TriangulationImport, 2d_basic_2)
 {
   Triangulation<2> tria;
   GriReader<2> gri;
@@ -96,7 +122,7 @@ TEST(TriangulationImport, basic_2)
   EXPECT_TRUE(tria.verify_mesh());
 }
 
-TEST(TriangulationImport, basic_3)
+TEST(TriangulationImport, 2d_basic_3)
 {
   Triangulation<2> tria;
   GriReader<2> gri;
@@ -116,7 +142,7 @@ TEST(TriangulationImport, basic_3)
   EXPECT_TRUE(tria.verify_mesh());
 }
 
-TEST(TriangulationImport, basic_4)
+TEST(TriangulationImport, 2d_basic_4)
 {
   Triangulation<2> tria;
   GriReader<2> gri;
@@ -130,7 +156,7 @@ TEST(TriangulationImport, basic_4)
   EXPECT_TRUE(tria.verify_mesh());
 }
 
-TEST(TriangulationImport, basic_5)
+TEST(TriangulationImport, 2d_basic_5)
 {
   Triangulation<2> tria;
   GriReader<2> gri;
@@ -141,5 +167,33 @@ TEST(TriangulationImport, basic_5)
   EXPECT_EQ(tria.n_cells(), 64);
   EXPECT_EQ(tria.n_boundary_faces(), 16);
   EXPECT_EQ(tria.n_periodic_faces(), 8);
+  EXPECT_TRUE(tria.verify_mesh());
+}
+
+TEST(TriangulationImport, 3d_basic)
+{
+  Triangulation<3> tria;
+  GriReader<3> gri;
+  gri.read_gri("../tests/test3D.gri");
+  gri.transfer_to_triangulation(tria);
+
+  EXPECT_EQ(tria.n_vertices(), 12);
+  EXPECT_EQ(tria.n_cells(), 10);
+  EXPECT_EQ(tria.n_boundary_faces(), 16);
+  EXPECT_EQ(tria.n_periodic_faces(), 4);
+  EXPECT_TRUE(tria.verify_mesh());
+}
+
+TEST(TriangulationImport, 3d_basic_2)
+{
+  Triangulation<3> tria;
+  GriReader<3> gri;
+  gri.read_gri("../tests/test3Dhalf.gri");
+  gri.transfer_to_triangulation(tria);
+
+  EXPECT_EQ(tria.n_vertices(), 9);
+  EXPECT_EQ(tria.n_cells(), 6);
+  EXPECT_EQ(tria.n_boundary_faces(), 12);
+  EXPECT_EQ(tria.n_periodic_faces(), 2);
   EXPECT_TRUE(tria.verify_mesh());
 }
