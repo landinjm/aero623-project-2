@@ -210,7 +210,6 @@ public:
 
   void set_initial_condition()
   {
-
     auto rho_h = Kokkos::create_mirror_view(rho_.view());
     auto rho_u_h = Kokkos::create_mirror_view(rho_u_.view());
     auto rho_v_h = Kokkos::create_mirror_view(rho_v_.view());
@@ -668,7 +667,7 @@ public:
     Kokkos::deep_copy(boundary_id_, boundary_id_h);
 
     // Create and invert the mass matrix
-    MassMatrix<2, double> invm(fe_values_);
+    MassMatrix<dim, double> invm(fe_values_);
     invm.assemble(dof_handler_);
     invm.invert();
     invm.check_inverse();
@@ -690,6 +689,7 @@ public:
     zero_residuals();
     compute_volume_residual();
     compute_face_residual();
+
     const RealType res0 = residual_norm();
     std::cout << "Initial residual: " << res0 << std::endl;
 
@@ -902,24 +902,25 @@ public:
     update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
   }
 
-  void compute_local_dt(RealType cfl)
+  void compute_local_dt(const RealType cfl)
   {
-    auto d_rho = rho_.view();
-    auto d_rho_u = rho_u_.view();
-    auto d_rho_v = rho_v_.view();
-    auto d_rho_E = rho_E_.view();
+    const auto d_rho = rho_.view();
+    const auto d_rho_u = rho_u_.view();
+    const auto d_rho_v = rho_v_.view();
+    const auto d_rho_E = rho_E_.view();
     auto d_dt = dt_.view();
-    auto indices = cell_dofs_;
-    auto areas = cell_area_;
+    const auto indices = cell_dofs_;
+    const auto areas = cell_area_;
 
     const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
+    const RealType inv_n_dofs_per_cell = RealType(1) / n_dofs_per_cell;
     const RealType gamma = Parameters<RealType>::gamma;
     const RealType p_order = static_cast<RealType>(degree_);
     const RealType dg_scaling =
       RealType(1) / (RealType(2) * p_order + RealType(1));
 
     Kokkos::parallel_for(
-      "compute_local_dt", n_cells_, KOKKOS_LAMBDA(int k) {
+      "compute_local_dt", n_cells_, KOKKOS_LAMBDA(const int k) {
         // Cell-averaged state
         RealType rho_avg = 0, rhou_avg = 0, rhov_avg = 0, rhoE_avg = 0;
         for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
@@ -929,10 +930,10 @@ public:
           rhov_avg += d_rho_v(idx);
           rhoE_avg += d_rho_E(idx);
         }
-        rho_avg /= n_dofs_per_cell;
-        rhou_avg /= n_dofs_per_cell;
-        rhov_avg /= n_dofs_per_cell;
-        rhoE_avg /= n_dofs_per_cell;
+        rho_avg *= inv_n_dofs_per_cell;
+        rhou_avg *= inv_n_dofs_per_cell;
+        rhov_avg *= inv_n_dofs_per_cell;
+        rhoE_avg *= inv_n_dofs_per_cell;
 
         // Velocity and speed of sound
         const RealType u = rhou_avg / rho_avg;
@@ -1561,6 +1562,8 @@ main(int argc, char* argv[])
 
     double abs_tol = 0.0;
 
+    Timer::instance().begin_section("Degree 0");
+
     // --- Degree 0 ---
     FE_DGLagrangeSimplex<2, double> fe0(0);
     QGaussSimplex<2, double> q0(1);
@@ -1570,11 +1573,14 @@ main(int argc, char* argv[])
     FEFaceValues<2, double> ffev0(fe0, fq0);
     EulerSolver<2, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
-    abs_tol = s0.solve_steady_state(30000, 0.5, 1000, false, 1.0e-5);
+    abs_tol = s0.solve_steady_state(30000, 0.5, 1000, false, 1.0e-2);
     s0.write_solution("solution_steady_state_p0.vtu");
     Vector<double, HostMemSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
       rhov0(dh0.n_dofs()), rhoE0(dh0.n_dofs());
     s0.copy_state_to_host(rho0, rhou0, rhov0, rhoE0);
+
+    Timer::instance().end_section("Degree 0");
+    Timer::instance().begin_section("Degree 1");
 
     // --- Degree 1 (seeded from degree 0) ---
     FE_DGLagrangeSimplex<2, double> fe1(1);
@@ -1588,9 +1594,12 @@ main(int argc, char* argv[])
     interpolate(0, 1, rho0, rhou0, rhov0, rhoE0, rho1, rhou1, rhov1, rhoE1);
     EulerSolver<2, double> s1(dh1, fev1, ffev1, 1);
     s1.set_state_from_host(rho1, rhou1, rhov1, rhoE1);
-    s1.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
+    s1.solve_steady_state(100000, 0.5, 1000, true, abs_tol);
     s1.write_solution("solution_steady_state_p1.vtu");
     s1.copy_state_to_host(rho1, rhou1, rhov1, rhoE1);
+
+    Timer::instance().end_section("Degree 1");
+    Timer::instance().begin_section("Degree 2");
 
     // --- Degree 2 (seeded from degree 1) ---
     FE_DGLagrangeSimplex<2, double> fe2(2);
@@ -1604,9 +1613,12 @@ main(int argc, char* argv[])
     interpolate(1, 2, rho1, rhou1, rhov1, rhoE1, rho2, rhou2, rhov2, rhoE2);
     EulerSolver<2, double> s2(dh2, fev2, ffev2, 2);
     s2.set_state_from_host(rho2, rhou2, rhov2, rhoE2);
-    s2.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
+    s2.solve_steady_state(100000, 0.5, 1000, true, abs_tol);
     s2.write_solution("solution_steady_state_p2.vtu");
     s2.copy_state_to_host(rho2, rhou2, rhov2, rhoE2);
+
+    Timer::instance().end_section("Degree 2");
+    Timer::instance().begin_section("Degree 3");
 
     // --- Degree 3 (seeded from degree 2) ---
     FE_DGLagrangeSimplex<2, double> fe3(3);
@@ -1620,8 +1632,10 @@ main(int argc, char* argv[])
     interpolate(2, 3, rho2, rhou2, rhov2, rhoE2, rho3, rhou3, rhov3, rhoE3);
     EulerSolver<2, double> s3(dh3, fev3, ffev3, 3);
     s3.set_state_from_host(rho3, rhou3, rhov3, rhoE3);
-    s3.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
+    s3.solve_steady_state(100000, 0.5, 1000, true, abs_tol);
     s3.write_solution("solution_steady_state_p3.vtu");
+
+    Timer::instance().end_section("Degree 3");
   }
   Kokkos::finalize();
   return 0;
