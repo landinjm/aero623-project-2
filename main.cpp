@@ -951,7 +951,6 @@ public:
         for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
           d_dt(indices(k, i)) = dt;
       });
-    Kokkos::fence();
   }
 
   void compute_global_dt(RealType cfl)
@@ -968,14 +967,12 @@ public:
         local_min = Kokkos::min(local_min, d_dt(i));
       },
       Kokkos::Min<RealType>(dt_min));
-    Kokkos::fence();
 
     // Fill entire dt_ array with the minimum
     Kokkos::parallel_for(
       "fill_global_dt",
       Kokkos::RangePolicy<>(0, n_dofs_),
       KOKKOS_LAMBDA(int i) { d_dt(i) = dt_min; });
-    Kokkos::fence();
   }
 
   void compute_volume_residual()
@@ -1061,12 +1058,11 @@ public:
 
         // Scatter to global residual
         const uint32_t dof_i = indices(k, i);
-        Kokkos::atomic_add(&d_res_rho(dof_i), local_res_rho);
-        Kokkos::atomic_add(&d_res_rho_u(dof_i), local_res_rho_u);
-        Kokkos::atomic_add(&d_res_rho_v(dof_i), local_res_rho_v);
-        Kokkos::atomic_add(&d_res_rho_E(dof_i), local_res_rho_E);
+        d_res_rho(dof_i) += local_res_rho;
+        d_res_rho_u(dof_i) += local_res_rho_u;
+        d_res_rho_v(dof_i) += local_res_rho_v;
+        d_res_rho_E(dof_i) += local_res_rho_E;
       });
-    Kokkos::fence();
   }
 
   void update(RealType alpha, RealType beta)
@@ -1125,7 +1121,6 @@ public:
         d_rho_E(dof_i) = alpha * d_rho_E_old(dof_i) +
                          beta * (d_rho_E(dof_i) - dt * Minv_R_rho_E);
       });
-    Kokkos::fence();
   }
 
   void compute_face_residual(RealType t = RealType(0))
@@ -1140,17 +1135,17 @@ public:
     const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
     const auto n_q_face = fe_face_values_.n_q_points();
 
-    auto phi_L = interior_phi_L_;
-    auto phi_R = interior_phi_R_;
-    auto JxW = interior_JxW_;
-    auto normal = interior_normal_;
-    auto dofs_L = interior_dofs_L_;
-    auto dofs_R = interior_dofs_R_;
+    const auto phi_L = interior_phi_L_;
+    const auto phi_R = interior_phi_R_;
+    const auto JxW = interior_JxW_;
+    const auto normal = interior_normal_;
+    const auto dofs_L = interior_dofs_L_;
+    const auto dofs_R = interior_dofs_R_;
 
-    auto d_rho = rho_.view();
-    auto d_rho_u = rho_u_.view();
-    auto d_rho_v = rho_v_.view();
-    auto d_rho_E = rho_E_.view();
+    const auto d_rho = rho_.view();
+    const auto d_rho_u = rho_u_.view();
+    const auto d_rho_v = rho_v_.view();
+    const auto d_rho_E = rho_E_.view();
 
     auto d_res_rho = res_rho_.view();
     auto d_res_rho_u = res_rho_u_.view();
@@ -1224,7 +1219,6 @@ public:
           }
         }
       });
-    Kokkos::fence();
   }
 
   void compute_periodic_face_residual()
@@ -1317,7 +1311,6 @@ public:
           }
         }
       });
-    Kokkos::fence();
   }
 
   void compute_boundary_face_residual(RealType t)
@@ -1433,7 +1426,6 @@ public:
           }
         }
       });
-    Kokkos::fence();
   }
 
   RealType residual_norm() const

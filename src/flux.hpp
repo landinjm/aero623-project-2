@@ -96,6 +96,30 @@ public:
     F_rho_E = (rho_E + p) * v_n;
   }
 
+  KOKKOS_INLINE_FUNCTION static void euler_flux(
+    const RealType rho,
+    const Tensor<1, dim, RealType>& v,
+    const RealType p,
+    const RealType rho_E,
+    Tensor<1, dim, RealType>& F_rho,
+    Tensor<2, dim, RealType>& F_rho_v,
+    Tensor<1, dim, RealType>& F_rho_E)
+  {
+    using Kokkos::abs;
+
+    ASSERT(rho > 0, "Density must be positive");
+    ASSERT(p > 0, "Pressure must be positive");
+    ASSERT(abs(p - pressure(rho, v, rho_E)) <
+             10.0 * std::numeric_limits<RealType>::epsilon(),
+           "Pressure state inconsistent");
+
+    F_rho = rho * v;
+    for (unsigned int i = 0; i < dim; ++i)
+      for (unsigned int j = 0; j < dim; ++j)
+        F_rho_v[i][j] = rho * v[i] * v[j] + (i == j ? p : RealType(0));
+    F_rho_E = (rho_E + p) * v;
+  }
+
   KOKKOS_INLINE_FUNCTION static void roe_flux(
     const RealType rho_L,
     const Tensor<1, dim, RealType>& rho_v_L,
