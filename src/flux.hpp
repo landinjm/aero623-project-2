@@ -204,4 +204,195 @@ public:
     // Max wavespeed for CFL condition
     s_mag = abs(v_n_roe) + c_roe;
   }
+
+  KOKKOS_INLINE_FUNCTION
+  static void inviscid_wall_flux(const RealType rho_L,
+                                 const Tensor<1, dim, RealType>& rho_v_L,
+                                 const RealType rho_E_L,
+                                 const Tensor<1, dim, RealType>& n,
+                                 RealType& F_rho,
+                                 Tensor<1, dim, RealType>& F_rho_v,
+                                 RealType& F_rho_E,
+                                 RealType& s_mag)
+  {
+    using Kokkos::abs;
+    using Kokkos::sqrt;
+
+    ASSERT(rho_L > 0, "Density must be positive");
+    ASSERT(rho_E_L > 0, "Total energy must be positive");
+    ASSERT(abs(n.norm() - RealType(1)) <
+             10.0 * std::numeric_limits<RealType>::epsilon(),
+           "Normal must be a unit vector");
+
+    // Convert conservative state to primitive
+    Tensor<1, dim, RealType> v_L;
+    RealType p_L;
+    conservative_to_primitive(rho_L, rho_v_L, rho_E_L, v_L, p_L);
+
+    // Remove normal component
+    const RealType v_n = dot(v_L, n);
+    const Tensor<1, dim, RealType> v_t = v_L - v_n * n;
+
+    // Wall pressure
+    const RealType p_b = pressure(rho_L, v_t, rho_E_L);
+
+    // Flux terms
+    F_rho = RealType(0);
+    F_rho_v = p_b * n;
+    F_rho_E = RealType(0);
+
+    // Wavespeed
+    const RealType c_b = sqrt(Parameters<RealType>::gamma * p_b / rho_L);
+    s_mag = c_b;
+  }
+
+  KOKKOS_INLINE_FUNCTION static void subsonic_inflow_flux(
+    const RealType rho_L,
+    const Tensor<1, dim, RealType>& rho_v_L,
+    const RealType rho_E_L,
+    const Tensor<1, dim, RealType>& n,
+    RealType& F_rho,
+    Tensor<1, dim, RealType>& F_rho_v,
+    RealType& F_rho_E,
+    RealType& s_mag)
+  {
+    using Kokkos::abs;
+    using Kokkos::pow;
+    using Kokkos::sqrt;
+
+    constexpr RealType gamma = Parameters<RealType>::gamma;
+    constexpr RealType gm1 = gamma - RealType(1);
+    constexpr RealType inv_gm1 = RealType(1) / gm1;
+    constexpr RealType p_0 = Parameters<RealType>::p_0;
+    constexpr RealType rho_0 = Parameters<RealType>::rho_0;
+    constexpr RealType RT_0 =
+      Parameters<RealType>::p_0 / Parameters<RealType>::rho_0;
+
+    ASSERT(rho_L > 0, "Density must be positive");
+    ASSERT(rho_E_L > 0, "Total energy must be positive");
+    ASSERT(abs(n.norm() - RealType(1)) <
+             10.0 * std::numeric_limits<RealType>::epsilon(),
+           "Normal must be a unit vector");
+
+    // Convert conservative state to primitive
+    Tensor<1, dim, RealType> v_L;
+    RealType p_L;
+    conservative_to_primitive(rho_L, rho_v_L, rho_E_L, v_L, p_L);
+
+    // Interior speed of sound and normal velocity
+    const RealType c_L = speed_of_sound(rho_L, p_L);
+    const RealType v_n_L = dot(v_L, n);
+
+    // Outgoing Riemann invariant
+    const RealType j_plus = v_n_L + RealType(2) * inv_gm1 * c_L;
+
+    // Inflow direction
+    const Tensor<1, dim, RealType> n_in =
+      Parameters<RealType>::template n_0<dim>();
+    const RealType d_n = dot(n, n_in);
+
+    // Boundary Mach number
+    const RealType A =
+      gamma * RT_0 * d_n * d_n - gm1 / RealType(2) * j_plus * j_plus;
+    const RealType B = RealType(4) * gamma * RT_0 * d_n * inv_gm1;
+    const RealType C =
+      RealType(4) * gamma * RT_0 * inv_gm1 * inv_gm1 - j_plus * j_plus;
+
+    const RealType disc = sqrt(B * B - RealType(4) * A * C);
+    const RealType M_b1 = (-B + disc) / (RealType(2) * A);
+    const RealType M_b2 = (-B - disc) / (RealType(2) * A);
+
+    // Select physical root — take positive root if roots have opposite signs,
+    // otherwise take root closest to zero
+    RealType M_b;
+    if ((M_b1 > 0) != (M_b2 > 0)) {
+      M_b = (M_b1 > 0) ? M_b1 : M_b2;
+    } else {
+      M_b = (Kokkos::abs(M_b1) < Kokkos::abs(M_b2)) ? M_b1 : M_b2;
+    }
+
+    // Boundary speed of sound and isentropic state
+    const RealType denom = RealType(1) + RealType(0.5) * gm1 * M_b * M_b;
+    const RealType c_b = sqrt(gamma * RT_0 / denom);
+    const RealType p_b = p_0 * pow(RealType(1) / denom, gamma * inv_gm1);
+    const RealType rho_b = p_b / (RT_0 / denom);
+
+    // Boundary velocity
+    const RealType speed_b = M_b * c_b;
+    const Tensor<1, dim, RealType> v_b = speed_b * n_in;
+
+    // Boundary enthalpy
+    const RealType rho_E_b =
+      p_b * inv_gm1 + RealType(0.5) * rho_b * v_b.norm_square();
+    const RealType H_b = (rho_E_b + p_b) / rho_b;
+
+    // Compute flux
+    const RealType v_n_b = dot(v_b, n);
+    F_rho = rho_b * v_n_b;
+    F_rho_v = rho_b * outer(v_b, v_b) * n + p_b * n;
+    F_rho_E = rho_b * H_b * v_n_b;
+
+    s_mag = abs(v_n_b) + c_b;
+  }
+
+  KOKKOS_INLINE_FUNCTION static void subsonic_outflow_flux(
+    const RealType rho_L,
+    const Tensor<1, dim, RealType>& rho_v_L,
+    const RealType rho_E_L,
+    const Tensor<1, dim, RealType>& n,
+    RealType& F_rho,
+    Tensor<1, dim, RealType>& F_rho_v,
+    RealType& F_rho_E,
+    RealType& s_mag)
+  {
+    using Kokkos::abs;
+    using Kokkos::pow;
+    using Kokkos::sqrt;
+
+    constexpr RealType gamma = Parameters<RealType>::gamma;
+    constexpr RealType gm1 = gamma - RealType(1);
+    constexpr RealType inv_gm1 = RealType(1) / gm1;
+    constexpr RealType p_out = Parameters<RealType>::p_out;
+
+    ASSERT(rho_L > 0, "Density must be positive");
+    ASSERT(rho_E_L > 0, "Total energy must be positive");
+    ASSERT(abs(n.norm() - RealType(1)) <
+             10.0 * std::numeric_limits<RealType>::epsilon(),
+           "Normal must be a unit vector");
+
+    // Convert conservative state to primitive
+    Tensor<1, dim, RealType> v_L;
+    RealType p_L;
+    conservative_to_primitive(rho_L, rho_v_L, rho_E_L, v_L, p_L);
+
+    // Interior speed of sound and normal velocity
+    const RealType c_L = speed_of_sound(rho_L, p_L);
+    const RealType v_n_L = dot(v_L, n);
+
+    // Entropy
+    const RealType entropy = p_L / pow(rho_L, gamma);
+
+    // Boundary density
+    const RealType rho_b = pow(p_out / entropy, RealType(1) / gamma);
+    const RealType c_b = sqrt(gamma * p_out / rho_b);
+
+    // Outgoing Riemann invariant
+    const RealType j_plus = v_n_L + RealType(2) * inv_gm1 * c_L;
+    const RealType v_n_b = j_plus - RealType(2) * inv_gm1 * c_b;
+
+    // Reconstruct full velocity
+    const Tensor<1, dim, RealType> v_b = v_L - v_n_L * n + v_n_b * n;
+
+    // Boundary energy and enthalpy
+    const RealType rho_E_b =
+      p_out * inv_gm1 + RealType(0.5) * rho_b * v_b.norm_square();
+    const RealType H_b = (rho_E_b + p_out) / rho_b;
+
+    // Compute flux
+    F_rho = rho_b * v_n_b;
+    F_rho_v = rho_b * outer(v_b, v_b) * n + p_out * n;
+    F_rho_E = rho_b * H_b * v_n_b;
+
+    s_mag = abs(v_n_b) + c_b;
+  }
 };

@@ -401,39 +401,25 @@ public:
       fe_values_.reinit(cell);
       cell.get_dof_indices(dof_indices);
 
-      std::cout << "Cell index " << cell.index() << std::endl;
-      std::cout << "  measure " << cell.measure() << std::endl;
-
       RealType area = 0;
       for (unsigned int q = 0; q < n_q_points; ++q) {
         JxW_h(k, q) = fe_values_.JxW(q);
         area += fe_values_.JxW(q);
 
         auto p = fe_values_.q_point(q);
-
-        std::cout << "    q " << q;
-        std::cout << " point ";
-
         for (unsigned int d = 0; d < dim; ++d) {
-          std::cout << p(d) << " ";
           q_point_h(k, q, d) = p(d);
         }
 
-        std::cout << "\n";
-
         for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
-          std::cout << "      i " << i;
-          std::cout << " shape value " << fe_values_.shape_value(i, q);
           phi_h(k, i, q) = fe_values_.shape_value(i, q);
           auto grad = fe_values_.shape_gradient(i, q);
-          std::cout << " shape gradient " << grad(0) << " " << grad(1) << "\n";
           for (unsigned int d = 0; d < dim; ++d) {
             grad_phi_h(k, i, q, d) = grad(d);
           }
         }
       }
       cell_area_h(k) = area;
-      std::cout << "  computed area " << area << std::endl;
 
       for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
         cell_dofs_h(k, i) = dof_indices[i];
@@ -580,8 +566,6 @@ public:
             auto neighbor_cell = cell.neighbor(lf);
             neighbor_cell.get_dof_indices(neighbor_dof_indices);
 
-            std::cout << "Face index " << f << "\n";
-
             for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
               interior_dofs_L_h(f, i) = dof_indices[i];
               interior_dofs_R_h(f, i) = neighbor_dof_indices[i];
@@ -589,15 +573,10 @@ public:
 
             // Left side (owner cell)
             for (unsigned int q = 0; q < n_q_points_face; ++q) {
-              std::cout << "  owner\n";
-              std::cout << "  q " << q << "\n";
-              std::cout << "  JxW " << fe_face_values_.JxW(q);
 
               interior_JxW_h(f, q) = fe_face_values_.JxW(q);
               auto p = fe_face_values_.q_point(q);
               auto n = fe_face_values_.normal(q);
-              std::cout << "  point " << p(0) << " " << p(1) << "\n";
-              std::cout << "  normal " << n(0) << " " << n(1) << "\n";
               for (unsigned int d = 0; d < dim; ++d) {
                 interior_q_point_h(f, q, d) = p(d);
                 interior_normal_h(f, q, d) = n(d);
@@ -610,16 +589,9 @@ public:
             unsigned int neighbor_lf = cell.neighbor_face_index(lf);
             fe_face_values_.reinit(neighbor_cell, neighbor_lf);
             for (unsigned int q = 0; q < n_q_points_face; ++q) {
-              std::cout << "  neighbor\n";
-              std::cout << "  q " << q << "\n";
-              std::cout << "  JxW " << fe_face_values_.JxW(q);
 
               // Reverse the q point location
               unsigned int q_r = n_q_points_face - 1 - q;
-              std::cout << "  q_r " << q_r << "\n";
-              auto p = fe_face_values_.q_point(q_r);
-              std::cout << "  point " << p(0) << " " << p(1) << "\n";
-
               for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
                 interior_phi_R_h(f, q, i) = fe_face_values_.shape_value(i, q_r);
               }
@@ -1352,6 +1324,8 @@ public:
     const auto n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
     const auto n_q_face = fe_face_values_.n_q_points();
 
+    const auto freestream = freestream_;
+
     auto phi = boundary_phi_;
     auto JxW = boundary_JxW_;
     auto normal = boundary_normal_;
@@ -1396,14 +1370,47 @@ public:
           RealType flux_rho, flux_rho_E, smag;
 
           switch (id) {
+            case BoundaryId::InviscidWall: {
+              Flux<dim, RealType>::inviscid_wall_flux(rho_L,
+                                                      rho_v_L,
+                                                      rho_E_L,
+                                                      n,
+                                                      flux_rho,
+                                                      flux_rho_v,
+                                                      flux_rho_E,
+                                                      smag);
+              break;
+            }
+            case BoundaryId::SubsonicInflow: {
+              Flux<dim, RealType>::subsonic_inflow_flux(rho_L,
+                                                        rho_v_L,
+                                                        rho_E_L,
+                                                        n,
+                                                        flux_rho,
+                                                        flux_rho_v,
+                                                        flux_rho_E,
+                                                        smag);
+              break;
+            }
+            case BoundaryId::SubsonicOutflow: {
+              Flux<dim, RealType>::subsonic_outflow_flux(rho_L,
+                                                         rho_v_L,
+                                                         rho_E_L,
+                                                         n,
+                                                         flux_rho,
+                                                         flux_rho_v,
+                                                         flux_rho_E,
+                                                         smag);
+              break;
+            }
             default: {
               // Freestream / do-nothing
               Flux<dim, RealType>::roe_flux(rho_L,
                                             rho_v_L,
                                             rho_E_L,
-                                            freestream_.rho,
-                                            freestream_.rho_v,
-                                            freestream_.rho_E,
+                                            freestream.rho,
+                                            freestream.rho_v,
+                                            freestream.rho_E,
                                             n,
                                             flux_rho,
                                             flux_rho_v,
@@ -1517,19 +1524,104 @@ main(int argc, char* argv[])
       std::runtime_error("Verify mesh failed");
     }
 
-    constexpr unsigned int degree = 3;
+    std::unordered_map<uint32_t, uint32_t> id_map = {
+      { 7, BoundaryId::InviscidWall },
+      { 8, BoundaryId::InviscidWall },
+      { 5, BoundaryId::SubsonicInflow },
+      { 6, BoundaryId::SubsonicOutflow },
+    };
+    tria.remap_boundary_ids(id_map);
 
-    FE_DGLagrangeSimplex<2, double> fe(degree);
-    QGaussSimplex<2, double> quad(degree + 1);
-    QGaussSimplex<1, double> face_quad(degree + 1);
-    DoFHandler<2, double> dof_handler(tria, fe);
-    FEValues<2, double> fe_values(fe, quad);
-    FEFaceValues<2, double> fe_face_values(fe, face_quad);
-    EulerSolver<2, double> solver(
-      dof_handler, fe_values, fe_face_values, degree);
-    solver.set_initial_condition();
-    solver.test_freestream_preservation(10000);
-    solver.write_solution("solution_freestream_p0.vtu");
+    // Helper to interpolate between two degrees
+    auto interpolate = [&](unsigned int deg_lo,
+                           unsigned int deg_hi,
+                           const Vector<double, HostMemSpace>& rho_in,
+                           const Vector<double, HostMemSpace>& rhou_in,
+                           const Vector<double, HostMemSpace>& rhov_in,
+                           const Vector<double, HostMemSpace>& rhoE_in,
+                           Vector<double, HostMemSpace>& rho_out,
+                           Vector<double, HostMemSpace>& rhou_out,
+                           Vector<double, HostMemSpace>& rhov_out,
+                           Vector<double, HostMemSpace>& rhoE_out) {
+      FE_DGLagrangeSimplex<2, double> fe_l(deg_lo), fe_h(deg_hi);
+      DoFHandler<2, double> dh_l(tria, fe_l), dh_h(tria, fe_h);
+      interpolate_solution(dh_l,
+                           dh_h,
+                           fe_l,
+                           fe_h,
+                           rho_in.view(),
+                           rhou_in.view(),
+                           rhov_in.view(),
+                           rhoE_in.view(),
+                           rho_out.view(),
+                           rhou_out.view(),
+                           rhov_out.view(),
+                           rhoE_out.view());
+    };
+
+    double abs_tol = 0.0;
+
+    // --- Degree 0 ---
+    FE_DGLagrangeSimplex<2, double> fe0(0);
+    QGaussSimplex<2, double> q0(1);
+    QGaussSimplex<1, double> fq0(1);
+    DoFHandler<2, double> dh0(tria, fe0);
+    FEValues<2, double> fev0(fe0, q0);
+    FEFaceValues<2, double> ffev0(fe0, fq0);
+    EulerSolver<2, double> s0(dh0, fev0, ffev0, 0);
+    s0.set_initial_condition();
+    abs_tol = s0.solve_steady_state(30000, 0.5, 1000, false, 1.0e-5);
+    s0.write_solution("solution_steady_state_p0.vtu");
+    Vector<double, HostMemSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
+      rhov0(dh0.n_dofs()), rhoE0(dh0.n_dofs());
+    s0.copy_state_to_host(rho0, rhou0, rhov0, rhoE0);
+
+    // --- Degree 1 (seeded from degree 0) ---
+    FE_DGLagrangeSimplex<2, double> fe1(1);
+    QGaussSimplex<2, double> q1(2);
+    QGaussSimplex<1, double> fq1(2);
+    DoFHandler<2, double> dh1(tria, fe1);
+    FEValues<2, double> fev1(fe1, q1);
+    FEFaceValues<2, double> ffev1(fe1, fq1);
+    Vector<double, HostMemSpace> rho1(dh1.n_dofs()), rhou1(dh1.n_dofs()),
+      rhov1(dh1.n_dofs()), rhoE1(dh1.n_dofs());
+    interpolate(0, 1, rho0, rhou0, rhov0, rhoE0, rho1, rhou1, rhov1, rhoE1);
+    EulerSolver<2, double> s1(dh1, fev1, ffev1, 1);
+    s1.set_state_from_host(rho1, rhou1, rhov1, rhoE1);
+    s1.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
+    s1.write_solution("solution_steady_state_p1.vtu");
+    s1.copy_state_to_host(rho1, rhou1, rhov1, rhoE1);
+
+    // --- Degree 2 (seeded from degree 1) ---
+    FE_DGLagrangeSimplex<2, double> fe2(2);
+    QGaussSimplex<2, double> q2(3);
+    QGaussSimplex<1, double> fq2(3);
+    DoFHandler<2, double> dh2(tria, fe2);
+    FEValues<2, double> fev2(fe2, q2);
+    FEFaceValues<2, double> ffev2(fe2, fq2);
+    Vector<double, HostMemSpace> rho2(dh2.n_dofs()), rhou2(dh2.n_dofs()),
+      rhov2(dh2.n_dofs()), rhoE2(dh2.n_dofs());
+    interpolate(1, 2, rho1, rhou1, rhov1, rhoE1, rho2, rhou2, rhov2, rhoE2);
+    EulerSolver<2, double> s2(dh2, fev2, ffev2, 2);
+    s2.set_state_from_host(rho2, rhou2, rhov2, rhoE2);
+    s2.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
+    s2.write_solution("solution_steady_state_p2.vtu");
+    s2.copy_state_to_host(rho2, rhou2, rhov2, rhoE2);
+
+    // --- Degree 3 (seeded from degree 2) ---
+    FE_DGLagrangeSimplex<2, double> fe3(3);
+    QGaussSimplex<2, double> q3(4);
+    QGaussSimplex<1, double> fq3(4);
+    DoFHandler<2, double> dh3(tria, fe3);
+    FEValues<2, double> fev3(fe3, q3);
+    FEFaceValues<2, double> ffev3(fe3, fq3);
+    Vector<double, HostMemSpace> rho3(dh3.n_dofs()), rhou3(dh3.n_dofs()),
+      rhov3(dh3.n_dofs()), rhoE3(dh3.n_dofs());
+    interpolate(2, 3, rho2, rhou2, rhov2, rhoE2, rho3, rhou3, rhov3, rhoE3);
+    EulerSolver<2, double> s3(dh3, fev3, ffev3, 3);
+    s3.set_state_from_host(rho3, rhou3, rhov3, rhoE3);
+    s3.solve_steady_state(10000, 0.5, 1000, true, abs_tol);
+    s3.write_solution("solution_steady_state_p3.vtu");
   }
   Kokkos::finalize();
   return 0;
