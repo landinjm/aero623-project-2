@@ -130,7 +130,7 @@ public:
   };
 
   DoFHandler(const Triangulation<dim>& tria,
-             const FE_DGQLegendre<dim, RealType>& fe)
+             const FE_DGLagrangeSimplex<dim, RealType>& fe)
     : tria_(tria)
     , fe_(fe)
     , n_cells_(0)
@@ -179,7 +179,7 @@ public:
   size_type n_dofs_per_cell() const { return n_dofs_per_cell_; }
   size_type n_dofs() const { return n_dofs_total_; }
 
-  const FE_DGQLegendre<dim, RealType>& fe() const { return fe_; }
+  const FE_DGLagrangeSimplex<dim, RealType>& fe() const { return fe_; }
   const Triangulation<dim>& tria() const { return tria_; }
 
   CellAccessor cell(CellIndexType k) const
@@ -194,7 +194,7 @@ public:
 
 private:
   const Triangulation<dim>& tria_;
-  const FE_DGQLegendre<dim, RealType>& fe_;
+  const FE_DGLagrangeSimplex<dim, RealType>& fe_;
 
   size_type n_cells_;
   size_type n_dofs_per_cell_;

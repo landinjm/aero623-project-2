@@ -14,7 +14,7 @@ public:
   static_assert(degree < 4);
 
   static constexpr unsigned int n_dofs_per_cell =
-    FE_DGQLegendre<dim, RealType>::n_dofs_per_cell(degree);
+    FE_DGLagrangeSimplex<dim, RealType>::n_dofs_per_cell(degree);
 
   static constexpr unsigned int n_q_points =
     QGaussSimplex<dim, RealType>::n_q_points(degree + 1);
