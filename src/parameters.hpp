@@ -2,6 +2,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Macros.hpp>
+#include <tensor.hpp>
 
 /**
  * @brief Simple structure for the parameters in the simulation.
@@ -50,6 +51,21 @@ struct Parameters
    */
   KOKKOS_INLINE_FUNCTION
   static RealType n_y_0() { return Kokkos::sin(alpha / 180.0 * M_PI); }
+
+  /**
+   * @brief Inlet flow normal.
+   */
+  template<unsigned int dim>
+  KOKKOS_INLINE_FUNCTION static Tensor<1, dim, RealType> n_0()
+  {
+    Tensor<1, dim, RealType> n;
+    if constexpr (dim == 2) {
+      n(0) = n_x_0();
+      n(1) = n_y_0();
+    }
+
+    return n;
+  }
 
   /**
    * @brief Outflow static pressure.
