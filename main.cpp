@@ -988,36 +988,39 @@ public:
 
           // Compute primitive variables
           RealType u = 0, v = 0, p = 0;
-          Flux<RealType>::conservative_to_primitive(
-            rho, rho_u, rho_v, rho_E, u, v, p);
+          /*
+Flux<RealType>::conservative_to_primitive(
+rho, rho_u, rho_v, rho_E, u, v, p);*/
 
           // x-direction flux
           RealType Fx_rho, Fx_rho_u, Fx_rho_v, Fx_rho_E;
-          Flux<RealType>::euler_flux(rho,
-                                     u,
-                                     v,
-                                     p,
-                                     rho_E,
-                                     RealType(1),
-                                     RealType(0),
-                                     Fx_rho,
-                                     Fx_rho_u,
-                                     Fx_rho_v,
-                                     Fx_rho_E);
+          /*
+Flux<RealType>::euler_flux(rho,
+       u,
+       v,
+       p,
+       rho_E,
+       RealType(1),
+       RealType(0),
+       Fx_rho,
+       Fx_rho_u,
+       Fx_rho_v,
+       Fx_rho_E);*/
 
           // y-direction flux
           RealType Fy_rho, Fy_rho_u, Fy_rho_v, Fy_rho_E;
-          Flux<RealType>::euler_flux(rho,
-                                     u,
-                                     v,
-                                     p,
-                                     rho_E,
-                                     RealType(0),
-                                     RealType(1),
-                                     Fy_rho,
-                                     Fy_rho_u,
-                                     Fy_rho_v,
-                                     Fy_rho_E);
+          /*
+Flux<RealType>::euler_flux(rho,
+       u,
+       v,
+       p,
+       rho_E,
+       RealType(0),
+       RealType(1),
+       Fy_rho,
+       Fy_rho_u,
+       Fy_rho_v,
+       Fy_rho_E);*/
 
           // Accumulate
           const RealType jxw = JxW(k, q);
@@ -1159,21 +1162,22 @@ public:
 
           // Numerical flux
           RealType flux_rho, flux_rho_u, flux_rho_v, flux_rho_E, smag;
-          Flux<RealType>::roe_flux(rho_L,
-                                   rho_u_L,
-                                   rho_v_L,
-                                   rho_E_L,
-                                   rho_R,
-                                   rho_u_R,
-                                   rho_v_R,
-                                   rho_E_R,
-                                   nx,
-                                   ny,
-                                   flux_rho,
-                                   flux_rho_u,
-                                   flux_rho_v,
-                                   flux_rho_E,
-                                   smag);
+          /*
+Flux<RealType>::roe_flux(rho_L,
+     rho_u_L,
+     rho_v_L,
+     rho_E_L,
+     rho_R,
+     rho_u_R,
+     rho_v_R,
+     rho_E_R,
+     nx,
+     ny,
+     flux_rho,
+     flux_rho_u,
+     flux_rho_v,
+     flux_rho_E,
+     smag);*/
 
           // Scatter to left cell (+flux) and right cell (-flux)
           for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
@@ -1251,21 +1255,22 @@ public:
 
           // Numerical flux
           RealType flux_rho, flux_rho_u, flux_rho_v, flux_rho_E, smag;
-          Flux<RealType>::roe_flux(rho_L,
-                                   rho_u_L,
-                                   rho_v_L,
-                                   rho_E_L,
-                                   rho_R,
-                                   rho_u_R,
-                                   rho_v_R,
-                                   rho_E_R,
-                                   nx,
-                                   ny,
-                                   flux_rho,
-                                   flux_rho_u,
-                                   flux_rho_v,
-                                   flux_rho_E,
-                                   smag);
+          /*
+Flux<RealType>::roe_flux(rho_L,
+     rho_u_L,
+     rho_v_L,
+     rho_E_L,
+     rho_R,
+     rho_u_R,
+     rho_v_R,
+     rho_E_R,
+     nx,
+     ny,
+     flux_rho,
+     flux_rho_u,
+     flux_rho_v,
+     flux_rho_E,
+     smag);*/
 
           // Scatter to left cell (+flux) and right cell (-flux)
           for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
@@ -1333,86 +1338,87 @@ public:
 
           // Numerical flux
           RealType flux_rho, flux_rho_u, flux_rho_v, flux_rho_E, smag;
-          switch (id) {
-            case BoundaryId::InviscidWall: {
-              Flux<RealType>::inviscid_wall_flux(rho_L,
-                                                 rho_u_L,
-                                                 rho_v_L,
-                                                 rho_E_L,
-                                                 nx,
-                                                 ny,
-                                                 flux_rho,
-                                                 flux_rho_u,
-                                                 flux_rho_v,
-                                                 flux_rho_E,
-                                                 smag);
-              break;
-            }
-            case BoundaryId::SubsonicInflow: {
-              Flux<RealType>::subsonic_inflow_flux(rho_L,
-                                                   rho_u_L,
-                                                   rho_v_L,
-                                                   rho_E_L,
-                                                   nx,
-                                                   ny,
-                                                   flux_rho,
-                                                   flux_rho_u,
-                                                   flux_rho_v,
-                                                   flux_rho_E,
-                                                   smag);
-              break;
-            }
-            case BoundaryId::SubsonicOutflow: {
-              Flux<RealType>::subsonic_outflow_flux(rho_L,
-                                                    rho_u_L,
-                                                    rho_v_L,
-                                                    rho_E_L,
-                                                    nx,
-                                                    ny,
-                                                    flux_rho,
-                                                    flux_rho_u,
-                                                    flux_rho_v,
-                                                    flux_rho_E,
-                                                    smag);
-              break;
-            }
-            case BoundaryId::UnsteadySubsonicInflow: {
-              const RealType y_face = q_point(f, q, 1);
-              Flux<RealType>::unsteady_subsonic_inflow_flux(rho_L,
-                                                            rho_u_L,
-                                                            rho_v_L,
-                                                            rho_E_L,
-                                                            nx,
-                                                            ny,
-                                                            y_face,
-                                                            t,
-                                                            flux_rho,
-                                                            flux_rho_u,
-                                                            flux_rho_v,
-                                                            flux_rho_E,
-                                                            smag);
-              break;
-            }
-            default: {
-              // Freestream / do-nothing
-              Flux<RealType>::roe_flux(rho_L,
-                                       rho_u_L,
-                                       rho_v_L,
-                                       rho_E_L,
-                                       rho_L,
-                                       rho_u_L,
-                                       rho_v_L,
-                                       rho_E_L,
-                                       nx,
-                                       ny,
-                                       flux_rho,
-                                       flux_rho_u,
-                                       flux_rho_v,
-                                       flux_rho_E,
-                                       smag);
-              break;
-            }
-          }
+          /*
+switch (id) {
+case BoundaryId::InviscidWall: {
+Flux<RealType>::inviscid_wall_flux(rho_L,
+                   rho_u_L,
+                   rho_v_L,
+                   rho_E_L,
+                   nx,
+                   ny,
+                   flux_rho,
+                   flux_rho_u,
+                   flux_rho_v,
+                   flux_rho_E,
+                   smag);
+break;
+}
+case BoundaryId::SubsonicInflow: {
+Flux<RealType>::subsonic_inflow_flux(rho_L,
+                     rho_u_L,
+                     rho_v_L,
+                     rho_E_L,
+                     nx,
+                     ny,
+                     flux_rho,
+                     flux_rho_u,
+                     flux_rho_v,
+                     flux_rho_E,
+                     smag);
+break;
+}
+case BoundaryId::SubsonicOutflow: {
+Flux<RealType>::subsonic_outflow_flux(rho_L,
+                      rho_u_L,
+                      rho_v_L,
+                      rho_E_L,
+                      nx,
+                      ny,
+                      flux_rho,
+                      flux_rho_u,
+                      flux_rho_v,
+                      flux_rho_E,
+                      smag);
+break;
+}
+case BoundaryId::UnsteadySubsonicInflow: {
+const RealType y_face = q_point(f, q, 1);
+Flux<RealType>::unsteady_subsonic_inflow_flux(rho_L,
+                              rho_u_L,
+                              rho_v_L,
+                              rho_E_L,
+                              nx,
+                              ny,
+                              y_face,
+                              t,
+                              flux_rho,
+                              flux_rho_u,
+                              flux_rho_v,
+                              flux_rho_E,
+                              smag);
+break;
+}
+default: {
+// Freestream / do-nothing
+Flux<RealType>::roe_flux(rho_L,
+         rho_u_L,
+         rho_v_L,
+         rho_E_L,
+         rho_L,
+         rho_u_L,
+         rho_v_L,
+         rho_E_L,
+         nx,
+         ny,
+         flux_rho,
+         flux_rho_u,
+         flux_rho_v,
+         flux_rho_E,
+         smag);
+break;
+}
+}*/
 
           // Scatter to interior cell only (no neighbor)
           for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {

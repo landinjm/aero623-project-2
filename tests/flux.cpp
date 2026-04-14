@@ -10,22 +10,23 @@ using ResultViewHost = VectorViewTrait<RealType, HostMemSpace>::type;
 
 template<typename function>
 auto
-run_on_device(int n_outputs, function f)
+run_on_host(int n_outputs, function f)
 {
   ResultViewHost result("result", n_outputs);
-
   f(result);
-
   return result;
 }
 
-TEST(Flux, conservative_to_primitive_basic)
+TEST(Flux, 2d_conservative_to_primitive_basic)
 {
-  auto result = run_on_device(3, [](auto& r) {
-    RealType u, v, p;
-    Flux<RealType>::conservative_to_primitive(1.0, 2.0, 3.0, 9.0, u, v, p);
-    r(0) = u;
-    r(1) = v;
+  auto result = run_on_host(3, [](auto& r) {
+    Tensor<1, 2, RealType> rho_v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> v;
+    RealType p;
+
+    Flux<2, RealType>::conservative_to_primitive(1.0, rho_v, 9.0, v, p);
+    r(0) = v(0);
+    r(1) = v(1);
     r(2) = p;
   });
 
@@ -34,13 +35,16 @@ TEST(Flux, conservative_to_primitive_basic)
   EXPECT_NEAR(result(2), 1.0, tol);
 }
 
-TEST(Flux, conservative_to_primitive_zero_velocity)
+TEST(Flux, 2d_conservative_to_primitive_zero_velocity)
 {
-  auto result = run_on_device(3, [](auto& r) {
-    RealType u, v, p;
-    Flux<RealType>::conservative_to_primitive(1.0, 0.0, 0.0, 10.0, u, v, p);
-    r(0) = u;
-    r(1) = v;
+  auto result = run_on_host(3, [](auto& r) {
+    Tensor<1, 2, RealType> rho_v{ 0.0, 0.0 };
+    Tensor<1, 2, RealType> v;
+    RealType p;
+
+    Flux<2, RealType>::conservative_to_primitive(1.0, rho_v, 10.0, v, p);
+    r(0) = v(0);
+    r(1) = v(1);
     r(2) = p;
   });
 
@@ -49,51 +53,153 @@ TEST(Flux, conservative_to_primitive_zero_velocity)
   EXPECT_NEAR(result(2), 4.0, tol);
 }
 
-TEST(Flux, speed_of_sound_basic)
+TEST(Flux, 3d_conservative_to_primitive_basic)
 {
-  auto result = run_on_device(
-    1, [](auto& r) { r(0) = Flux<RealType>::speed_of_sound(1.0, 1.0); });
+  auto result = run_on_host(4, [](auto& r) {
+    Tensor<1, 3, RealType> rho_v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> v;
+    RealType p;
+
+    Flux<3, RealType>::conservative_to_primitive(1.0, rho_v, 15.0, v, p);
+    r(0) = v(0);
+    r(1) = v(1);
+    r(2) = v(2);
+    r(3) = p;
+  });
+
+  EXPECT_NEAR(result(0), 2.0, tol);
+  EXPECT_NEAR(result(1), 3.0, tol);
+  EXPECT_NEAR(result(2), 4.0, tol);
+  EXPECT_NEAR(result(3), 0.2, tol);
+}
+
+TEST(Flux, 3d_conservative_to_primitive_zero_velocity)
+{
+  auto result = run_on_host(4, [](auto& r) {
+    Tensor<1, 3, RealType> rho_v{ 0.0, 0.0, 0.0 };
+    Tensor<1, 3, RealType> v;
+    RealType p;
+
+    Flux<3, RealType>::conservative_to_primitive(1.0, rho_v, 10.0, v, p);
+    r(0) = v(0);
+    r(1) = v(1);
+    r(2) = v(2);
+    r(3) = p;
+  });
+
+  EXPECT_NEAR(result(0), 0.0, tol);
+  EXPECT_NEAR(result(1), 0.0, tol);
+  EXPECT_NEAR(result(2), 0.0, tol);
+  EXPECT_NEAR(result(3), 4.0, tol);
+}
+
+TEST(Flux, 2d_speed_of_sound_basic)
+{
+  auto result = run_on_host(
+    1, [](auto& r) { r(0) = Flux<2, RealType>::speed_of_sound(1.0, 1.0); });
 
   EXPECT_NEAR(result(0), Kokkos::sqrt(1.4), tol);
 }
 
-TEST(Flux, max_wavespeed_aligned_normal_x)
+TEST(Flux, 3d_speed_of_sound_basic)
 {
-  auto result = run_on_device(1, [](auto& r) {
-    r(0) = Flux<RealType>::max_wavespeed(1.0, 2.0, 3.0, 1.0, 1.0, 0.0);
+  auto result = run_on_host(
+    1, [](auto& r) { r(0) = Flux<3, RealType>::speed_of_sound(1.0, 1.0); });
+
+  EXPECT_NEAR(result(0), Kokkos::sqrt(1.4), tol);
+}
+
+TEST(Flux, 2d_max_wavespeed_aligned_normal_x)
+{
+  auto result = run_on_host(1, [](auto& r) {
+    Tensor<1, 2, RealType> v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> n{ 1.0, 0.0 };
+
+    r(0) = Flux<2, RealType>::max_wavespeed(1.0, v, 1.0, n);
   });
 
   EXPECT_NEAR(result(0), 2.0 + Kokkos::sqrt(1.4), tol);
 }
 
-TEST(Flux, max_wavespeed_aligned_normal_x_negative_velocity)
+TEST(Flux, 2d_max_wavespeed_aligned_normal_x_negative_velocity)
 {
-  auto result = run_on_device(1, [](auto& r) {
-    r(0) = Flux<RealType>::max_wavespeed(1.0, -2.0, 3.0, 1.0, 1.0, 0.0);
+  auto result = run_on_host(1, [](auto& r) {
+    Tensor<1, 2, RealType> v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> n{ 1.0, 0.0 };
+
+    r(0) = Flux<2, RealType>::max_wavespeed(1.0, -v, 1.0, n);
   });
 
   EXPECT_NEAR(result(0), 2.0 + Kokkos::sqrt(1.4), tol);
 }
 
-TEST(Flux, max_wavespeed_diagonal_normal)
+TEST(Flux, 2d_max_wavespeed_diagonal_normal)
 {
-  auto result = run_on_device(1, [](auto& r) {
-    r(0) = Flux<RealType>::max_wavespeed(
-      1.0, 1.0, 1.0, 1.0, 1.0 / Kokkos::sqrt(2.0), 1.0 / Kokkos::sqrt(2.0));
+  auto result = run_on_host(1, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 2, RealType> v{ 1.0, 1.0 };
+    Tensor<1, 2, RealType> n{ 1.0 / sqrt(2.0), 1.0 / sqrt(2.0) };
+
+    r(0) = Flux<2, RealType>::max_wavespeed(1.0, v, 1.0, n);
   });
 
   EXPECT_NEAR(result(0), Kokkos::sqrt(2.0) + Kokkos::sqrt(1.4), tol);
 }
 
-TEST(Flux, euler_flux_aligned_normal_x)
+TEST(Flux, 3d_max_wavespeed_aligned_normal_x)
 {
-  auto result = run_on_device(4, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E;
-    Flux<RealType>::euler_flux(
-      1.0, 2.0, 3.0, 1.0, 9.0, 1.0, 0.0, F_rho, F_rho_u, F_rho_v, F_rho_E);
+  auto result = run_on_host(1, [](auto& r) {
+    Tensor<1, 3, RealType> v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 1.0, 0.0, 0.0 };
+
+    r(0) = Flux<3, RealType>::max_wavespeed(1.0, v, 1.0, n);
+  });
+
+  EXPECT_NEAR(result(0), 2.0 + Kokkos::sqrt(1.4), tol);
+}
+
+TEST(Flux, 3d_max_wavespeed_aligned_normal_x_negative_velocity)
+{
+  auto result = run_on_host(1, [](auto& r) {
+    Tensor<1, 3, RealType> v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 1.0, 0.0, 0.0 };
+
+    r(0) = Flux<3, RealType>::max_wavespeed(1.0, -v, 1.0, n);
+  });
+
+  EXPECT_NEAR(result(0), 2.0 + Kokkos::sqrt(1.4), tol);
+}
+
+TEST(Flux, 3d_max_wavespeed_diagonal_normal)
+{
+  auto result = run_on_host(1, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 3, RealType> v{ 1.0, 1.0, 1.0 };
+    Tensor<1, 3, RealType> n{ 1.0 / sqrt(3.0),
+                              1.0 / sqrt(3.0),
+                              1.0 / sqrt(3.0) };
+
+    r(0) = Flux<3, RealType>::max_wavespeed(1.0, v, 1.0, n);
+  });
+
+  EXPECT_NEAR(result(0), Kokkos::sqrt(3.0) + Kokkos::sqrt(1.4), tol);
+}
+
+TEST(Flux, 2d_euler_flux_aligned_normal_x)
+{
+  auto result = run_on_host(4, [](auto& r) {
+    Tensor<1, 2, RealType> v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> n{ 1.0, 0.0 };
+    RealType F_rho;
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho_E;
+
+    Flux<2, RealType>::euler_flux(1.0, v, 1.0, 9.0, n, F_rho, F_rho_v, F_rho_E);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
   });
 
@@ -103,15 +209,19 @@ TEST(Flux, euler_flux_aligned_normal_x)
   EXPECT_NEAR(result(3), 20.0, tol);
 }
 
-TEST(Flux, euler_flux_aligned_normal_y)
+TEST(Flux, 2d_euler_flux_aligned_normal_y)
 {
-  auto result = run_on_device(4, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E;
-    Flux<RealType>::euler_flux(
-      1.0, 2.0, 3.0, 1.0, 9.0, 0.0, 1.0, F_rho, F_rho_u, F_rho_v, F_rho_E);
+  auto result = run_on_host(4, [](auto& r) {
+    Tensor<1, 2, RealType> v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> n{ 0.0, 1.0 };
+    RealType F_rho;
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho_E;
+
+    Flux<2, RealType>::euler_flux(1.0, v, 1.0, 9.0, n, F_rho, F_rho_v, F_rho_E);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
   });
 
@@ -121,56 +231,148 @@ TEST(Flux, euler_flux_aligned_normal_y)
   EXPECT_NEAR(result(3), 30.0, tol);
 }
 
-TEST(Flux, euler_flux_zero_normal_velocity)
+TEST(Flux, 2d_euler_flux_zero_normal_velocity)
 {
-  auto result = run_on_device(4, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E;
-    Flux<RealType>::euler_flux(1.0,
-                               -1.0 / Kokkos::sqrt(2.0),
-                               1.0 / Kokkos::sqrt(2.0),
-                               1.0,
-                               9.0,
-                               1.0 / Kokkos::sqrt(2.0),
-                               1.0 / Kokkos::sqrt(2.0),
-                               F_rho,
-                               F_rho_u,
-                               F_rho_v,
-                               F_rho_E);
+  auto result = run_on_host(4, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 2, RealType> v{ -1.0 / sqrt(2.0), 1.0 / sqrt(2.0) };
+    Tensor<1, 2, RealType> n{ 1.0 / sqrt(2.0), 1.0 / sqrt(2.0) };
+    RealType F_rho;
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho_E;
+
+    Flux<2, RealType>::euler_flux(1.0, v, 3.4, 9.0, n, F_rho, F_rho_v, F_rho_E);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
   });
 
   EXPECT_NEAR(result(0), 0.0, tol);
-  EXPECT_NEAR(result(1), 1.0 / Kokkos::sqrt(2.0), tol);
-  EXPECT_NEAR(result(2), 1.0 / Kokkos::sqrt(2.0), tol);
+  EXPECT_NEAR(result(1), 3.4 / Kokkos::sqrt(2.0), tol);
+  EXPECT_NEAR(result(2), 3.4 / Kokkos::sqrt(2.0), tol);
   EXPECT_NEAR(result(3), 0.0, tol);
 }
 
-TEST(Flux, roe_flux_consistency_x)
+TEST(Flux, 3d_euler_flux_aligned_normal_x)
+{
+  auto result = run_on_host(5, [](auto& r) {
+    Tensor<1, 3, RealType> v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 1.0, 0.0, 0.0 };
+    RealType F_rho;
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho_E;
+
+    Flux<3, RealType>::euler_flux(
+      1.0, v, 1.4, 18.0, n, F_rho, F_rho_v, F_rho_E);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+  });
+
+  EXPECT_NEAR(result(0), 2.0, tol);
+  EXPECT_NEAR(result(1), 5.4, tol);
+  EXPECT_NEAR(result(2), 6.0, tol);
+  EXPECT_NEAR(result(3), 8.0, tol);
+  EXPECT_NEAR(result(4), 38.8, tol);
+}
+
+TEST(Flux, 3d_euler_flux_aligned_normal_y)
+{
+  auto result = run_on_host(5, [](auto& r) {
+    Tensor<1, 3, RealType> v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 0.0, 1.0, 0.0 };
+    RealType F_rho;
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho_E;
+
+    Flux<3, RealType>::euler_flux(
+      1.0, v, 1.4, 18.0, n, F_rho, F_rho_v, F_rho_E);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+  });
+
+  EXPECT_NEAR(result(0), 3.0, tol);
+  EXPECT_NEAR(result(1), 6.0, tol);
+  EXPECT_NEAR(result(2), 10.4, tol);
+  EXPECT_NEAR(result(3), 12.0, tol);
+  EXPECT_NEAR(result(4), 58.2, tol);
+}
+
+TEST(Flux, 3d_euler_flux_aligned_normal_z)
+{
+  auto result = run_on_host(5, [](auto& r) {
+    Tensor<1, 3, RealType> v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 0.0, 0.0, 1.0 };
+    RealType F_rho;
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho_E;
+
+    Flux<3, RealType>::euler_flux(
+      1.0, v, 1.4, 18.0, n, F_rho, F_rho_v, F_rho_E);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+  });
+
+  EXPECT_NEAR(result(0), 4.0, tol);
+  EXPECT_NEAR(result(1), 8.0, tol);
+  EXPECT_NEAR(result(2), 12.0, tol);
+  EXPECT_NEAR(result(3), 17.4, tol);
+  EXPECT_NEAR(result(4), 77.6, tol);
+}
+
+TEST(Flux, 3d_euler_flux_zero_normal_velocity)
+{
+  auto result = run_on_host(5, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 3, RealType> v{ -1.0 / sqrt(2.0), 1.0 / sqrt(2.0), 0.0 };
+    Tensor<1, 3, RealType> n{ 1.0 / sqrt(3.0),
+                              1.0 / sqrt(3.0),
+                              1.0 / sqrt(3.0) };
+    RealType F_rho;
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho_E;
+
+    Flux<3, RealType>::euler_flux(
+      1.0, v, 7.0, 18.0, n, F_rho, F_rho_v, F_rho_E);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+  });
+
+  EXPECT_NEAR(result(0), 0.0, tol);
+  EXPECT_NEAR(result(1), 7.0 / Kokkos::sqrt(3.0), tol);
+  EXPECT_NEAR(result(2), 7.0 / Kokkos::sqrt(3.0), tol);
+  EXPECT_NEAR(result(3), 7.0 / Kokkos::sqrt(3.0), tol);
+  EXPECT_NEAR(result(4), 0.0, tol);
+}
+
+TEST(Flux, 2d_roe_flux_consistency_x)
 {
   // With equal left and right states, we recover the euler flux.
-  auto result = run_on_device(5, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
-    Flux<RealType>::roe_flux(1.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             1.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             1.0,
-                             0.0,
-                             F_rho,
-                             F_rho_u,
-                             F_rho_v,
-                             F_rho_E,
-                             s_mag);
+  auto result = run_on_host(5, [](auto& r) {
+    Tensor<1, 2, RealType> rho_v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> n{ 1.0, 0.0 };
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<2, RealType>::roe_flux(
+      1.0, rho_v, 9.0, 1.0, rho_v, 9.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
     r(4) = s_mag;
   });
@@ -182,29 +384,20 @@ TEST(Flux, roe_flux_consistency_x)
   EXPECT_NEAR(result(4), 2.0 + Kokkos::sqrt(1.4), tol);
 }
 
-TEST(Flux, roe_flux_consistency_y)
+TEST(Flux, 2d_roe_flux_consistency_y)
 {
   // With equal left and right states, we recover the euler flux.
-  auto result = run_on_device(5, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
-    Flux<RealType>::roe_flux(1.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             1.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             0.0,
-                             1.0,
-                             F_rho,
-                             F_rho_u,
-                             F_rho_v,
-                             F_rho_E,
-                             s_mag);
+  auto result = run_on_host(5, [](auto& r) {
+    Tensor<1, 2, RealType> rho_v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> n{ 0.0, 1.0 };
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<2, RealType>::roe_flux(
+      1.0, rho_v, 9.0, 1.0, rho_v, 9.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
     r(4) = s_mag;
   });
@@ -216,50 +409,30 @@ TEST(Flux, roe_flux_consistency_y)
   EXPECT_NEAR(result(4), 3.0 + Kokkos::sqrt(1.4), tol);
 }
 
-TEST(Flux, roe_flux_conservation)
+TEST(Flux, 2d_roe_flux_conservation)
 {
   // Flipping the sign on the normal vector should flip the sign on the flux
-  auto result = run_on_device(10, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
-    Flux<RealType>::roe_flux(1.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             2.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             1.0 / Kokkos::sqrt(2.0),
-                             1.0 / Kokkos::sqrt(2.0),
-                             F_rho,
-                             F_rho_u,
-                             F_rho_v,
-                             F_rho_E,
-                             s_mag);
+  auto result = run_on_host(10, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 2, RealType> rho_v{ 2.0, 3.0 };
+    Tensor<1, 2, RealType> n{ 1.0 / sqrt(2.0), 1.0 / sqrt(2.0) };
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<2, RealType>::roe_flux(
+      1.0, rho_v, 9.0, 1.0, rho_v, 9.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
     r(4) = s_mag;
 
-    Flux<RealType>::roe_flux(2.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             1.0,
-                             2.0,
-                             3.0,
-                             9.0,
-                             -1.0 / Kokkos::sqrt(2.0),
-                             -1.0 / Kokkos::sqrt(2.0),
-                             F_rho,
-                             F_rho_u,
-                             F_rho_v,
-                             F_rho_E,
-                             s_mag);
+    Flux<2, RealType>::roe_flux(
+      1.0, rho_v, 9.0, 1.0, rho_v, 9.0, -n, F_rho, F_rho_v, F_rho_E, s_mag);
     r(5) = F_rho;
-    r(6) = F_rho_u;
-    r(7) = F_rho_v;
+    r(6) = F_rho_v(0);
+    r(7) = F_rho_v(1);
     r(8) = F_rho_E;
     r(9) = s_mag;
   });
@@ -271,28 +444,22 @@ TEST(Flux, roe_flux_conservation)
   EXPECT_NEAR(result(4), result(9), tol);
 }
 
-TEST(Flux, roe_flux_basic)
+TEST(Flux, 2d_roe_flux_basic)
 {
-  auto result = run_on_device(5, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
-    Flux<RealType>::roe_flux(1.0,
-                             1.0,
-                             0.0,
-                             1.0,
-                             1.0,
-                             0.0,
-                             1.0,
-                             1.0,
-                             1.0 / Kokkos::sqrt(2.0),
-                             1.0 / Kokkos::sqrt(2.0),
-                             F_rho,
-                             F_rho_u,
-                             F_rho_v,
-                             F_rho_E,
-                             s_mag);
+  auto result = run_on_host(5, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 2, RealType> rho_v_L{ 1.0, 0.0 };
+    Tensor<1, 2, RealType> rho_v_R{ 0.0, 1.0 };
+    Tensor<1, 2, RealType> n{ 1.0 / sqrt(2.0), 1.0 / sqrt(2.0) };
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<2, RealType>::roe_flux(
+      1.0, rho_v_L, 1.0, 1.0, rho_v_R, 1.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
     r(4) = s_mag;
   });
@@ -304,28 +471,22 @@ TEST(Flux, roe_flux_basic)
   EXPECT_NEAR(result(4), 1.323548181483444885, tol);
 }
 
-TEST(Flux, roe_flux_basic_2)
+TEST(Flux, 2d_roe_flux_basic_2)
 {
-  auto result = run_on_device(5, [](auto& r) {
-    RealType F_rho, F_rho_u, F_rho_v, F_rho_E, s_mag;
-    Flux<RealType>::roe_flux(1.0,
-                             0.1,
-                             0.1,
-                             1.0,
-                             1.0,
-                             0.2,
-                             0.3,
-                             1.0,
-                             1.0 / Kokkos::sqrt(2.0),
-                             1.0 / Kokkos::sqrt(2.0),
-                             F_rho,
-                             F_rho_u,
-                             F_rho_v,
-                             F_rho_E,
-                             s_mag);
+  auto result = run_on_host(5, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 2, RealType> rho_v_L{ 0.1, 0.1 };
+    Tensor<1, 2, RealType> rho_v_R{ 0.2, 0.3 };
+    Tensor<1, 2, RealType> n{ 1.0 / sqrt(2.0), 1.0 / sqrt(2.0) };
+    Tensor<1, 2, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<2, RealType>::roe_flux(
+      1.0, rho_v_L, 1.0, 1.0, rho_v_R, 1.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
     r(0) = F_rho;
-    r(1) = F_rho_u;
-    r(2) = F_rho_v;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
     r(3) = F_rho_E;
     r(4) = s_mag;
   });
@@ -335,4 +496,125 @@ TEST(Flux, roe_flux_basic_2)
   EXPECT_NEAR(result(2), 0.268428692056169871, tol);
   EXPECT_NEAR(result(3), 0.294033357867632128, tol);
   EXPECT_NEAR(result(4), 0.983354209194700735, tol);
+}
+
+TEST(Flux, 3d_roe_flux_consistency_x)
+{
+  // With equal left and right states, we recover the euler flux.
+  auto result = run_on_host(6, [](auto& r) {
+    Tensor<1, 3, RealType> rho_v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 1.0, 0.0, 0.0 };
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<3, RealType>::roe_flux(
+      1.0, rho_v, 18.0, 1.0, rho_v, 18.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+    r(5) = s_mag;
+  });
+
+  EXPECT_NEAR(result(0), 2.0, tol);
+  EXPECT_NEAR(result(1), 5.4, tol);
+  EXPECT_NEAR(result(2), 6.0, tol);
+  EXPECT_NEAR(result(3), 8.0, tol);
+  EXPECT_NEAR(result(4), 38.8, tol);
+  EXPECT_NEAR(result(5), 3.4, tol);
+}
+
+TEST(Flux, 3d_roe_flux_consistency_y)
+{
+  // With equal left and right states, we recover the euler flux.
+  auto result = run_on_host(6, [](auto& r) {
+    Tensor<1, 3, RealType> rho_v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 0.0, 1.0, 0.0 };
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<3, RealType>::roe_flux(
+      1.0, rho_v, 18.0, 1.0, rho_v, 18.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+    r(5) = s_mag;
+  });
+
+  EXPECT_NEAR(result(0), 3.0, tol);
+  EXPECT_NEAR(result(1), 6.0, tol);
+  EXPECT_NEAR(result(2), 10.4, tol);
+  EXPECT_NEAR(result(3), 12.0, tol);
+  EXPECT_NEAR(result(4), 58.2, tol);
+  EXPECT_NEAR(result(5), 4.4, tol);
+}
+
+TEST(Flux, 3d_roe_flux_consistency_z)
+{
+  // With equal left and right states, we recover the euler flux.
+  auto result = run_on_host(6, [](auto& r) {
+    Tensor<1, 3, RealType> rho_v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 0.0, 0.0, 1.0 };
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<3, RealType>::roe_flux(
+      1.0, rho_v, 18.0, 1.0, rho_v, 18.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+    r(5) = s_mag;
+  });
+
+  EXPECT_NEAR(result(0), 4.0, tol);
+  EXPECT_NEAR(result(1), 8.0, tol);
+  EXPECT_NEAR(result(2), 12.0, tol);
+  EXPECT_NEAR(result(3), 17.4, tol);
+  EXPECT_NEAR(result(4), 77.6, tol);
+  EXPECT_NEAR(result(5), 5.4, tol);
+}
+
+TEST(Flux, 3d_roe_flux_conservation)
+{
+  // Flipping the sign on the normal vector should flip the sign on the flux
+  auto result = run_on_host(12, [](auto& r) {
+    using Kokkos::sqrt;
+
+    Tensor<1, 3, RealType> rho_v{ 2.0, 3.0, 4.0 };
+    Tensor<1, 3, RealType> n{ 1.0 / sqrt(3.0),
+                              1.0 / sqrt(3.0),
+                              1.0 / sqrt(3.0) };
+    Tensor<1, 3, RealType> F_rho_v;
+    RealType F_rho, F_rho_E, s_mag;
+
+    Flux<3, RealType>::roe_flux(
+      1.0, rho_v, 18.0, 1.0, rho_v, 18.0, n, F_rho, F_rho_v, F_rho_E, s_mag);
+    r(0) = F_rho;
+    r(1) = F_rho_v(0);
+    r(2) = F_rho_v(1);
+    r(3) = F_rho_v(2);
+    r(4) = F_rho_E;
+    r(5) = s_mag;
+
+    Flux<3, RealType>::roe_flux(
+      1.0, rho_v, 18.0, 1.0, rho_v, 18.0, -n, F_rho, F_rho_v, F_rho_E, s_mag);
+    r(6) = F_rho;
+    r(7) = F_rho_v(0);
+    r(8) = F_rho_v(1);
+    r(9) = F_rho_v(2);
+    r(10) = F_rho_E;
+    r(11) = s_mag;
+  });
+
+  EXPECT_NEAR(result(0), -result(6), tol);
+  EXPECT_NEAR(result(1), -result(7), tol);
+  EXPECT_NEAR(result(2), -result(8), tol);
+  EXPECT_NEAR(result(3), -result(9), tol);
+  EXPECT_NEAR(result(4), -result(10), tol);
+  EXPECT_NEAR(result(5), result(11), tol);
 }
