@@ -113,7 +113,7 @@ public:
   KOKKOS_INLINE_FUNCTION
   Tensor& operator/=(const RealType scalar)
   {
-    ASSERT_DEBUG(scalar != RealType(0), "Division by zero");
+    ASSERT(scalar != RealType(0), "Division by zero");
     for (int i = 0; i < n_components; ++i) {
       data_[i] /= scalar;
     }
@@ -201,16 +201,16 @@ private:
   RealType data_[n_components];
 };
 
-template<int rank, int dim, typename RealType>
+template<unsigned int rank, unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION Tensor<rank, dim, RealType>
 operator*(RealType scalar, const Tensor<rank, dim, RealType>& t)
 {
   return t * scalar;
 }
 
-template<int dim, typename RealType>
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION RealType
-dot(const Tensor<1, dim, RealType>& a, const Tensor<1, dim, RealType>& b)
+dot(const Tensor<1U, dim, RealType>& a, const Tensor<1U, dim, RealType>& b)
 {
   RealType sum = RealType(0);
   for (int i = 0; i < dim; ++i) {
@@ -219,9 +219,10 @@ dot(const Tensor<1, dim, RealType>& a, const Tensor<1, dim, RealType>& b)
   return sum;
 }
 
-template<int dim, typename RealType>
-KOKKOS_INLINE_FUNCTION Tensor<1, dim, RealType>
-operator*(const Tensor<2, dim, RealType>& A, const Tensor<1, dim, RealType>& v)
+template<unsigned int dim, typename RealType>
+KOKKOS_INLINE_FUNCTION Tensor<1U, dim, RealType>
+operator*(const Tensor<2U, dim, RealType>& A,
+          const Tensor<1U, dim, RealType>& v)
 {
   Tensor<1, dim, RealType> result;
   for (int i = 0; i < dim; ++i) {
@@ -232,9 +233,9 @@ operator*(const Tensor<2, dim, RealType>& A, const Tensor<1, dim, RealType>& v)
   return result;
 }
 
-template<int dim, typename RealType>
-KOKKOS_INLINE_FUNCTION Tensor<2, dim, RealType>
-outer(const Tensor<1, dim, RealType>& a, const Tensor<1, dim, RealType>& b)
+template<unsigned int dim, typename RealType>
+KOKKOS_INLINE_FUNCTION Tensor<2U, dim, RealType>
+outer(const Tensor<1U, dim, RealType>& a, const Tensor<1U, dim, RealType>& b)
 {
   Tensor<2, dim, RealType> result;
   for (int i = 0; i < dim; ++i) {
@@ -245,9 +246,9 @@ outer(const Tensor<1, dim, RealType>& a, const Tensor<1, dim, RealType>& b)
   return result;
 }
 
-template<int dim, typename RealType>
-KOKKOS_INLINE_FUNCTION Tensor<2, dim, RealType>
-transpose(const Tensor<2, dim, RealType>& A)
+template<unsigned int dim, typename RealType>
+KOKKOS_INLINE_FUNCTION Tensor<2U, dim, RealType>
+transpose(const Tensor<2U, dim, RealType>& A)
 {
   Tensor<2, dim, RealType> result;
   for (int i = 0; i < dim; ++i) {
@@ -258,9 +259,9 @@ transpose(const Tensor<2, dim, RealType>& A)
   return result;
 }
 
-template<int dim, typename RealType>
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION RealType
-trace(const Tensor<2, dim, RealType>& A)
+trace(const Tensor<2U, dim, RealType>& A)
 {
   RealType sum = RealType(0);
   for (int i = 0; i < dim; ++i) {
@@ -269,10 +270,10 @@ trace(const Tensor<2, dim, RealType>& A)
   return sum;
 }
 
-template<int dim, typename RealType>
+template<unsigned int dim, typename RealType>
 KOKKOS_INLINE_FUNCTION RealType
-double_contract(const Tensor<2, dim, RealType>& A,
-                const Tensor<2, dim, RealType>& B)
+double_contract(const Tensor<2U, dim, RealType>& A,
+                const Tensor<2U, dim, RealType>& B)
 {
   RealType sum = RealType(0);
   for (int i = 0; i < dim; ++i) {
