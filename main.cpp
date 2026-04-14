@@ -26,6 +26,47 @@ struct BoundaryId
   static constexpr uint32_t Freestream = 5;
 };
 
+/**
+ * Freestream state
+ */
+template<unsigned int dim, typename RealType>
+struct FreestreamState
+{
+  RealType rho;
+  Tensor<1, dim, RealType> rho_v;
+  RealType rho_E;
+};
+
+template<unsigned int dim, typename RealType>
+constexpr FreestreamState<dim, RealType>
+make_freestream(RealType M)
+{
+  using P = Parameters<RealType>;
+
+  const RealType factor =
+    RealType(1) + (P::gamma - RealType(1)) * RealType(0.5) * M * M;
+  const RealType T = P::T_0_and_R / factor;
+  const RealType p =
+    P::p_0 * std::pow(factor, -P::gamma / (P::gamma - RealType(1)));
+  const RealType rho = p / T;
+
+  // Velocity magnitude
+  const RealType a = std::sqrt(P::gamma * T);
+  const RealType u = M * a;
+
+  // Direction: assume flow in x-direction
+  Tensor<1, dim, RealType> rho_v{};
+  rho_v[0] = rho * u;
+  for (unsigned int d = 1; d < dim; ++d)
+    rho_v[d] = RealType(0);
+
+  // Energy
+  const RealType rho_E =
+    p / (P::gamma - RealType(1)) + RealType(0.5) * rho * u * u;
+
+  return { rho, rho_v, rho_E };
+}
+
 template<unsigned int dim, typename RealType>
 class EulerSolver
 {
@@ -60,6 +101,9 @@ public:
     res_rho_E_ = VecDevice(n_dofs_);
 
     dt_ = VecDevice(n_dofs_);
+
+    // Freestream
+    freestream_ = make_freestream<2>(RealType(0.5));
 
     // Precompute geometries
     precompute_geometry();
@@ -164,11 +208,8 @@ public:
     data_out.clear();
   }
 
-  template<typename InitFunc>
-  void set_initial_condition(InitFunc&& f)
+  void set_initial_condition()
   {
-    constexpr RealType gamma = Parameters<RealType>::gamma;
-    constexpr RealType gm1 = gamma - RealType(1);
 
     auto rho_h = Kokkos::create_mirror_view(rho_.view());
     auto rho_u_h = Kokkos::create_mirror_view(rho_u_.view());
@@ -180,15 +221,11 @@ public:
       cell.get_dof_indices(dof_ids);
       const auto ctr = cell.tria_cell.center();
 
-      auto [rho0, u0, v0, p0] = f(ctr(0), ctr(1));
-      const RealType rhoE0 =
-        p0 / gm1 + RealType(0.5) * rho0 * (u0 * u0 + v0 * v0);
-
       for (auto dof : dof_ids) {
-        rho_h(dof) = rho0;
-        rho_u_h(dof) = rho0 * u0;
-        rho_v_h(dof) = rho0 * v0;
-        rho_E_h(dof) = rhoE0;
+        rho_h(dof) = freestream_.rho;
+        rho_u_h(dof) = freestream_.rho_v[0];
+        rho_v_h(dof) = freestream_.rho_v[1];
+        rho_E_h(dof) = freestream_.rho_E;
       }
     }
 
@@ -202,6 +239,8 @@ public:
   const DoFHandler<dim, RealType>& dof_handler_;
   FEValues<dim, RealType>& fe_values_;
   FEFaceValues<dim, RealType>& fe_face_values_;
+
+  FreestreamState<2, RealType> freestream_;
 
   uint32_t n_dofs_;
   uint32_t n_cells_;
@@ -362,23 +401,39 @@ public:
       fe_values_.reinit(cell);
       cell.get_dof_indices(dof_indices);
 
+      std::cout << "Cell index " << cell.index() << std::endl;
+      std::cout << "  measure " << cell.measure() << std::endl;
+
       RealType area = 0;
       for (unsigned int q = 0; q < n_q_points; ++q) {
         JxW_h(k, q) = fe_values_.JxW(q);
         area += fe_values_.JxW(q);
 
         auto p = fe_values_.q_point(q);
-        for (unsigned int d = 0; d < dim; ++d)
+
+        std::cout << "    q " << q;
+        std::cout << " point ";
+
+        for (unsigned int d = 0; d < dim; ++d) {
+          std::cout << p(d) << " ";
           q_point_h(k, q, d) = p(d);
+        }
+
+        std::cout << "\n";
 
         for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
+          std::cout << "      i " << i;
+          std::cout << " shape value " << fe_values_.shape_value(i, q);
           phi_h(k, i, q) = fe_values_.shape_value(i, q);
           auto grad = fe_values_.shape_gradient(i, q);
-          for (unsigned int d = 0; d < dim; ++d)
+          std::cout << " shape gradient " << grad(0) << " " << grad(1) << "\n";
+          for (unsigned int d = 0; d < dim; ++d) {
             grad_phi_h(k, i, q, d) = grad(d);
+          }
         }
       }
       cell_area_h(k) = area;
+      std::cout << "  computed area " << area << std::endl;
 
       for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
         cell_dofs_h(k, i) = dof_indices[i];
@@ -525,6 +580,8 @@ public:
             auto neighbor_cell = cell.neighbor(lf);
             neighbor_cell.get_dof_indices(neighbor_dof_indices);
 
+            std::cout << "Face index " << f << "\n";
+
             for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
               interior_dofs_L_h(f, i) = dof_indices[i];
               interior_dofs_R_h(f, i) = neighbor_dof_indices[i];
@@ -532,9 +589,15 @@ public:
 
             // Left side (owner cell)
             for (unsigned int q = 0; q < n_q_points_face; ++q) {
+              std::cout << "  owner\n";
+              std::cout << "  q " << q << "\n";
+              std::cout << "  JxW " << fe_face_values_.JxW(q);
+
               interior_JxW_h(f, q) = fe_face_values_.JxW(q);
               auto p = fe_face_values_.q_point(q);
               auto n = fe_face_values_.normal(q);
+              std::cout << "  point " << p(0) << " " << p(1) << "\n";
+              std::cout << "  normal " << n(0) << " " << n(1) << "\n";
               for (unsigned int d = 0; d < dim; ++d) {
                 interior_q_point_h(f, q, d) = p(d);
                 interior_normal_h(f, q, d) = n(d);
@@ -547,8 +610,16 @@ public:
             unsigned int neighbor_lf = cell.neighbor_face_index(lf);
             fe_face_values_.reinit(neighbor_cell, neighbor_lf);
             for (unsigned int q = 0; q < n_q_points_face; ++q) {
+              std::cout << "  neighbor\n";
+              std::cout << "  q " << q << "\n";
+              std::cout << "  JxW " << fe_face_values_.JxW(q);
+
               // Reverse the q point location
               unsigned int q_r = n_q_points_face - 1 - q;
+              std::cout << "  q_r " << q_r << "\n";
+              auto p = fe_face_values_.q_point(q_r);
+              std::cout << "  point " << p(0) << " " << p(1) << "\n";
+
               for (unsigned int i = 0; i < n_dofs_per_cell; ++i) {
                 interior_phi_R_h(f, q, i) = fe_face_values_.shape_value(i, q_r);
               }
@@ -1330,9 +1401,9 @@ public:
               Flux<dim, RealType>::roe_flux(rho_L,
                                             rho_v_L,
                                             rho_E_L,
-                                            rho_L,
-                                            rho_v_L,
-                                            rho_E_L,
+                                            freestream_.rho,
+                                            freestream_.rho_v,
+                                            freestream_.rho_E,
                                             n,
                                             flux_rho,
                                             flux_rho_v,
@@ -1440,48 +1511,25 @@ main(int argc, char* argv[])
   {
     GriReader<2> gri;
     Triangulation<2> tria;
-    gri.read_gri("../tests/test_2.gri");
+    gri.read_gri("../grids/coarse_local_refinement.gri");
     gri.transfer_to_triangulation(tria);
-    if (!tria.verify_mesh())
+    if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
+    }
 
-    std::unordered_map<uint32_t, uint32_t> id_map = {
-      { 7, BoundaryId::InviscidWall },
-      { 8, BoundaryId::InviscidWall },
-      { 5, BoundaryId::SubsonicInflow },
-      { 6, BoundaryId::SubsonicOutflow },
-    };
-    tria.remap_boundary_ids(id_map);
+    constexpr unsigned int degree = 3;
 
-    auto ic = [](double x, double y) {
-      constexpr double gamma = Parameters<double>::gamma;
-      constexpr double gm1 = gamma - 1.0;
-      constexpr double p_0 = Parameters<double>::p_0;
-      constexpr double rho_0 = Parameters<double>::rho_0;
-      constexpr double a_0 = Parameters<double>::a_0;
-      constexpr double p_out = Parameters<double>::p_out;
-      const double p = p_out;
-      const double ratio = p / p_0;
-      const double rho = rho_0 * std::pow(ratio, 1.0 / gamma);
-      const double a = std::sqrt(gamma * p / rho);
-      const double V = std::sqrt(2.0 / gm1 * (a_0 * a_0 - a * a));
-      const double u = V * Parameters<double>::n_x_0();
-      const double v = V * Parameters<double>::n_y_0();
-      return std::make_tuple(rho, u, v, p);
-    };
-
-    constexpr unsigned int degree = 1;
-
-    FE_DGLagrangeSimplex<2, double> fe0(degree);
-    QGaussSimplex<2, double> q0(degree + 1);
-    QGaussSimplex<1, double> fq0(degree + 1);
-    DoFHandler<2, double> dh0(tria, fe0);
-    FEValues<2, double> fev0(fe0, q0);
-    FEFaceValues<2, double> ffev0(fe0, fq0);
-    EulerSolver<2, double> s0(dh0, fev0, ffev0, degree);
-    s0.set_initial_condition(ic);
-    s0.test_freestream_preservation(10000);
-    s0.write_solution("solution_freestream_p0.vtu");
+    FE_DGLagrangeSimplex<2, double> fe(degree);
+    QGaussSimplex<2, double> quad(degree + 1);
+    QGaussSimplex<1, double> face_quad(degree + 1);
+    DoFHandler<2, double> dof_handler(tria, fe);
+    FEValues<2, double> fe_values(fe, quad);
+    FEFaceValues<2, double> fe_face_values(fe, face_quad);
+    EulerSolver<2, double> solver(
+      dof_handler, fe_values, fe_face_values, degree);
+    solver.set_initial_condition();
+    solver.test_freestream_preservation(10000);
+    solver.write_solution("solution_freestream_p0.vtu");
   }
   Kokkos::finalize();
   return 0;
