@@ -1462,8 +1462,8 @@ void
 interpolate_solution(
   const DoFHandler<dim, RealType>& dof_handler_lo,
   const DoFHandler<dim, RealType>& dof_handler_hi,
-  const FE_DGQLegendre<dim, RealType>& fe_lo,
-  const FE_DGQLegendre<dim, RealType>& fe_hi,
+  const FE_DGLagrangeSimplex<dim, RealType>& fe_lo,
+  const FE_DGLagrangeSimplex<dim, RealType>& fe_hi,
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rho_lo,
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rhou_lo,
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rhov_lo,
@@ -1561,7 +1561,7 @@ main(int argc, char* argv[])
                            Vector<double, HostMemSpace>& rhou_out,
                            Vector<double, HostMemSpace>& rhov_out,
                            Vector<double, HostMemSpace>& rhoE_out) {
-      FE_DGQLegendre<2, double> fe_l(deg_lo), fe_h(deg_hi);
+      FE_DGLagrangeSimplex<2, double> fe_l(deg_lo), fe_h(deg_hi);
       DoFHandler<2, double> dh_l(tria, fe_l), dh_h(tria, fe_h);
       interpolate_solution(dh_l,
                            dh_h,
@@ -1580,7 +1580,7 @@ main(int argc, char* argv[])
     double abs_tol = 0.0;
 
     // --- Degree 0 ---
-    FE_DGQLegendre<2, double> fe0(0);
+    FE_DGLagrangeSimplex<2, double> fe0(0);
     QGaussSimplex<2, double> q0(1);
     QGaussSimplex<1, double> fq0(1);
     DoFHandler<2, double> dh0(tria, fe0);
@@ -1595,7 +1595,7 @@ main(int argc, char* argv[])
     s0.copy_state_to_host(rho0, rhou0, rhov0, rhoE0);
 
     // --- Degree 1 (seeded from degree 0) ---
-    FE_DGQLegendre<2, double> fe1(1);
+    FE_DGLagrangeSimplex<2, double> fe1(1);
     QGaussSimplex<2, double> q1(3);
     QGaussSimplex<1, double> fq1(3);
     DoFHandler<2, double> dh1(tria, fe1);
@@ -1611,7 +1611,7 @@ main(int argc, char* argv[])
     s1.copy_state_to_host(rho1, rhou1, rhov1, rhoE1);
 
     // --- Degree 2 (seeded from degree 1) ---
-    FE_DGQLegendre<2, double> fe2(2);
+    FE_DGLagrangeSimplex<2, double> fe2(2);
     QGaussSimplex<2, double> q2(5);
     QGaussSimplex<1, double> fq2(5);
     DoFHandler<2, double> dh2(tria, fe2);
@@ -1627,7 +1627,7 @@ main(int argc, char* argv[])
     s2.copy_state_to_host(rho2, rhou2, rhov2, rhoE2);
 
     // --- Degree 3 (seeded from degree 2) ---
-    FE_DGQLegendre<2, double> fe3(3);
+    FE_DGLagrangeSimplex<2, double> fe3(3);
     QGaussSimplex<2, double> q3(7);
     QGaussSimplex<1, double> fq3(7);
     DoFHandler<2, double> dh3(tria, fe3);
