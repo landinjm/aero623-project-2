@@ -6,3 +6,4 @@ function Mesh3d(filename,hmax)
     pdemesh(mesh,FaceAlpha=0.5,ElementLabels="off",NodeLabels="off")
     write_gri_3d(filename+".gri",Mesh.Nodes',Mesh.Elements')
 end
+% for twisted add Hface={[3,11] 0.5}, into generate mesh

@@ -65,32 +65,36 @@ function write_grid(filename, nodes, elements)
     top_xyz    = nodes(top_nodes, :);
     bottom_xyz = nodes(bottom_nodes, :);
 
-    if top_xyz ~= bottom_xyz
-        warning('Periodic XYZ do not match')
-        [~, index_top] = sort(top_xyz(:,1));
-        [~, index_bottom] = sort(bottom_xyz(:,1));
+    [~, index_top] = sortrows(top_xyz,[1,2]);
+    [~, index_bottom] = sortrows(bottom_xyz,[1,2]);
         
-        top_nodes    = top_nodes(index_top);
-        bottom_nodes = bottom_nodes(index_bottom);
+    top_nodes    = top_nodes(index_top);
+    bottom_nodes = bottom_nodes(index_bottom);
+
+    top_xyz    = nodes(top_nodes, :);
+    bottom_xyz = nodes(bottom_nodes, :);
+
+    % Check that the x positions of the node match 1 to 1. If not, 
+    % shift them.
+    tol = 1e-12;
+    if any(top_xyz(:,1:2)-bottom_xyz(:,1:2)>tol)
+        warning('Periodic XY do not match')
     
-        % Check that the x positions of the node match 1 to 1. If not, 
-        % shift them.
-        tol = 1e-12;
-        x_top    = nodes(top_nodes, 1);
-        x_bottom = nodes(bottom_nodes, 1);
-        diff_x = abs(x_top - x_bottom);
-        z_top    = nodes(top_nodes, 3);
-        z_bottom = nodes(bottom_nodes, 3);
-        diff_z = abs(z_top - z_bottom);
-        if ~all((diff_x < tol) & (diff_z < tol))
-            warning('Periodic nodes mismatch in x-coordinates! Shifting them');
-    
-            % Compute the average x for each pair
-            x_avg = (x_top + x_bottom) / 2;
-            % Replace values
-            nodes(inlet_top_nodes, 1)    = x_avg;
-            nodes(inlet_bottom_nodes, 1) = x_avg;
-        end
+        % x_top    = nodes(top_nodes, 1);
+        % x_bottom = nodes(bottom_nodes, 1);
+        % diff_x = abs(x_top - x_bottom);
+        % z_top    = nodes(top_nodes, 3);
+        % z_bottom = nodes(bottom_nodes, 3);
+        % diff_z = abs(z_top - z_bottom);
+        % if ~all((diff_x < tol) & (diff_z < tol))
+        %     warning('Periodic nodes mismatch in x-coordinates! Shifting them');
+        % 
+        %     % Compute the average x for each pair
+        %     x_avg = (x_top + x_bottom) / 2;
+        %     % Replace values
+        %     nodes(inlet_top_nodes, 1)    = x_avg;
+        %     nodes(inlet_bottom_nodes, 1) = x_avg;
+        % end
     end
 
     % Open an output stream
@@ -178,7 +182,7 @@ function write_grid(filename, nodes, elements)
         switch i
             case 1
                 n_periodic_node_pairs = size(top_nodes, 1);
-                mappings = [top_nodes bottom_nodes];
+                mappings = [bottom_nodes top_nodes];
             % case 2
             %     n_periodic_node_pairs = size(outlet_top_nodes, 1);
             %     mappings = [outlet_top_nodes outlet_bottom_nodes];
