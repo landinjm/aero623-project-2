@@ -1518,11 +1518,19 @@ main(int argc, char* argv[])
       { 3, BoundaryId::Freestream },
       { 4, BoundaryId::Freestream },
     };
+    id_map.clear();
+    id_map = {
+      { 1, BoundaryId::InviscidWall },   { 2, BoundaryId::InviscidWall },
+      { 3, BoundaryId::InviscidWall },   { 4, BoundaryId::InviscidWall },
+      { 4, BoundaryId::SubsonicInflow }, { 6, BoundaryId::SubsonicOutflow },
+      { 7, BoundaryId::InviscidWall },
+    };
+
     tria.remap_boundary_ids(id_map);
 
     double abs_tol = 0.0;
 
-    unsigned int degree = 1;
+    unsigned int degree = 0;
 
     Timer::instance().begin_section("Degree 0");
 
@@ -1535,9 +1543,9 @@ main(int argc, char* argv[])
     FEFaceValues<dim, double> ffev0(fe0, fq0);
     EulerSolver<dim, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
-    s0.test_freestream_preservation(1000);
-    // abs_tol = s0.solve_steady_state(30000, 0.5, 1000, false, 1.0e-2);
-    // s0.write_solution("solution_steady_state_p0.vtu");
+    // s0.test_freestream_preservation(1000);
+    abs_tol = s0.solve_steady_state(100, 0.5, 100, false, 1.0e-5);
+    s0.write_solution("solution_steady_state_p0.vtu");
 
     Timer::instance().end_section("Degree 0");
   }
