@@ -67,7 +67,6 @@ public:
     , points_("quad simplex points", n_q_points(order), dim)
     , weights_("quad simplex weights", n_q_points(order))
   {
-    ASSERT(order_ >= 1, "The order must be greater than or equal to 1.");
     compute();
   };
 
