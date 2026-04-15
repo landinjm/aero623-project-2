@@ -512,6 +512,42 @@ public:
     ASSERT(face < SimplexTopology<dim>::faces_per_cell,
            "Local face number must be less than the number of faces per cell");
 
+    // Sort the face vertices with some global ordering to preserve quad point
+    // locations across shared faces.
+    const unsigned int n_face_verts = SimplexTopology<dim>::verts_per_face;
+    std::array<unsigned int, dim> global_ids;
+    for (unsigned int v = 0; v < n_face_verts; ++v) {
+      global_ids[v] = cell.face(face).vertex_index(v);
+    }
+
+    // Canonical = sorted ascending
+    std::array<unsigned int, dim> sorted_ids = global_ids;
+    std::sort(sorted_ids.begin(), sorted_ids.end());
+
+    // Compute the permutation: where does each sorted vertex appear in local
+    // order?
+    std::array<unsigned int, dim> perm;
+    for (unsigned int v = 0; v < dim; ++v) {
+      perm[v] = std::find(global_ids.begin(), global_ids.end(), sorted_ids[v]) -
+                global_ids.begin();
+    }
+
+    // Physical positions of face vertices in canonical order
+    RealType fv[dim][dim]; // fv[v][coord]
+    for (unsigned int v = 0; v < dim; ++v) {
+      // perm[v] gives the local face-vertex index corresponding to canonical v
+      for (unsigned int d = 0; d < dim; ++d) {
+        fv[v][d] = cell.face(face).vertex(perm[v])(d);
+      }
+    }
+
+    // Canonical tangents in physical space
+    // t0 = fv[1] - fv[0],  t1 = fv[2] - fv[0]  (3D)
+    RealType t_canon[dim - 1][dim];
+    for (unsigned int s = 0; s < dim - 1; ++s)
+      for (unsigned int d = 0; d < dim; ++d)
+        t_canon[s][d] = fv[s + 1][d] - fv[0][d];
+
     // The challenge with this class is that we have the quadrature rule
     // defined along the face, but the basis functions defined along the cell.
     // As such, we must map from reference line to reference triangle.
@@ -716,13 +752,20 @@ public:
       // Grab the dim - 1 quad points
       const auto xi_face = quad_.point(q);
 
-      // Map to reference coords
+      // Physical quad point via canonical face parameterization
+      RealType x_phys[dim];
+      for (unsigned int d = 0; d < dim; ++d) {
+        x_phys[d] = fv[0][d];
+        for (unsigned int s = 0; s < dim - 1; ++s)
+          x_phys[d] += xi_face(s) * t_canon[s][d];
+      }
+
+      // Map x_phys back to reference cell coords via J_inv
       RealType xi_ref[dim];
       for (unsigned int d = 0; d < dim; ++d) {
-        xi_ref[d] = ref_origin[d];
-        for (unsigned int s = 0; s < dim - 1; ++s) {
-          xi_ref[d] += xi_face(s) * ref_tangent[s][d];
-        }
+        xi_ref[d] = 0.0;
+        for (unsigned int k = 0; k < dim; ++k)
+          xi_ref[d] += J_inv[d][k] * (x_phys[k] - x0[k]);
       }
 
       // Wrap in a Tensor

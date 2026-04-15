@@ -53,7 +53,7 @@ public:
     const int ndpc = static_cast<int>(mm_.extent(1));
     const int n_cells = static_cast<int>(mm_.extent(0));
 
-    constexpr int max_dofs = 10;
+    constexpr int max_dofs = 40;
     ASSERT(ndpc <= max_dofs, "Exceeded limit for number of DoFs per cell");
 
     auto M = mm_;
