@@ -92,9 +92,11 @@ public:
       out << "      <Cells>\n";
       out << "        <DataArray type=\"UInt32\" Name=\"connectivity\""
           << " format=\"ascii\">\n";
-      for (uint32_t k = 0; k < n_cells; ++k)
-        out << k * verts_per_cell + 0 << " " << k * verts_per_cell + 1 << " "
-            << k * verts_per_cell + 2 << "\n";
+      for (uint32_t k = 0; k < n_cells; ++k) {
+        for (uint32_t v = 0; v < verts_per_cell; ++v)
+          out << k * verts_per_cell + v << " ";
+        out << "\n";
+      }
       out << "        </DataArray>\n";
       out << "        <DataArray type=\"UInt32\" Name=\"offsets\""
           << " format=\"ascii\">\n";
@@ -103,8 +105,13 @@ public:
       out << "\n        </DataArray>\n";
       out << "        <DataArray type=\"UInt8\" Name=\"types\""
           << " format=\"ascii\">\n";
+
+      const uint8_t cell_type = (verts_per_cell == 3   ? 5
+                                 : verts_per_cell == 4 ? 10
+                                                       : 0);
+
       for (uint32_t k = 0; k < n_cells; ++k)
-        out << "5 ";
+        out << static_cast<unsigned int>(cell_type) << " ";
       out << "\n        </DataArray>\n";
       out << "      </Cells>\n";
 
@@ -120,9 +127,10 @@ public:
         out << "        </DataArray>\n";
       }
       out << "      </CellData>\n";
-
     } else {
-      // Degree >= 1: subdivide into p^2 linear sub-triangles
+      // Degree >= 1: subdivide into p^dim linear sub-triangles
+
+      // First we'll construct the reference element with linear subdivisions
       std::vector<std::array<double, dim>> ref_points;
       for (unsigned int j = 0; j <= p; ++j)
         for (unsigned int i = 0; i <= p - j; ++i)

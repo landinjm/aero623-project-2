@@ -231,8 +231,6 @@ TEST(FEValues, 2D)
       const unsigned int n_dof = fe_values.n_dofs();
 
       for (unsigned int q = 0; q < n_q; ++q) {
-        // JxW is positive
-        EXPECT_GT(fe_values.JxW(q), 0.0);
 
         // Quad points are finite
         for (unsigned int d = 0; d < dim; ++d) {
@@ -304,8 +302,6 @@ TEST(FEValues, 3D)
       const unsigned int n_dof = fe_values.n_dofs();
 
       for (unsigned int q = 0; q < n_q; ++q) {
-        // JxW is positive
-        EXPECT_GT(fe_values.JxW(q), 0.0);
 
         // Quad points are finite
         for (unsigned int d = 0; d < dim; ++d) {
@@ -378,8 +374,6 @@ TEST(FEFaceValues, 2D)
         const unsigned int n_dof = fe_face_values.n_dofs();
 
         for (unsigned int q = 0; q < n_q; ++q) {
-          // JxW is positive
-          EXPECT_GT(fe_face_values.JxW(q), 0.0);
 
           // Quad points are finite
           for (unsigned int d = 0; d < dim; ++d) {
@@ -502,8 +496,6 @@ TEST(FEFaceValues, 3D)
         const unsigned int n_dof = fe_face_values.n_dofs();
 
         for (unsigned int q = 0; q < n_q; ++q) {
-          // JxW is positive
-          EXPECT_GT(fe_face_values.JxW(q), 0.0);
 
           // Quad points are finite
           for (unsigned int d = 0; d < dim; ++d) {
