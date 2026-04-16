@@ -64,37 +64,36 @@ function write_grid(filename, nodes, elements)
 
     top_xyz    = nodes(top_nodes, :);
     bottom_xyz = nodes(bottom_nodes, :);
-
-    [~, index_top] = sortrows(top_xyz,[1,2]);
-    [~, index_bottom] = sortrows(bottom_xyz,[1,2]);
-        
-    top_nodes    = top_nodes(index_top);
+    
+    index_bottom = zeros(size(top_nodes, 1),1);
+    for i = 1:size(top_nodes, 1)
+        [~, index_bottom(i)] = min(vecnorm(top_xyz(i,1:2)-bottom_xyz(:,1:2),2,2));
+    end
     bottom_nodes = bottom_nodes(index_bottom);
-
-    top_xyz    = nodes(top_nodes, :);
     bottom_xyz = nodes(bottom_nodes, :);
+
+    % [~, index_top] = sortrows(top_xyz,[1,2]);
+    % [~, index_bottom] = sortrows(bottom_xyz,[1,2]);
+    % 
+    % top_nodes    = top_nodes(index_top);
+    % bottom_nodes = bottom_nodes(index_bottom);
+    % 
+    % top_xyz    = nodes(top_nodes, :);
+    % bottom_xyz = nodes(bottom_nodes, :);
 
     % Check that the x positions of the node match 1 to 1. If not, 
     % shift them.
     tol = 1e-12;
-    if any(top_xyz(:,1:2)-bottom_xyz(:,1:2)>tol)
-        warning('Periodic XY do not match')
-    
-        % x_top    = nodes(top_nodes, 1);
-        % x_bottom = nodes(bottom_nodes, 1);
-        % diff_x = abs(x_top - x_bottom);
-        % z_top    = nodes(top_nodes, 3);
-        % z_bottom = nodes(bottom_nodes, 3);
-        % diff_z = abs(z_top - z_bottom);
-        % if ~all((diff_x < tol) & (diff_z < tol))
-        %     warning('Periodic nodes mismatch in x-coordinates! Shifting them');
-        % 
-        %     % Compute the average x for each pair
-        %     x_avg = (x_top + x_bottom) / 2;
-        %     % Replace values
-        %     nodes(inlet_top_nodes, 1)    = x_avg;
-        %     nodes(inlet_bottom_nodes, 1) = x_avg;
-        % end
+    xyz_err = top_xyz(:,1:2)-bottom_xyz(:,1:2);
+    if any(xyz_err>tol)
+        warning('Periodic XY do not match\n Max err = %d',max(norm(xyz_err)))
+
+        % Compute the average x for each pair
+        xy_avg = (top_xyz(:,1:2) + bottom_xyz(:,1:2)) / 2;
+        
+        % Replace values
+        nodes(top_nodes, 1:2)    = xy_avg;
+        nodes(bottom_nodes, 1:2) = xy_avg;
     end
 
     % Open an output stream
