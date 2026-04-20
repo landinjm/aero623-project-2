@@ -9,7 +9,8 @@ function write_grid(filename, nodes, elements)
     assert(dim == 3, "Unsupported dimension")
 
     % Create a triangulation object given the nodes and elements
-    tria = triangulation(elements, nodes);
+    linear_elements = elements(:,1:4);
+    tria = triangulation(linear_elements, nodes);
 
     % Grab the boundary faces
     boundary_faces = freeBoundary(tria);
@@ -161,14 +162,15 @@ function write_grid(filename, nodes, elements)
     % here. We also don't have anything special with the elements because
     % everything is trilgrange and first order.
     n_element_groups = 1;
-    element_order = 1;
+    element_order = 2;
     basis_function = 'TriLagrange';
 
     for i = 1:n_element_groups
         fprintf(fstream, '%d %d %s\n', n_elements, element_order, basis_function);
         for j = 1:n_elements
-            fprintf(fstream, '%d %d %d %d\n', ...
-                elements(j,1), elements(j,2), elements(j,3), elements(j,4));
+            fprintf(fstream, '%d %d %d %d %d %d %d %d %d %d\n', ...
+                elements(j,1), elements(j,2), elements(j,3), elements(j,4), elements(j, 5), ...
+                elements(j,6), elements(j, 7), elements(j, 8), elements(j, 9), elements(j, 10));
         end
     end
 
