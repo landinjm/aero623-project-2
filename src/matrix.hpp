@@ -7,14 +7,14 @@
 #include <iomanip>
 #include <iostream>
 
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int mesh_q, typename RealType>
 class MassMatrix
 {
 public:
   MassMatrix(FEValues<dim, RealType>& fe_values)
     : fe_values_(fe_values) {};
 
-  void assemble(const DoFHandler<dim, RealType>& dof_handler)
+  void assemble(const DoFHandler<dim, mesh_q, RealType>& dof_handler)
   {
     const auto ndpc = fe_values_.n_dofs();
     const auto n_q = fe_values_.n_q_points();

@@ -9,13 +9,13 @@
 #include <vector.hpp>
 #include <vector>
 
-template<unsigned int dim>
+template<unsigned int dim, unsigned int q>
 class DataOut
 {
 public:
-  using Topo = SimplexTopology<dim, 1>;
+  using Topo = SimplexTopology<dim, q>;
 
-  void attach_dof_handler(const DoFHandler<dim, double>& dh)
+  void attach_dof_handler(const DoFHandler<dim, q, double>& dh)
   {
     dh_ = &dh;
     tria_ = &dh.tria();
@@ -243,8 +243,8 @@ private:
     Vector<double, HostMemSpace> data;
   };
 
-  const Triangulation<dim, 1>* tria_ = nullptr;
-  const DoFHandler<dim, double>* dh_ = nullptr;
+  const Triangulation<dim, q>* tria_ = nullptr;
+  const DoFHandler<dim, q, double>* dh_ = nullptr;
 
   std::vector<DataEntry> entries_;
   double time_ = 0.0;

@@ -480,7 +480,7 @@ private:
   Kokkos::View<RealType***, Layout, HostMemSpace> grad_phi_; // [dof, q, dim]
 };
 
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int mesh_q, typename RealType>
 class FEFaceValues
 {
 public:
@@ -514,7 +514,7 @@ public:
 
     // Sort the face vertices with some global ordering to preserve quad point
     // locations across shared faces.
-    const unsigned int n_face_verts = SimplexTopology<dim, 1>::verts_per_face;
+    const unsigned int n_face_verts = SimplexTopology<dim, mesh_q>::verts_per_face;
     std::array<unsigned int, dim> global_ids;
     for (unsigned int v = 0; v < n_face_verts; ++v) {
       global_ids[v] = cell.face(face).vertex_index(v);
