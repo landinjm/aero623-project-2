@@ -1,16 +1,17 @@
-# include <cmath>
-# include <cstdlib>
-# include <iostream>
-# include <iomanip>
-# include <ctime>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
 
 using namespace std;
 
-# include "simplex_gm_rule.hpp"
+#include "simplex_gm_rule.hpp"
 
 //****************************************************************************80
 
-void comp_next ( int n, int k, int a[], bool &more, int &h, int &t )
+void
+comp_next(int n, int k, int a[], bool& more, int& h, int& t)
 
 //****************************************************************************80
 //
@@ -34,7 +35,7 @@ void comp_next ( int n, int k, int a[], bool &more, int &h, int &t )
 //    are desired, call again, and again.  Each time, the routine will
 //    return with a new composition.
 //
-//    However, when the LAST composition in the sequence is computed 
+//    However, when the LAST composition in the sequence is computed
 //    and returned, the routine will reset MORE to FALSE, signaling that
 //    the end of the sequence has been reached.
 //
@@ -81,7 +82,7 @@ void comp_next ( int n, int k, int a[], bool &more, int &h, int &t )
 //
 //  Licensing:
 //
-//    This code is distributed under the GNU LGPL license. 
+//    This code is distributed under the GNU LGPL license.
 //
 //  Modified:
 //
@@ -122,37 +123,32 @@ void comp_next ( int n, int k, int a[], bool &more, int &h, int &t )
 {
   int i;
 
-  if ( !( more ) )
-  {
+  if (!(more)) {
     t = n;
     h = 0;
     a[0] = n;
-    for ( i = 1; i < k; i++ )
-    {
-       a[i] = 0;
+    for (i = 1; i < k; i++) {
+      a[i] = 0;
     }
-  }
-  else
-  {
-    if ( 1 < t )
-    {
+  } else {
+    if (1 < t) {
       h = 0;
     }
     h = h + 1;
-    t = a[h-1];
-    a[h-1] = 0;
+    t = a[h - 1];
+    a[h - 1] = 0;
     a[0] = t - 1;
     a[h] = a[h] + 1;
   }
 
-  more = ( a[k-1] != n );
+  more = (a[k - 1] != n);
 
   return;
 }
 //*****************************************************************************/
 
-void gm_general_rule_set ( int rule, int m, int n, double t[], double w[], 
-  double x[] )
+void
+gm_general_rule_set(int rule, int m, int n, double t[], double w[], double x[])
 
 //*****************************************************************************/
 //
@@ -166,7 +162,7 @@ void gm_general_rule_set ( int rule, int m, int n, double t[], double w[],
 //
 //  Licensing:
 //
-//    This code is distributed under the GNU LGPL license. 
+//    This code is distributed under the GNU LGPL license.
 //
 //  Modified:
 //
@@ -179,7 +175,7 @@ void gm_general_rule_set ( int rule, int m, int n, double t[], double w[],
 //  Reference:
 //
 //    Axel Grundmann, Michael Moeller,
-//    Invariant Integration Formulas for the N-Simplex 
+//    Invariant Integration Formulas for the N-Simplex
 //    by Combinatorial Methods,
 //    SIAM Journal on Numerical Analysis,
 //    Volume 15, Number 2, April 1978, pages 282-290.
@@ -204,43 +200,43 @@ void gm_general_rule_set ( int rule, int m, int n, double t[], double w[],
   int j;
   double volume;
   double volume1;
-  double *w1;
-  double *x1;
-//
-//  Get the unit rule.
-//
+  double* w1;
+  double* x1;
+  //
+  //  Get the unit rule.
+  //
   w1 = new double[n];
-  x1 = new double[m*n];
+  x1 = new double[m * n];
 
-  gm_unit_rule_set ( rule, m, n, w1, x1 );
-//
-//  Compute the volume of the unit simplex.
-//
-  volume1 = simplex_unit_volume ( m );
-//
-//  Compute the volume of the general simplex.
-//
-  volume = simplex_general_volume ( m, t );
-//
-//  Convert the points.
-//
-  simplex_unit_to_general ( m, n, t, x1, x );
-//
-//  Convert the weights.
-//
-  for ( j = 0; j < n; j++ )
-  {
+  gm_unit_rule_set(rule, m, n, w1, x1);
+  //
+  //  Compute the volume of the unit simplex.
+  //
+  volume1 = simplex_unit_volume(m);
+  //
+  //  Compute the volume of the general simplex.
+  //
+  volume = simplex_general_volume(m, t);
+  //
+  //  Convert the points.
+  //
+  simplex_unit_to_general(m, n, t, x1, x);
+  //
+  //  Convert the weights.
+  //
+  for (j = 0; j < n; j++) {
     w[j] = w1[j] * volume / volume1;
   }
 
-  delete [] w1;
-  delete [] x1;
+  delete[] w1;
+  delete[] x1;
 
   return;
 }
 //****************************************************************************80
 
-int gm_rule_size ( int rule, int m )
+int
+gm_rule_size(int rule, int m)
 
 //****************************************************************************80
 //
@@ -293,13 +289,14 @@ int gm_rule_size ( int rule, int m )
 
   arg1 = m + rule + 1;
 
-  n = i4_choose ( arg1, rule );
+  n = i4_choose(arg1, rule);
 
   return n;
 }
 //****************************************************************************80
 
-void gm_unit_rule_set ( int rule, int m, int n, double w[], double x[] )
+void
+gm_unit_rule_set(int rule, int m, int n, double w[], double x[])
 
 //****************************************************************************80
 //
@@ -354,7 +351,7 @@ void gm_unit_rule_set ( int rule, int m, int n, double w[], double x[] )
 //    Output, double X[M*N], the abscissas.
 //
 {
-  int *beta;
+  int* beta;
   int beta_sum;
   int d;
   int dim;
@@ -375,81 +372,71 @@ void gm_unit_rule_set ( int rule, int m, int n, double w[], double x[] )
   k = 0;
   one_pm = 1.0;
 
-  beta = new int[m+1];
+  beta = new int[m + 1];
 
-  for ( i = 0; i <= s; i++ )
-  {
-    weight = ( double ) one_pm;
+  for (i = 0; i <= s; i++) {
+    weight = (double)one_pm;
 
-    j_hi = i4_max ( m, i4_max ( d, d + m - i ) );
+    j_hi = i4_max(m, i4_max(d, d + m - i));
 
-    for ( j = 1; j <= j_hi; j++ )
-    {
-      if ( j <= m )
-      {
-        weight = weight * ( double ) ( j );
+    for (j = 1; j <= j_hi; j++) {
+      if (j <= m) {
+        weight = weight * (double)(j);
       }
-      if ( j <= d )
-      {
-        weight = weight * ( double ) ( d + m - 2 * i );
+      if (j <= d) {
+        weight = weight * (double)(d + m - 2 * i);
       }
-      if ( j <= 2 * s )
-      {
+      if (j <= 2 * s) {
         weight = weight / 2.0;
       }
-      if ( j <= i )
-      {
-        weight = weight / ( double ) ( j );
+      if (j <= i) {
+        weight = weight / (double)(j);
       }
-      if ( j <= d + m - i )
-      {
-        weight = weight / ( double ) ( j );
+      if (j <= d + m - i) {
+        weight = weight / (double)(j);
       }
     }
 
-    one_pm = - one_pm;
+    one_pm = -one_pm;
 
     beta_sum = s - i;
     more = false;
     h = 0;
     t = 0;
 
-    for ( ; ; )
-    {
-      comp_next ( beta_sum, m + 1, beta, more, h, t );
+    for (;;) {
+      comp_next(beta_sum, m + 1, beta, more, h, t);
 
       w[k] = weight;
-      for ( dim = 0; dim < m; dim++ )
-      {
-        x[dim+k*m] = ( double ) ( 2 * beta[dim+1] + 1 )
-                   / ( double ) ( d + m - 2 * i );
+      for (dim = 0; dim < m; dim++) {
+        x[dim + k * m] =
+          (double)(2 * beta[dim + 1] + 1) / (double)(d + m - 2 * i);
       }
       k = k + 1;
 
-      if ( !more )
-      {
+      if (!more) {
         break;
       }
     }
   }
-//
-//  Normalize.
-//
-  volume1 = simplex_unit_volume ( m );
-  for ( i = 0; i < n; i++ )
-  {
+  //
+  //  Normalize.
+  //
+  volume1 = simplex_unit_volume(m);
+  for (i = 0; i < n; i++) {
     w[i] = w[i] * volume1;
   }
-//
-//  Free memory.
-//
-  delete [] beta;
+  //
+  //  Free memory.
+  //
+  delete[] beta;
 
   return;
 }
 //****************************************************************************80
 
-int i4_choose ( int n, int k )
+int
+i4_choose(int n, int k)
 
 //****************************************************************************80
 //
@@ -499,24 +486,18 @@ int i4_choose ( int n, int k )
   int mx;
   int value;
 
-  mn = i4_min ( k, n - k );
+  mn = i4_min(k, n - k);
 
-  if ( mn < 0 )
-  {
+  if (mn < 0) {
     value = 0;
-  }
-  else if ( mn == 0 )
-  {
+  } else if (mn == 0) {
     value = 1;
-  }
-  else
-  {
-    mx = i4_max ( k, n - k );
+  } else {
+    mx = i4_max(k, n - k);
     value = mx + 1;
 
-    for ( i = 2; i <= mn; i++ )
-    {
-      value = ( value * ( mx + i ) ) / i;
+    for (i = 2; i <= mn; i++) {
+      value = (value * (mx + i)) / i;
     }
   }
 
@@ -524,7 +505,8 @@ int i4_choose ( int n, int k )
 }
 //****************************************************************************80
 
-int i4_huge ( )
+int
+i4_huge()
 
 //****************************************************************************80
 //
@@ -553,7 +535,8 @@ int i4_huge ( )
 }
 //****************************************************************************80
 
-int i4_max ( int i1, int i2 )
+int
+i4_max(int i1, int i2)
 
 //****************************************************************************80
 //
@@ -582,19 +565,17 @@ int i4_max ( int i1, int i2 )
 {
   int value;
 
-  if ( i2 < i1 )
-  {
+  if (i2 < i1) {
     value = i1;
-  }
-  else
-  {
+  } else {
     value = i2;
   }
   return value;
 }
 //****************************************************************************80
 
-int i4_min ( int i1, int i2 )
+int
+i4_min(int i1, int i2)
 
 //****************************************************************************80
 //
@@ -623,19 +604,17 @@ int i4_min ( int i1, int i2 )
 {
   int value;
 
-  if ( i1 < i2 )
-  {
+  if (i1 < i2) {
     value = i1;
-  }
-  else
-  {
+  } else {
     value = i2;
   }
   return value;
 }
 //****************************************************************************80
 
-int i4_power ( int i, int j )
+int
+i4_power(int i, int j)
 
 //****************************************************************************80
 //
@@ -665,47 +644,31 @@ int i4_power ( int i, int j )
   int k;
   int value;
 
-  if ( j < 0 )
-  {
-    if ( i == 1 )
-    {
+  if (j < 0) {
+    if (i == 1) {
       value = 1;
-    }
-    else if ( i == 0 )
-    {
+    } else if (i == 0) {
       cout << "\n";
       cout << "I4_POWER - Fatal error!\n";
       cout << "  I^J requested, with I = 0 and J negative.\n";
-      exit ( 1 );
-    }
-    else
-    {
+      exit(1);
+    } else {
       value = 0;
     }
-  }
-  else if ( j == 0 )
-  {
-    if ( i == 0 )
-    {
+  } else if (j == 0) {
+    if (i == 0) {
       cout << "\n";
       cout << "I4_POWER - Fatal error!\n";
       cout << "  I^J requested, with I = 0 and J = 0.\n";
-      exit ( 1 );
-    }
-    else
-    {
+      exit(1);
+    } else {
       value = 1;
     }
-  }
-  else if ( j == 1 )
-  {
+  } else if (j == 1) {
     value = i;
-  }
-  else
-  {
+  } else {
     value = 1;
-    for ( k = 1; k <= j; k++ )
-    {
+    for (k = 1; k <= j; k++) {
       value = value * i;
     }
   }
@@ -713,7 +676,8 @@ int i4_power ( int i, int j )
 }
 //****************************************************************************80
 
-double *monomial_value ( int m, int n, int e[], double x[] )
+double*
+monomial_value(int m, int n, int e[], double x[])
 
 //****************************************************************************80
 //
@@ -731,7 +695,7 @@ double *monomial_value ( int m, int n, int e[], double x[] )
 //
 //  Licensing:
 //
-//    This code is distributed under the GNU LGPL license. 
+//    This code is distributed under the GNU LGPL license.
 //
 //  Modified:
 //
@@ -756,22 +720,18 @@ double *monomial_value ( int m, int n, int e[], double x[] )
 {
   int i;
   int j;
-  double *v;
+  double* v;
 
   v = new double[n];
-  for ( j = 0; j < n; j++)
-  {
+  for (j = 0; j < n; j++) {
     v[j] = 1.0;
   }
-//v = r8vec_ones_new ( n );
+  // v = r8vec_ones_new ( n );
 
-  for ( i = 0; i < m; i++ )
-  {
-    if ( 0 != e[i] )
-    {
-      for ( j = 0; j < n; j++ )
-      {
-        v[j] = v[j] * pow ( x[i+j*m], e[i] );
+  for (i = 0; i < m; i++) {
+    if (0 != e[i]) {
+      for (j = 0; j < n; j++) {
+        v[j] = v[j] * pow(x[i + j * m], e[i]);
       }
     }
   }
@@ -780,7 +740,8 @@ double *monomial_value ( int m, int n, int e[], double x[] )
 }
 //****************************************************************************80
 
-double r8_factorial ( int n )
+double
+r8_factorial(int n)
 
 //****************************************************************************80
 //
@@ -817,33 +778,34 @@ double r8_factorial ( int n )
 
   value = 1.0;
 
-  for ( i = 1; i <= n; i++ )
-  {
-    value = value * ( double ) ( i );
+  for (i = 1; i <= n; i++) {
+    value = value * (double)(i);
   }
 
   return value;
 }
 //****************************************************************************80
 
-double r8ge_det ( int n, double a_lu[], int pivot[] )
+double
+r8ge_det(int n, double a_lu[], int pivot[])
 
 //****************************************************************************80
 //
 //  Purpose:
 //
-//    R8GE_DET computes the determinant of a matrix factored by R8GE_FA or R8GE_TRF.
+//    R8GE_DET computes the determinant of a matrix factored by R8GE_FA or
+//    R8GE_TRF.
 //
 //  Discussion:
 //
-//    The R8GE storage format is used for a "general" M by N matrix.  
-//    A physical storage space is made for each logical entry.  The two 
-//    dimensional logical array is mapped to a vector, in which storage is 
+//    The R8GE storage format is used for a "general" M by N matrix.
+//    A physical storage space is made for each logical entry.  The two
+//    dimensional logical array is mapped to a vector, in which storage is
 //    by columns.
 //
 //  Licensing:
 //
-//    This code is distributed under the GNU LGPL license. 
+//    This code is distributed under the GNU LGPL license.
 //
 //  Modified:
 //
@@ -878,12 +840,10 @@ double r8ge_det ( int n, double a_lu[], int pivot[] )
 
   det = 1.0;
 
-  for ( i = 1; i <= n; i++ )
-  {
-    det = det * a_lu[i-1+(i-1)*n];
-    if ( pivot[i-1] != i )
-    {
-      det = - det;
+  for (i = 1; i <= n; i++) {
+    det = det * a_lu[i - 1 + (i - 1) * n];
+    if (pivot[i - 1] != i) {
+      det = -det;
     }
   }
 
@@ -891,7 +851,8 @@ double r8ge_det ( int n, double a_lu[], int pivot[] )
 }
 //****************************************************************************80
 
-int r8ge_fa ( int n, double a[], int pivot[] )
+int
+r8ge_fa(int n, double a[], int pivot[])
 
 //****************************************************************************80
 //
@@ -901,9 +862,9 @@ int r8ge_fa ( int n, double a[], int pivot[] )
 //
 //  Discussion:
 //
-//    The R8GE storage format is used for a "general" M by N matrix.  
-//    A physical storage space is made for each logical entry.  The two 
-//    dimensional logical array is mapped to a vector, in which storage is 
+//    The R8GE storage format is used for a "general" M by N matrix.
+//    A physical storage space is made for each logical entry.  The two
+//    dimensional logical array is mapped to a vector, in which storage is
 //    by columns.
 //
 //    R8GE_FA is a simplified version of the LINPACK routine SGEFA.
@@ -913,7 +874,7 @@ int r8ge_fa ( int n, double a[], int pivot[] )
 //
 //  Licensing:
 //
-//    This code is distributed under the GNU LGPL license. 
+//    This code is distributed under the GNU LGPL license.
 //
 //  Modified:
 //
@@ -954,85 +915,76 @@ int r8ge_fa ( int n, double a[], int pivot[] )
   int k;
   int l;
   double t;
-//
-  for ( k = 1; k <= n-1; k++ )
-  {
-//
-//  Find L, the index of the pivot row.
-//
+  //
+  for (k = 1; k <= n - 1; k++) {
+    //
+    //  Find L, the index of the pivot row.
+    //
     l = k;
 
-    for ( i = k + 1; i <= n; i++ )
-    {
-      if ( fabs ( a[l-1+(k-1)*n] ) < fabs ( a[i-1+(k-1)*n] ) )
-      {
+    for (i = k + 1; i <= n; i++) {
+      if (fabs(a[l - 1 + (k - 1) * n]) < fabs(a[i - 1 + (k - 1) * n])) {
         l = i;
       }
     }
 
-    pivot[k-1] = l;
-//
-//  If the pivot index is zero, the algorithm has failed.
-//
-    if ( a[l-1+(k-1)*n] == 0.0 )
-    {
+    pivot[k - 1] = l;
+    //
+    //  If the pivot index is zero, the algorithm has failed.
+    //
+    if (a[l - 1 + (k - 1) * n] == 0.0) {
       cerr << "\n";
       cerr << "R8GE_FA - Fatal error!\n";
       cerr << "  Zero pivot on step " << k << "\n";
-      exit ( 1 );
+      exit(1);
     }
-//
-//  Interchange rows L and K if necessary.
-//
-    if ( l != k )
-    {
-      t              = a[l-1+(k-1)*n];
-      a[l-1+(k-1)*n] = a[k-1+(k-1)*n];
-      a[k-1+(k-1)*n] = t;
+    //
+    //  Interchange rows L and K if necessary.
+    //
+    if (l != k) {
+      t = a[l - 1 + (k - 1) * n];
+      a[l - 1 + (k - 1) * n] = a[k - 1 + (k - 1) * n];
+      a[k - 1 + (k - 1) * n] = t;
     }
-//
-//  Normalize the values that lie below the pivot entry A(K,K).
-//
-    for ( i = k+1; i <= n; i++ )
-    {
-      a[i-1+(k-1)*n] = -a[i-1+(k-1)*n] / a[k-1+(k-1)*n];
+    //
+    //  Normalize the values that lie below the pivot entry A(K,K).
+    //
+    for (i = k + 1; i <= n; i++) {
+      a[i - 1 + (k - 1) * n] = -a[i - 1 + (k - 1) * n] / a[k - 1 + (k - 1) * n];
     }
-//
-//  Row elimination with column indexing.
-//
-    for ( j = k+1; j <= n; j++ )
-    {
-      if ( l != k )
-      {
-        t              = a[l-1+(j-1)*n];
-        a[l-1+(j-1)*n] = a[k-1+(j-1)*n];
-        a[k-1+(j-1)*n] = t;
+    //
+    //  Row elimination with column indexing.
+    //
+    for (j = k + 1; j <= n; j++) {
+      if (l != k) {
+        t = a[l - 1 + (j - 1) * n];
+        a[l - 1 + (j - 1) * n] = a[k - 1 + (j - 1) * n];
+        a[k - 1 + (j - 1) * n] = t;
       }
 
-      for ( i = k+1; i <= n; i++ )
-      {
-        a[i-1+(j-1)*n] = a[i-1+(j-1)*n] + a[i-1+(k-1)*n] * a[k-1+(j-1)*n];
+      for (i = k + 1; i <= n; i++) {
+        a[i - 1 + (j - 1) * n] =
+          a[i - 1 + (j - 1) * n] +
+          a[i - 1 + (k - 1) * n] * a[k - 1 + (j - 1) * n];
       }
-
     }
-
   }
 
-  pivot[n-1] = n;
+  pivot[n - 1] = n;
 
-  if ( a[n-1+(n-1)*n] == 0.0 )
-  {
+  if (a[n - 1 + (n - 1) * n] == 0.0) {
     cerr << "\n";
     cerr << "R8GE_FA - Fatal error!\n";
     cerr << "  Zero pivot on step " << n << "\n";
-    exit ( 1 );
+    exit(1);
   }
 
   return 0;
 }
 //****************************************************************************80
 
-double r8vec_dot_product ( int n, double a1[], double a2[] )
+double
+r8vec_dot_product(int n, double a1[], double a2[])
 
 //****************************************************************************80
 //
@@ -1065,15 +1017,15 @@ double r8vec_dot_product ( int n, double a1[], double a2[] )
   double value;
 
   value = 0.0;
-  for ( i = 0; i < n; i++ )
-  {
+  for (i = 0; i < n; i++) {
     value = value + a1[i] * a2[i];
   }
   return value;
 }
 //****************************************************************************80
 
-double *r8vec_uniform_01_new ( int n, int &seed )
+double*
+r8vec_uniform_01_new(int n, int& seed)
 
 //****************************************************************************80
 //
@@ -1144,37 +1096,35 @@ double *r8vec_uniform_01_new ( int n, int &seed )
   int i;
   const int i4_huge = 2147483647;
   int k;
-  double *r;
+  double* r;
 
-  if ( seed == 0 )
-  {
+  if (seed == 0) {
     cerr << "\n";
     cerr << "R8VEC_UNIFORM_01_NEW - Fatal error!\n";
     cerr << "  Input value of SEED = 0.\n";
-    exit ( 1 );
+    exit(1);
   }
 
   r = new double[n];
 
-  for ( i = 0; i < n; i++ )
-  {
+  for (i = 0; i < n; i++) {
     k = seed / 127773;
 
-    seed = 16807 * ( seed - k * 127773 ) - k * 2836;
+    seed = 16807 * (seed - k * 127773) - k * 2836;
 
-    if ( seed < 0 )
-    {
+    if (seed < 0) {
       seed = seed + i4_huge;
     }
 
-    r[i] = ( double ) ( seed ) * 4.656612875E-10;
+    r[i] = (double)(seed) * 4.656612875E-10;
   }
 
   return r;
 }
 //****************************************************************************80
 
-double simplex_general_volume ( int m, double t[] )
+double
+simplex_general_volume(int m, double t[])
 
 //****************************************************************************80
 //
@@ -1184,7 +1134,7 @@ double simplex_general_volume ( int m, double t[] )
 //
 //  Discussion:
 //
-//    The formula is: 
+//    The formula is:
 //
 //      volume = 1/M! * det ( B )
 //
@@ -1193,7 +1143,7 @@ double simplex_general_volume ( int m, double t[] )
 //
 //  Licensing:
 //
-//    This code is distributed under the GNU LGPL license. 
+//    This code is distributed under the GNU LGPL license.
 //
 //  Modified:
 //
@@ -1212,42 +1162,40 @@ double simplex_general_volume ( int m, double t[] )
 //    Output, double SIMPLEX_GENERAL_VOLUME, the volume of the simplex.
 //
 {
-  double *b;
+  double* b;
   double det;
   int i;
   int j;
-  int *pivot;
+  int* pivot;
   double volume;
 
   pivot = new int[m];
-  b = new double[m*m];
+  b = new double[m * m];
 
-  for ( j = 0; j < m; j++ )
-  {
-    for ( i = 0; i < m; i++ )
-    {
-      b[i+j*m] = t[i+j*m] - t[i+m*m];
+  for (j = 0; j < m; j++) {
+    for (i = 0; i < m; i++) {
+      b[i + j * m] = t[i + j * m] - t[i + m * m];
     }
   }
 
-  r8ge_fa ( m, b, pivot );
+  r8ge_fa(m, b, pivot);
 
-  det = r8ge_det ( m, b, pivot );
+  det = r8ge_det(m, b, pivot);
 
-  volume = fabs ( det );
-  for ( i = 1; i <= m; i++ )
-  {
-    volume = volume / ( double ) ( i );
+  volume = fabs(det);
+  for (i = 1; i <= m; i++) {
+    volume = volume / (double)(i);
   }
 
-  delete [] b;
-  delete [] pivot;
+  delete[] b;
+  delete[] pivot;
 
   return volume;
 }
 //****************************************************************************80
 
-double simplex_unit_monomial_integral ( int m, int expon[] )
+double
+simplex_unit_monomial_integral(int m, int expon[])
 
 //****************************************************************************80
 //
@@ -1296,33 +1244,35 @@ double simplex_unit_monomial_integral ( int m, int expon[] )
 
   k = 0;
 
-  for ( dim = 0; dim < m; dim++ )
-  {
-    for ( i = 1; i <= expon[dim]; i++ )
-    {
+  for (dim = 0; dim < m; dim++) {
+    for (i = 1; i <= expon[dim]; i++) {
       k = k + 1;
-      value = value * ( double ) ( i ) / ( double ) ( k );
+      value = value * (double)(i) / (double)(k);
     }
   }
 
-  for ( dim = 0; dim < m; dim++ )
-  {
+  for (dim = 0; dim < m; dim++) {
     k = k + 1;
-    value = value / ( double ) ( k );
+    value = value / (double)(k);
   }
 
   return value;
 }
 //****************************************************************************80
 
-double simplex_unit_monomial_quadrature ( int m, int expon[], int n, double x[], 
-  double w[] )
+double
+simplex_unit_monomial_quadrature(int m,
+                                 int expon[],
+                                 int n,
+                                 double x[],
+                                 double w[])
 
 //****************************************************************************80
 //
 //  Purpose:
 //
-//    SIMPLEX_UNIT_MONOMIAL_QUADRATURE: quadrature of monomials in a unit simplex.
+//    SIMPLEX_UNIT_MONOMIAL_QUADRATURE: quadrature of monomials in a unit
+//    simplex.
 //
 //  Licensing:
 //
@@ -1355,42 +1305,44 @@ double simplex_unit_monomial_quadrature ( int m, int expon[], int n, double x[],
   double quad;
   double quad_error;
   double scale;
-  double *value;
-//
-//  Get the exact value of the integral of the unscaled monomial.
-//
-  scale = simplex_unit_monomial_integral ( m, expon );
-//
-//  Evaluate the monomial at the quadrature points.
-//
-  value = monomial_value ( m, n, expon, x );
-//
-//  Compute the weighted sum and divide by the exact value.
-//
-  quad = r8vec_dot_product ( n, w, value ) / scale;
+  double* value;
+  //
+  //  Get the exact value of the integral of the unscaled monomial.
+  //
+  scale = simplex_unit_monomial_integral(m, expon);
+  //
+  //  Evaluate the monomial at the quadrature points.
+  //
+  value = monomial_value(m, n, expon, x);
+  //
+  //  Compute the weighted sum and divide by the exact value.
+  //
+  quad = r8vec_dot_product(n, w, value) / scale;
 
-  delete [] value;
-//
-//  Error:
-//
-  quad_error = fabs ( quad - exact );
+  delete[] value;
+  //
+  //  Error:
+  //
+  quad_error = fabs(quad - exact);
 
   return quad_error;
 }
 //****************************************************************************80
 
-double *simplex_unit_sample ( int m, int n, int &seed )
+double*
+simplex_unit_sample(int m, int n, int& seed)
 
 //****************************************************************************80
 //
 //  Purpose:
 //
-//    SIMPLEX_UNIT_SAMPLE returns uniformly random points from a general simplex.
+//    SIMPLEX_UNIT_SAMPLE returns uniformly random points from a general
+//    simplex.
 //
 //  Discussion:
 //
-//    The interior of the unit M dimensional simplex is the set of 
-//    points X(1:M) such that each X(I) is nonnegative, and 
+//    The interior of the unit M dimensional simplex is the set of
+//    points X(1:M) such that each X(I) is nonnegative, and
 //    sum(X(1:M)) <= 1.
 //
 //    This routine is valid for any spatial dimension M.
@@ -1427,45 +1379,41 @@ double *simplex_unit_sample ( int m, int n, int &seed )
 //    Output, double UNIFORM_IN_SIMPLEX01_MAP[M*N], the points.
 //
 {
-  double *e;
+  double* e;
   int i;
   int j;
   double total;
-  double *x;
-//
-//  The construction begins by sampling M+1 points from the
-//  exponential distribution with parameter 1.
-//
-  x = new double[m*n];
+  double* x;
+  //
+  //  The construction begins by sampling M+1 points from the
+  //  exponential distribution with parameter 1.
+  //
+  x = new double[m * n];
 
-  for ( j = 0; j < n; j++ )
-  {
-    e = r8vec_uniform_01_new ( m + 1, seed );
+  for (j = 0; j < n; j++) {
+    e = r8vec_uniform_01_new(m + 1, seed);
 
-    for ( i = 0; i <= m; i++ )
-    {
-      e[i] = - log ( e[i] );
+    for (i = 0; i <= m; i++) {
+      e[i] = -log(e[i]);
     }
 
     total = 0.0;
-    for ( i = 0; i <= m; i++ )
-    {
+    for (i = 0; i <= m; i++) {
       total = total + e[i];
     }
 
-    for ( i = 0; i < m; i++ )
-    {
-      x[i+m*j] = e[i] / total;
+    for (i = 0; i < m; i++) {
+      x[i + m * j] = e[i] / total;
     }
-    delete [] e;
+    delete[] e;
   }
 
   return x;
 }
 //****************************************************************************80
 
-void simplex_unit_to_general ( int m, int n, double t[], double ref[],
-  double phy[] )
+void
+simplex_unit_to_general(int m, int n, double t[], double ref[], double phy[])
 
 //****************************************************************************80
 //
@@ -1522,22 +1470,20 @@ void simplex_unit_to_general ( int m, int n, double t[], double ref[],
   int i;
   int j;
   int k;
-//
-//  The image of each point is initially the image of the origin.
-//
-//  Insofar as the pre-image differs from the origin in a given vertex
-//  direction, add that proportion of the difference between the images
-//  of the origin and the vertex.
-//
-  for ( j = 0; j < n; j++ )
-  {
-    for ( i = 0; i < m; i++ )
-    {
-      phy[i+j*m] = t[i+0*m];
+  //
+  //  The image of each point is initially the image of the origin.
+  //
+  //  Insofar as the pre-image differs from the origin in a given vertex
+  //  direction, add that proportion of the difference between the images
+  //  of the origin and the vertex.
+  //
+  for (j = 0; j < n; j++) {
+    for (i = 0; i < m; i++) {
+      phy[i + j * m] = t[i + 0 * m];
 
-      for ( k = 1; k < m + 1; k++ )
-      {
-        phy[i+j*m] = phy[i+j*m] + ( t[i+k*m] - t[i+0*m] ) * ref[k-1+j*m];
+      for (k = 1; k < m + 1; k++) {
+        phy[i + j * m] =
+          phy[i + j * m] + (t[i + k * m] - t[i + 0 * m]) * ref[k - 1 + j * m];
       }
     }
   }
@@ -1546,7 +1492,8 @@ void simplex_unit_to_general ( int m, int n, double t[], double ref[],
 }
 //****************************************************************************80
 
-double simplex_unit_volume ( int m )
+double
+simplex_unit_volume(int m)
 
 //****************************************************************************80
 //
@@ -1581,16 +1528,16 @@ double simplex_unit_volume ( int m )
   double volume;
 
   volume = 1.0;
-  for ( i = 1; i <= m; i++ )
-  {
-    volume = volume / ( ( double ) i );
+  for (i = 1; i <= m; i++) {
+    volume = volume / ((double)i);
   }
 
   return volume;
 }
 //****************************************************************************80
 
-void timestamp ( )
+void
+timestamp()
 
 //****************************************************************************80
 //
@@ -1619,19 +1566,19 @@ void timestamp ( )
 //    None
 //
 {
-# define TIME_SIZE 40
+#define TIME_SIZE 40
 
   static char time_buffer[TIME_SIZE];
-  const struct tm *tm;
+  const struct tm* tm;
   time_t now;
 
-  now = time ( NULL );
-  tm = localtime ( &now );
+  now = time(NULL);
+  tm = localtime(&now);
 
-  strftime ( time_buffer, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm );
+  strftime(time_buffer, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm);
 
   cout << time_buffer << "\n";
 
   return;
-# undef TIME_SIZE
+#undef TIME_SIZE
 }
