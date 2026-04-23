@@ -49,6 +49,7 @@ struct SimplexTopology<1>
   static constexpr LocalIndexType face_verts[2][1] = { { 0 }, { 1 } };
 };
 
+// q = 1
 template<>
 struct SimplexTopology<2>
 {
@@ -60,6 +61,7 @@ struct SimplexTopology<2>
                                                        { 0, 1 } };
 };
 
+/* q = 1
 template<>
 struct SimplexTopology<3>
 {
@@ -70,6 +72,31 @@ struct SimplexTopology<3>
                                                        { 0, 2, 3 },
                                                        { 0, 1, 3 },
                                                        { 0, 1, 2 } };
+};*/
+
+/* q = 2
+template<>
+struct SimplexTopology<2>
+{
+  static constexpr LocalIndexType verts_per_cell = 6;
+  static constexpr LocalIndexType faces_per_cell = 3;
+  static constexpr LocalIndexType verts_per_face = 3;
+  static constexpr LocalIndexType face_verts[3][3] = { { 1, 4, 2 },
+                                                       { 0, 5, 2 },
+                                                       { 0, 3, 1 } };
+};*/
+
+// q = 2
+template<>
+struct SimplexTopology<3>
+{
+  static constexpr LocalIndexType verts_per_cell = 10;
+  static constexpr LocalIndexType faces_per_cell = 4;
+  static constexpr LocalIndexType verts_per_face = 6;
+  static constexpr LocalIndexType face_verts[4][6] = { { 1, 5, 2, 9, 3, 8 },
+                                                       { 0, 6, 2, 9, 3, 7 },
+                                                       { 0, 4, 1, 8, 3, 7 },
+                                                       { 0, 4, 1, 5, 2, 6 } };
 };
 
 /**

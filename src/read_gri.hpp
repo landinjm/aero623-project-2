@@ -38,8 +38,8 @@ struct MeshData
   std::vector<unsigned int> node_10;
 
   std::vector<unsigned int> boundary_group_n_faces;
-  std::vector<std::string> boundary_group_names;
   std::vector<unsigned int> boundary_group_n_nodes;
+  std::vector<std::string> boundary_group_names;
 
   // 2D boundary edges
   std::vector<unsigned int> boundary_node_1;
@@ -140,7 +140,12 @@ public:
       transfer_to_triangulation_2d(tria);
     }
     if constexpr (dim == 3) {
-      transfer_to_triangulation_3d(tria);
+      if (data_.q_order == 2) {
+        transfer_to_triangulation_3d_q2(tria);
+      } else {
+        transfer_to_triangulation_3d(tria);
+        // I think might give errs b/c triangulation only does q=2 for dim 3
+      }
     }
   }
 
@@ -494,6 +499,228 @@ private:
             (coord[raw_faces[neighbor].v0] + coord[raw_faces[neighbor].v1] +
              coord[raw_faces[neighbor].v2]) /
             3.0;
+          tria.periodic_face_offset(f, d) = mc1 - mc0;
+        }
+      } else {
+        for (unsigned int d = 0; d < 3; ++d)
+          tria.periodic_face_offset(f, d) = 0.0;
+      }
+
+      uint32_t flags = 0;
+      if (raw_faces[f].is_boundary)
+        flags |= FaceFlags::Boundary;
+      if (raw_faces[f].is_periodic)
+        flags |= FaceFlags::Periodic;
+      tria.face_flags(f) = flags;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 3D transfer for q = 2: builds tet connectivity and triangular boundary faces
+  // -------------------------------------------------------------------------
+  void transfer_to_triangulation_3d_q2(Triangulation<3>& tria) const
+  {
+    const unsigned int n_cells = data_.n_elements;
+
+    // A face in 3D is a triangle, identified by a sorted triple of vertex
+    // indices
+    using TriKey = std::tuple<unsigned int, unsigned int, unsigned int>;
+
+    struct RawFace3
+    {
+      uint v0, v1, v2, v3, v4, v5;
+      CellIndexType cells[2] = { CellIndexType(-1), CellIndexType(-1) };
+      bool is_boundary = false;
+      BoundaryIdType boundary_id = 0;
+      bool is_periodic = false;
+      unsigned int neighbor = unsigned(-1);
+    };
+
+    std::map<TriKey, FaceIndexType> tri_to_face;
+    std::vector<RawFace3> raw_faces;
+
+    // Each tet has 4 local faces, each opposite the vertex with the same index.
+    // Local face k uses the 3 vertices that are NOT vertex k.
+    // face 0: v1,v5,v2,v9,v3,v8    face 1: v0,v6,v2,v9,v3,v7 <- all go vert, mp, vert,
+    // face 2: v0,v4,v1,v8,v3,v7    face 3: v0,v4,v1,v5,v2,v6             mp, vert, mp
+    constexpr unsigned int face_verts[4][6] = {
+      { 1, 5, 2, 9, 3, 8 }, { 0, 6, 2, 9, 3, 7 }, { 0, 4, 1, 8, 3, 7 }, { 0, 4, 1, 5, 2, 6 }
+    };
+
+    std::vector<std::array<FaceIndexType, 4>> cell_face_ids(n_cells);
+
+    for (unsigned int c = 0; c < n_cells; ++c) {
+      const unsigned int vi[10] = {
+        data_.node_1[c], data_.node_2[c], data_.node_3[c], data_.node_4[c], data_.node_5[c],
+        data_.node_6[c], data_.node_7[c], data_.node_8[c], data_.node_9[c], data_.node_10[c]
+      };
+
+      for (unsigned int lf = 0; lf < 4; ++lf) {
+        unsigned int a = vi[face_verts[lf][0]];   // vert 1
+        unsigned int b = vi[face_verts[lf][2]];   // vert 2
+        unsigned int cc = vi[face_verts[lf][4]];  // vert 3
+        unsigned int dd = vi[face_verts[lf][1]];  // mp 1
+        unsigned int ee = vi[face_verts[lf][3]];  // mp 2
+        unsigned int ff = vi[face_verts[lf][5]];  // mp 3
+
+        // Sort for canonical key (shouldn't need to change for q = 2)
+        unsigned int s[3] = { a, b, cc };
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
+        if (s[1] > s[2])
+          std::swap(s[1], s[2]);
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
+        const TriKey key = { s[0], s[1], s[2] };
+
+        auto it = tri_to_face.find(key);
+        if (it == tri_to_face.end()) {
+          const FaceIndexType face_index =
+            static_cast<FaceIndexType>(raw_faces.size());
+          cell_face_ids[c][lf] = face_index;
+          tri_to_face[key] = face_index;
+          RawFace3 rf;
+          rf.v0 = a;
+          rf.v1 = b;
+          rf.v2 = cc;
+          rf.v3 = dd;
+          rf.v4 = ee;
+          rf.v5 = ff;
+          rf.cells[0] = static_cast<CellIndexType>(c);
+          raw_faces.push_back(rf);
+        } else {
+          const FaceIndexType face_index = it->second;
+          cell_face_ids[c][lf] = face_index;
+          raw_faces[face_index].cells[1] = static_cast<CellIndexType>(c);
+        }
+      }
+    }
+
+    // Handle periodic nodes (same logic as 2D) (same logic for q = 1)
+    std::map<unsigned int, unsigned int> periodic_nodes;
+    for (unsigned int i = 0; i < data_.periodic_node_1.size(); ++i) {
+      periodic_nodes[data_.periodic_node_1[i]] = data_.periodic_node_2[i];
+      periodic_nodes[data_.periodic_node_2[i]] = data_.periodic_node_1[i];
+    }
+
+    for (auto& rf : raw_faces) {
+      if (rf.cells[1] != CellIndexType(-1))
+        continue;
+
+      const auto a = rf.v0, b = rf.v1, cc = rf.v2;
+
+      if (periodic_nodes.contains(a) && periodic_nodes.contains(b) &&
+          periodic_nodes.contains(cc)) {
+        unsigned int pa = periodic_nodes[a];
+        unsigned int pb = periodic_nodes[b];
+        unsigned int pc = periodic_nodes[cc];
+        unsigned int s[3] = { pa, pb, pc };
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
+        if (s[1] > s[2])
+          std::swap(s[1], s[2]);
+        if (s[0] > s[1])
+          std::swap(s[0], s[1]);
+        const TriKey key = { s[0], s[1], s[2] };
+        auto it = tri_to_face.find(key);
+        if (it != tri_to_face.end()) {
+          const FaceIndexType face_index = it->second;
+          rf.neighbor = face_index;
+          rf.cells[1] = raw_faces[face_index].cells[0];
+          rf.is_periodic = true;
+        }
+      }
+    }
+
+    // Mark boundary faces using the 3-node boundary triangles (same logic for q = 1)
+    {
+      unsigned int offset = 0;
+      for (unsigned int g = 0; g < data_.n_boundary_groups; ++g) {
+        const BoundaryIdType bid = static_cast<BoundaryIdType>(g + 1);
+        for (unsigned int i = 0; i < data_.boundary_group_n_faces[g]; ++i) {
+          const unsigned int a = data_.boundary_node_1[offset + i];
+          const unsigned int b = data_.boundary_node_2[offset + i];
+          const unsigned int cc = data_.boundary_node_3[offset + i];
+          unsigned int s[3] = { a, b, cc };
+          if (s[0] > s[1])
+            std::swap(s[0], s[1]);
+          if (s[1] > s[2])
+            std::swap(s[1], s[2]);
+          if (s[0] > s[1])
+            std::swap(s[0], s[1]);
+          const TriKey key = { s[0], s[1], s[2] };
+          auto it = tri_to_face.find(key);
+          ASSERT(it != tri_to_face.end(),
+                 "Boundary triangle not found in cell connectivity");
+          if (!raw_faces[it->second].is_periodic) {
+            raw_faces[it->second].is_boundary = true;
+            raw_faces[it->second].boundary_id = bid;
+          }
+        }
+        offset += data_.boundary_group_n_faces[g];
+      }
+    }
+
+    const unsigned int n_faces = static_cast<unsigned int>(raw_faces.size());
+    const unsigned int n_vertices = data_.n_nodes;
+
+    tria.internal_reinit(n_cells, n_faces, n_vertices);
+
+    for (unsigned int v = 0; v < data_.n_nodes; ++v) {
+      tria.vertices(v, 0) = data_.x[v];
+      tria.vertices(v, 1) = data_.y[v];
+      tria.vertices(v, 2) = data_.z[v];
+    }
+
+    for (unsigned int c = 0; c < data_.n_elements; ++c) {
+      tria.cell_vertices(c, 0) = data_.node_1[c];
+      tria.cell_vertices(c, 1) = data_.node_2[c];
+      tria.cell_vertices(c, 2) = data_.node_3[c];
+      tria.cell_vertices(c, 3) = data_.node_4[c];
+      tria.cell_vertices(c, 4) = data_.node_5[c];
+      tria.cell_vertices(c, 5) = data_.node_6[c];
+      tria.cell_vertices(c, 6) = data_.node_7[c];
+      tria.cell_vertices(c, 7) = data_.node_8[c];
+      tria.cell_vertices(c, 8) = data_.node_9[c];
+      tria.cell_vertices(c, 9) = data_.node_10[c];
+      tria.cell_faces(c, 0) = cell_face_ids[c][0];
+      tria.cell_faces(c, 1) = cell_face_ids[c][1];
+      tria.cell_faces(c, 2) = cell_face_ids[c][2];
+      tria.cell_faces(c, 3) = cell_face_ids[c][3];
+    }
+
+    for (unsigned int f = 0; f < n_faces; ++f) {
+      tria.face_vertices(f, 0) = raw_faces[f].v0;
+      tria.face_vertices(f, 1) = raw_faces[f].v1;
+      tria.face_vertices(f, 2) = raw_faces[f].v2;
+      tria.face_vertices(f, 3) = raw_faces[f].v3;
+      tria.face_vertices(f, 4) = raw_faces[f].v4;
+      tria.face_vertices(f, 5) = raw_faces[f].v5;
+      tria.face_cells(f, 0) = raw_faces[f].cells[0];
+      tria.face_cells(f, 1) = raw_faces[f].cells[1];
+      tria.boundary_ids(f) = raw_faces[f].boundary_id;
+
+      tria.periodic_face_neighbor(f) =
+        raw_faces[f].is_periodic
+          ? static_cast<FaceIndexType>(raw_faces[f].neighbor)
+          : FaceIndexType(-1);
+
+      if (raw_faces[f].is_periodic) {
+        const unsigned int neighbor = raw_faces[f].neighbor;
+        // Offset = centroid of neighbor face minus centroid of this face
+        for (unsigned int d = 0; d < 3; ++d) {
+          const double* coord = (d == 0   ? data_.x.data()
+                                 : d == 1 ? data_.y.data()
+                                          : data_.z.data());
+          const double mc0 = (coord[raw_faces[f].v0] + coord[raw_faces[f].v1] +
+                              coord[raw_faces[f].v2] + coord[raw_faces[f].v3] +
+                              coord[raw_faces[f].v4] + coord[raw_faces[f].v5]) /
+                             6.0;
+          const double mc1 =
+            (coord[raw_faces[neighbor].v0] + coord[raw_faces[neighbor].v1] +
+             coord[raw_faces[neighbor].v2] + coord[raw_faces[neighbor].v3] +
+             coord[raw_faces[neighbor].v4] + coord[raw_faces[neighbor].v5]) /
+            6.0;
           tria.periodic_face_offset(f, d) = mc1 - mc0;
         }
       } else {
