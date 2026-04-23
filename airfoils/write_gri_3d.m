@@ -57,7 +57,7 @@ function write_grid(filename, nodes, elements)
 
     airfoil_mask = ~combined_mask;
 
-    % Finding the periodic node matches. Because we are in 2D this is as 
+    % Finding the periodic node matches. Because we are in 2D this is as
     % simple as matching node pairs with the same x coordinate.
     top_nodes = unique(boundary_faces(top_mask, :));
     bottom_nodes = unique(boundary_faces(bottom_mask, :));
@@ -65,7 +65,7 @@ function write_grid(filename, nodes, elements)
 
     top_xyz    = nodes(top_nodes, :);
     bottom_xyz = nodes(bottom_nodes, :);
-    
+
     index_bottom = zeros(size(top_nodes, 1),1);
     for i = 1:size(top_nodes, 1)
         [~, index_bottom(i)] = min(vecnorm(top_xyz(i,1:2)-bottom_xyz(:,1:2),2,2));
@@ -75,14 +75,14 @@ function write_grid(filename, nodes, elements)
 
     % [~, index_top] = sortrows(top_xyz,[1,2]);
     % [~, index_bottom] = sortrows(bottom_xyz,[1,2]);
-    % 
+    %
     % top_nodes    = top_nodes(index_top);
     % bottom_nodes = bottom_nodes(index_bottom);
-    % 
+    %
     % top_xyz    = nodes(top_nodes, :);
     % bottom_xyz = nodes(bottom_nodes, :);
 
-    % Check that the x positions of the node match 1 to 1. If not, 
+    % Check that the x positions of the node match 1 to 1. If not,
     % shift them.
     tol = 1e-12;
     xyz_err = top_xyz(:,1:2)-bottom_xyz(:,1:2);
@@ -91,7 +91,7 @@ function write_grid(filename, nodes, elements)
 
         % Compute the average x for each pair
         xy_avg = (top_xyz(:,1:2) + bottom_xyz(:,1:2)) / 2;
-        
+
         % Replace values
         nodes(top_nodes, 1:2)    = xy_avg;
         nodes(bottom_nodes, 1:2) = xy_avg;
@@ -142,7 +142,7 @@ function write_grid(filename, nodes, elements)
                 local_boundary_faces = boundary_faces(back_mask, :);
                 boundary_type = "Back";
             case 7
-                n_boundary_face = sum(airfoil_mask);  
+                n_boundary_face = sum(airfoil_mask);
                 local_boundary_faces = boundary_faces(airfoil_mask, :);
                 boundary_type = "Airfoil";
             otherwise
@@ -157,7 +157,7 @@ function write_grid(filename, nodes, elements)
     end
 
     % Write the element group info
-    % Since MATLAB does all the hard work of order the elements with 
+    % Since MATLAB does all the hard work of order the elements with
     % counter-clockwise connectivity, we don't have to do anything special
     % here. We also don't have anything special with the elements because
     % everything is trilgrange and first order.
@@ -176,7 +176,7 @@ function write_grid(filename, nodes, elements)
 
     % Write the periodic mapping info
     n_periodic_groups = 1;
-    
+
     periodicity_type = 'Translational';
     fprintf(fstream, '%d PeriodicGroup\n', n_periodic_groups);
     for i = 1:n_periodic_groups
@@ -195,7 +195,7 @@ function write_grid(filename, nodes, elements)
                 fprintf(fstream, '%d %d\n', mappings(j, 1), mappings(j, 2));
             end
     end
-    
+
     % Clean up
     fclose(fstream);
 end
