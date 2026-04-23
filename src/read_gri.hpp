@@ -15,6 +15,7 @@ struct MeshData
   unsigned int n_elements;
   unsigned int n_boundary_groups;
   unsigned int n_periodic_groups;
+  unsigned int q_order;
 
   // 2D node coordinates
   std::vector<double> x;
@@ -28,15 +29,27 @@ struct MeshData
   std::vector<unsigned int> node_3;
   // Tetrahedron connectivity (3D, 4th node)
   std::vector<unsigned int> node_4;
+  // Higher Order Connectivity (3D q=2)
+  std::vector<unsigned int> node_5;
+  std::vector<unsigned int> node_6; //up to here for 2D q=2
+  std::vector<unsigned int> node_7;
+  std::vector<unsigned int> node_8;
+  std::vector<unsigned int> node_9;
+  std::vector<unsigned int> node_10;
 
   std::vector<unsigned int> boundary_group_n_faces;
   std::vector<std::string> boundary_group_names;
+  std::vector<unsigned int> boundary_group_n_nodes;
 
   // 2D boundary edges
   std::vector<unsigned int> boundary_node_1;
   std::vector<unsigned int> boundary_node_2;
   // 3D boundary triangles (3rd node)
-  std::vector<unsigned int> boundary_node_3;
+  std::vector<unsigned int> boundary_node_3; //up to here for 2D q=2
+  // Higher Order Connectivity (3D q=2)
+  std::vector<unsigned int> boundary_node_4;
+  std::vector<unsigned int> boundary_node_5;
+  std::vector<unsigned int> boundary_node_6;
 
   std::vector<unsigned int> periodic_group_n_nodes;
 
@@ -66,6 +79,12 @@ struct MeshData
     node_2.resize(n);
     node_3.resize(n);
     node_4.resize(n, 0);
+    node_5.resize(n, 0);
+    node_6.resize(n, 0);
+    node_7.resize(n, 0);
+    node_8.resize(n, 0);
+    node_9.resize(n, 0);
+    node_10.resize(n, 0);
   }
 
   void set_n_boundary_groups(std::size_t n)
@@ -73,6 +92,7 @@ struct MeshData
     n_boundary_groups = n;
     boundary_group_n_faces.resize(n);
     boundary_group_names.resize(n);
+    boundary_group_n_nodes.resize(n);
   }
 
   void set_n_periodic_groups(std::size_t n)
@@ -527,8 +547,12 @@ GriReader<dim>::read_gri(const std::string& filename)
     in >> data_.boundary_group_n_faces[i];
     ASSERT(data_.boundary_group_n_faces[i] > 0,
            "Boundary groups must have at least one face");
-    in >> dummy; // nodes per boundary face (dim for 2D edges, dim-1+1=dim for
-                 // 3D tris)
+    in >> data_.boundary_group_n_nodes[i];  // nodes per boundary face
+                                            // (dim for 2D edges, dim-1+1=dim for 3D tris)
+    ASSERT(data_.boundary_group_n_nodes[i] == 2 ||
+           data_.boundary_group_n_nodes[i] == 3 ||
+           data_.boundary_group_n_nodes[i] == 6,
+           "Boundary groups should have 2, 3, or 6 nodes");
     std::getline(in >> std::ws, data_.boundary_group_names[i]);
 
     // NOTE: 1-based indexing in .gri files
@@ -537,23 +561,30 @@ GriReader<dim>::read_gri(const std::string& filename)
       data_.boundary_node_1.emplace_back(dummy - 1);
       in >> dummy;
       data_.boundary_node_2.emplace_back(dummy - 1);
-      if constexpr (dim == 3) {
+      if (data_.boundary_group_n_nodes[i] >= 3) {
         in >> dummy;
         data_.boundary_node_3.emplace_back(dummy - 1);
-
+        if (data_.boundary_group_n_nodes[i] >= 6) {
+          in >> dummy;
+          data_.boundary_node_4.emplace_back(dummy - 1);
+          in >> dummy;
+          data_.boundary_node_5.emplace_back(dummy - 1);
+          in >> dummy;
+          data_.boundary_node_6.emplace_back(dummy - 1);
+        }
       }
     }
   }
 
   // Elements (one group assumed, linear simplices)
-  int n_element_in_group, element_group_order;
+  int n_element_in_group;
   std::string element_basis;
-  in >> n_element_in_group >> element_group_order;
+  in >> n_element_in_group >> data_.q_order;
   std::getline(in >> std::ws, element_basis);
 
   ASSERT(n_element_in_group == (int)data_.n_elements,
          "Multiple element groups are unsupported");
-  ASSERT(element_group_order == 1, "Only first order elements are supported");
+  ASSERT(data_.q_order == 1 || data_.q_order == 2, "Only first & 2nd order elements are supported");
 
   for (unsigned int i = 0; i < data_.n_elements; ++i) {
     in >> dummy;
@@ -565,6 +596,28 @@ GriReader<dim>::read_gri(const std::string& filename)
     if constexpr (dim == 3) {
       in >> dummy;
       data_.node_4[i] = dummy - 1;
+      if (data_.q_order == 2) {
+        in >> dummy;
+        data_.node_5[i] = dummy - 1;
+        in >> dummy;
+        data_.node_6[i] = dummy - 1;
+        in >> dummy;
+        data_.node_7[i] = dummy - 1;
+        in >> dummy;
+        data_.node_8[i] = dummy - 1;
+        in >> dummy;
+        data_.node_9[i] = dummy - 1;
+        in >> dummy;
+        data_.node_10[i] = dummy - 1;
+      }
+    else if (data_.q_order == 2) {
+      in >> dummy;
+      data_.node_4[i] = dummy - 1;
+      in >> dummy;
+      data_.node_5[i] = dummy - 1;
+      in >> dummy;
+      data_.node_6[i] = dummy - 1;
+    }
 
       // // Ensure positive orientation: det(J) > 0 where
       // // J columns are edge vectors from vertex 0.
