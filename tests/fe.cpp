@@ -214,8 +214,8 @@ TEST(FEValues, 2D)
 {
   constexpr unsigned int dim = 2;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, 1> tria;
+  GriReader<dim, 1> gri;
   gri.read_gri("../tests/test_5.gri");
   gri.transfer_to_triangulation(tria);
 
@@ -285,8 +285,8 @@ TEST(FEValues, 3D)
 {
   constexpr unsigned int dim = 3;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, 1> tria;
+  GriReader<dim, 1> gri;
   gri.read_gri("../tests/test3D.gri");
   gri.transfer_to_triangulation(tria);
 
@@ -356,8 +356,8 @@ TEST(FEFaceValues, 2D)
 {
   constexpr unsigned int dim = 2;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, 1> tria;
+  GriReader<dim, 1> gri;
   gri.read_gri("../tests/test_5.gri");
   gri.transfer_to_triangulation(tria);
 
@@ -367,7 +367,7 @@ TEST(FEFaceValues, 2D)
     FEFaceValues<dim, RealType> fe_face_values(fe, quad);
 
     for (const auto& cell : tria.active_cell_range()) {
-      for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell; ++f) {
+      for (unsigned int f = 0; f < SimplexTopology<dim, 1>::faces_per_cell; ++f) {
         fe_face_values.reinit(cell, f);
 
         const unsigned int n_q = fe_face_values.n_q_points();
@@ -461,7 +461,7 @@ TEST(FEFaceValues, 2D)
       // Divergence theorem
       for (unsigned int d = 0; d < dim; ++d) {
         RealType flux = 0.0;
-        for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell;
+        for (unsigned int f = 0; f < SimplexTopology<dim, 1>::faces_per_cell;
              ++f) {
           fe_face_values.reinit(cell, f);
           for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
@@ -478,8 +478,8 @@ TEST(FEFaceValues, 3D)
 {
   constexpr unsigned int dim = 3;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, 1> tria;
+  GriReader<dim, 1> gri;
   gri.read_gri("../tests/test3D.gri");
   gri.transfer_to_triangulation(tria);
 
@@ -489,7 +489,7 @@ TEST(FEFaceValues, 3D)
     FEFaceValues<dim, RealType> fe_face_values(fe, quad);
 
     for (const auto& cell : tria.active_cell_range()) {
-      for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell; ++f) {
+      for (unsigned int f = 0; f < SimplexTopology<dim, 1>::faces_per_cell; ++f) {
         fe_face_values.reinit(cell, f);
 
         const unsigned int n_q = fe_face_values.n_q_points();
@@ -619,7 +619,7 @@ TEST(FEFaceValues, 3D)
       // Divergence theorem
       for (unsigned int d = 0; d < dim; ++d) {
         RealType flux = 0.0;
-        for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell;
+        for (unsigned int f = 0; f < SimplexTopology<dim, 1>::faces_per_cell;
              ++f) {
           fe_face_values.reinit(cell, f);
           for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {

@@ -13,7 +13,7 @@ template<unsigned int dim>
 class DataOut
 {
 public:
-  using Topo = SimplexTopology<dim>;
+  using Topo = SimplexTopology<dim, 1>;
 
   void attach_dof_handler(const DoFHandler<dim, double>& dh)
   {
@@ -243,7 +243,7 @@ private:
     Vector<double, HostMemSpace> data;
   };
 
-  const Triangulation<dim>* tria_ = nullptr;
+  const Triangulation<dim, 1>* tria_ = nullptr;
   const DoFHandler<dim, double>* dh_ = nullptr;
 
   std::vector<DataEntry> entries_;

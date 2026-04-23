@@ -355,7 +355,7 @@ public:
     n_boundary_faces_ = 0;
 
     for (auto cell : dof_handler_.active_cell_range()) {
-      for (unsigned int lf = 0; lf < SimplexTopology<dim>::faces_per_cell;
+      for (unsigned int lf = 0; lf < SimplexTopology<dim,1>::faces_per_cell;
            ++lf) {
         auto face = cell.face(lf);
         if (face.at_boundary()) {
@@ -495,7 +495,7 @@ public:
 
     for (auto cell : dof_handler_.active_cell_range()) {
       cell.get_dof_indices(dof_indices);
-      for (unsigned int lf = 0; lf < SimplexTopology<dim>::faces_per_cell;
+      for (unsigned int lf = 0; lf < SimplexTopology<dim,1>::faces_per_cell;
            ++lf) {
         fe_face_values_.reinit(cell, lf);
         auto face = cell.face(lf);
@@ -1504,8 +1504,8 @@ main(int argc, char* argv[])
   {
     constexpr unsigned int dim = 3;
 
-    GriReader<dim> gri;
-    Triangulation<dim> tria;
+    GriReader<dim, 1> gri;
+    Triangulation<dim, 1> tria;
     gri.read_gri("../grids/Tunnel2_NACA9512_0deg_10pc.6k.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
