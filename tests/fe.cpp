@@ -41,7 +41,7 @@ fd_gradient(const FE_DGLagrangeSimplex<dim, RealType>& fe,
             unsigned int i,
             const Tensor<1, dim, RealType>& pt)
 {
-  const RealType pt_tol = RealType(1.0e-7);
+  const RealType pt_tol = RealType(1.0e-5);
   Tensor<1, dim, RealType> grad;
   for (unsigned int d = 0; d < dim; ++d) {
     Tensor<1, dim, RealType> pt_fwd = pt;
@@ -169,7 +169,7 @@ TEST(FE_DGLagrangeSimplex, 1D_Gradient_FiniteDifference)
         auto grad = fe.shape_gradient(i, pt);
         auto fd_grad = fd_gradient<1>(fe, i, pt);
         for (unsigned int d = 0; d < 1; ++d) {
-          EXPECT_NEAR(grad(d), fd_grad(d), 1.0e-5);
+          EXPECT_NEAR(grad(d), fd_grad(d), 1.0e-6);
         }
       }
     }
@@ -186,7 +186,7 @@ TEST(FE_DGLagrangeSimplex, 2D_Gradient_FiniteDifference)
         auto grad = fe.shape_gradient(i, pt);
         auto fd_grad = fd_gradient<2>(fe, i, pt);
         for (unsigned int d = 0; d < 2; ++d) {
-          EXPECT_NEAR(grad(d), fd_grad(d), 1.0e-5);
+          EXPECT_NEAR(grad(d), fd_grad(d), 1.0e-6);
         }
       }
     }
@@ -203,7 +203,7 @@ TEST(FE_DGLagrangeSimplex, 3D_Gradient_FiniteDifference)
         auto grad = fe.shape_gradient(i, pt);
         auto fd_grad = fd_gradient<3>(fe, i, pt);
         for (unsigned int d = 0; d < 3; ++d) {
-          EXPECT_NEAR(grad(d), fd_grad(d), 1.0e-5);
+          EXPECT_NEAR(grad(d), fd_grad(d), 1.0e-6);
         }
       }
     }
