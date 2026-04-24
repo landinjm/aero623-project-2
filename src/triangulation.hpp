@@ -7,10 +7,10 @@
 #include <stdexcept>
 #include <tensor.hpp>
 
-template<unsigned int dim>
+template<unsigned int dim, unsigned int q>
 class GriReader;
 
-template<unsigned int dim>
+template<unsigned int dim, unsigned int q>
 class Triangulation;
 
 using LocalIndexType = uint32_t;
@@ -22,7 +22,7 @@ using NeighborIndexType = int32_t;
 
 constexpr NeighborIndexType NO_NEIGHBOR = -1;
 
-template<unsigned int dim>
+template<unsigned int dim, unsigned int q>
 class FaceAccessor;
 
 /**
@@ -37,11 +37,11 @@ constexpr BoundaryIdType Periodic = 1 << 2;
 /**
  * @brief Mesh topology constants for simplex elements.
  */
-template<int dim>
+template<int dim, int q>
 struct SimplexTopology;
 
 template<>
-struct SimplexTopology<1>
+struct SimplexTopology<1, 1>
 {
   static constexpr LocalIndexType verts_per_cell = 2;
   static constexpr LocalIndexType faces_per_cell = 2;
@@ -50,7 +50,7 @@ struct SimplexTopology<1>
 };
 
 template<>
-struct SimplexTopology<2>
+struct SimplexTopology<2, 1>
 {
   static constexpr LocalIndexType verts_per_cell = 3;
   static constexpr LocalIndexType faces_per_cell = 3;
@@ -61,7 +61,7 @@ struct SimplexTopology<2>
 };
 
 template<>
-struct SimplexTopology<3>
+struct SimplexTopology<3, 1>
 {
   static constexpr LocalIndexType verts_per_cell = 4;
   static constexpr LocalIndexType faces_per_cell = 4;
@@ -72,17 +72,49 @@ struct SimplexTopology<3>
                                                        { 0, 1, 2 } };
 };
 
+template<>
+struct SimplexTopology<1, 2>
+{
+  static constexpr LocalIndexType verts_per_cell = 2;
+  static constexpr LocalIndexType faces_per_cell = 2;
+  static constexpr LocalIndexType verts_per_face = 1;
+  static constexpr LocalIndexType face_verts[2][1] = { { 0 }, { 1 } };
+};
+
+template<>
+struct SimplexTopology<2,2>
+{
+  static constexpr LocalIndexType verts_per_cell = 6;
+  static constexpr LocalIndexType faces_per_cell = 3;
+  static constexpr LocalIndexType verts_per_face = 3;
+  static constexpr LocalIndexType face_verts[3][3] = { { 1, 4, 2 },
+                                                       { 0, 5, 2 },
+                                                       { 0, 3, 1 } };
+};
+
+template<>
+struct SimplexTopology<3, 2>
+{
+  static constexpr LocalIndexType verts_per_cell = 10;
+  static constexpr LocalIndexType faces_per_cell = 4;
+  static constexpr LocalIndexType verts_per_face = 6;
+  static constexpr LocalIndexType face_verts[4][6] = { { 1, 5, 2, 9, 3, 8 },
+                                                       { 0, 6, 2, 9, 3, 7 },
+                                                       { 0, 4, 1, 8, 3, 7 },
+                                                       { 0, 4, 1, 5, 2, 6 } };
+};
+
 /**
  * @brief Cell accessor for cell loops.
  */
-template<unsigned int dim>
+template<unsigned int dim, unsigned int q>
 struct CellAccessor
 {
 public:
-  using Topo = SimplexTopology<dim>;
+  using Topo = SimplexTopology<dim, q>;
 
   CellIndexType index;
-  const Triangulation<dim>* tria;
+  const Triangulation<dim, q>* tria;
 
   static constexpr LocalIndexType n_vertices() { return Topo::verts_per_cell; }
   static constexpr LocalIndexType n_faces() { return Topo::faces_per_cell; }
@@ -119,7 +151,7 @@ public:
   /**
    * @brief Grab the face accessor from the local index.
    */
-  FaceAccessor<dim> face(LocalIndexType local_f) const
+  FaceAccessor<dim, q> face(LocalIndexType local_f) const
   {
     return tria->get_face(face_index(local_f));
   }
@@ -167,7 +199,7 @@ public:
   /**
    * @brief Grab the cell accessor of the neighbor.
    */
-  CellAccessor<dim> neighbor(LocalIndexType local_f) const
+  CellAccessor<dim, q> neighbor(LocalIndexType local_f) const
   {
     return tria->get_cell(neighbor_index(local_f));
   }
@@ -221,13 +253,13 @@ public:
 /**
  * @brief Cell accessor for face loops.
  */
-template<unsigned int dim>
+template<unsigned int dim, unsigned int q>
 struct FaceAccessor
 {
-  using Topo = SimplexTopology<dim>;
+  using Topo = SimplexTopology<dim, q>;
 
   FaceIndexType index;
-  const Triangulation<dim>* tria;
+  const Triangulation<dim, q>* tria;
 
   static constexpr uint8_t n_vertices() { return Topo::verts_per_face; }
 
@@ -280,9 +312,9 @@ struct FaceAccessor
     return tria->face_cells(index, 1);
   }
 
-  CellAccessor<dim> owner() const { return tria->get_cell(owner_index()); }
+  CellAccessor<dim, q> owner() const { return tria->get_cell(owner_index()); }
 
-  CellAccessor<dim> neighbor() const
+  CellAccessor<dim, q> neighbor() const
   {
     return tria->get_cell(neighbor_index());
   }
@@ -305,7 +337,7 @@ struct FaceAccessor
     return tria->periodic_face_neighbor(index);
   }
 
-  FaceAccessor<dim> periodic_neighbor() const
+  FaceAccessor<dim, q> periodic_neighbor() const
   {
     return tria->get_face(periodic_neighbor_index());
   }
@@ -439,15 +471,15 @@ struct FaceAccessor
   }
 };
 
-template<unsigned int dim>
+template<unsigned int dim, unsigned int q>
 class Triangulation
 {
 public:
-  using Topo = SimplexTopology<dim>;
+  using Topo = SimplexTopology<dim, q>;
 
-  friend struct CellAccessor<dim>;
-  friend struct FaceAccessor<dim>;
-  friend class GriReader<dim>;
+  friend struct CellAccessor<dim, q>;
+  friend struct FaceAccessor<dim, q>;
+  friend class GriReader<dim, q>;
 
   template<typename T>
   using HostMat = typename MatrixViewTrait<T, HostMemSpace>::type;
@@ -493,9 +525,9 @@ public:
     return count;
   }
 
-  CellAccessor<dim> get_cell(CellIndexType c) const { return { c, this }; }
+  CellAccessor<dim, q> get_cell(CellIndexType c) const { return { c, this }; }
 
-  FaceAccessor<dim> get_face(FaceIndexType f) const { return { f, this }; }
+  FaceAccessor<dim, q> get_face(FaceIndexType f) const { return { f, this }; }
 
   struct ActiveCellRange
   {
@@ -520,7 +552,7 @@ public:
         return *this;
       }
       bool operator!=(const Iterator& o) const { return idx != o.idx; }
-      CellAccessor<dim> operator*() const { return tria->get_cell(idx); }
+      CellAccessor<dim, q> operator*() const { return tria->get_cell(idx); }
     };
 
     Iterator begin() const
@@ -558,7 +590,7 @@ public:
         return *this;
       }
       bool operator!=(const Iterator& o) const { return idx != o.idx; }
-      FaceAccessor<dim> operator*() const { return tria->get_face(idx); }
+      FaceAccessor<dim, q> operator*() const { return tria->get_face(idx); }
     };
 
     Iterator begin() const
@@ -596,7 +628,7 @@ public:
         return *this;
       }
       bool operator!=(const Iterator& o) const { return idx != o.idx; }
-      FaceAccessor<dim> operator*() const { return tria->get_face(idx); }
+      FaceAccessor<dim, q> operator*() const { return tria->get_face(idx); }
     };
 
     Iterator begin() const
@@ -657,21 +689,21 @@ public:
   /**
    * @brief Global vertex indices for each cell.
    *
-   * Array size is n_cells, Topo<dim>::verts_per_cell
+   * Array size is n_cells, Topo<dim, q>::verts_per_cell
    */
   HostMat<VertexIndexType> cell_vertices;
 
   /**
    * @brief Global faces indices for each cell.
    *
-   * Array size is n_cells, Topo<dim>::faces_per_cell
+   * Array size is n_cells, Topo<dim, q>::faces_per_cell
    */
   HostMat<FaceIndexType> cell_faces;
 
   /**
    * @brief Global vertex indices for each face.
    *
-   * Array size is n_faces, Topo<dim>::verts_per_face
+   * Array size is n_faces, Topo<dim, q>::verts_per_face
    */
   HostMat<VertexIndexType> face_vertices;
 

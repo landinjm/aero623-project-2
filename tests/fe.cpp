@@ -213,9 +213,10 @@ TEST(FE_DGLagrangeSimplex, 3D_Gradient_FiniteDifference)
 TEST(FEValues, 2D)
 {
   constexpr unsigned int dim = 2;
+  constexpr unsigned int mesh_q = 1;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
   gri.read_gri("../tests/test_5.gri");
   gri.transfer_to_triangulation(tria);
 
@@ -284,9 +285,10 @@ TEST(FEValues, 2D)
 TEST(FEValues, 3D)
 {
   constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 1;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
   gri.read_gri("../tests/test3D.gri");
   gri.transfer_to_triangulation(tria);
 
@@ -355,19 +357,20 @@ TEST(FEValues, 3D)
 TEST(FEFaceValues, 2D)
 {
   constexpr unsigned int dim = 2;
+  constexpr unsigned int mesh_q = 1;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
   gri.read_gri("../tests/test_5.gri");
   gri.transfer_to_triangulation(tria);
 
   for (unsigned int order = 0; order <= max_order; ++order) {
     FE_DGLagrangeSimplex<dim, RealType> fe(order);
     QGaussSimplex<dim - 1, RealType> quad(order + 1);
-    FEFaceValues<dim, RealType> fe_face_values(fe, quad);
+    FEFaceValues<dim, mesh_q, RealType> fe_face_values(fe, quad);
 
     for (const auto& cell : tria.active_cell_range()) {
-      for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell; ++f) {
+      for (unsigned int f = 0; f < SimplexTopology<dim, 1>::faces_per_cell; ++f) {
         fe_face_values.reinit(cell, f);
 
         const unsigned int n_q = fe_face_values.n_q_points();
@@ -461,7 +464,7 @@ TEST(FEFaceValues, 2D)
       // Divergence theorem
       for (unsigned int d = 0; d < dim; ++d) {
         RealType flux = 0.0;
-        for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell;
+        for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell;
              ++f) {
           fe_face_values.reinit(cell, f);
           for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
@@ -477,19 +480,20 @@ TEST(FEFaceValues, 2D)
 TEST(FEFaceValues, 3D)
 {
   constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 1;
 
-  Triangulation<dim> tria;
-  GriReader<dim> gri;
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
   gri.read_gri("../tests/test3D.gri");
   gri.transfer_to_triangulation(tria);
 
   for (unsigned int order = 0; order <= max_order; ++order) {
     FE_DGLagrangeSimplex<dim, RealType> fe(order);
     QGaussSimplex<dim - 1, RealType> quad(order + 1);
-    FEFaceValues<dim, RealType> fe_face_values(fe, quad);
+    FEFaceValues<dim, mesh_q, RealType> fe_face_values(fe, quad);
 
     for (const auto& cell : tria.active_cell_range()) {
-      for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell; ++f) {
+      for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
         fe_face_values.reinit(cell, f);
 
         const unsigned int n_q = fe_face_values.n_q_points();
@@ -619,7 +623,7 @@ TEST(FEFaceValues, 3D)
       // Divergence theorem
       for (unsigned int d = 0; d < dim; ++d) {
         RealType flux = 0.0;
-        for (unsigned int f = 0; f < SimplexTopology<dim>::faces_per_cell;
+        for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell;
              ++f) {
           fe_face_values.reinit(cell, f);
           for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {

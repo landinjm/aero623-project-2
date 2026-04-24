@@ -67,16 +67,16 @@ make_freestream(RealType M)
   return { rho, rho_v, rho_E };
 }
 
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int mesh_q, typename RealType>
 class EulerSolver
 {
 public:
   using VecDevice = Vector<RealType, DeviceMemSpace>;
   using VecHost = Vector<RealType, HostMemSpace>;
 
-  EulerSolver(const DoFHandler<dim, RealType>& dof_handler,
+  EulerSolver(const DoFHandler<dim, mesh_q, RealType>& dof_handler,
               FEValues<dim, RealType>& fe_values,
-              FEFaceValues<dim, RealType>& fe_face_values,
+              FEFaceValues<dim, mesh_q, RealType>& fe_face_values,
               unsigned int degree)
     : dof_handler_(dof_handler)
     , fe_values_(fe_values)
@@ -175,7 +175,7 @@ public:
       entropy_h[i] = p / std::pow(rho, gamma);
     }
 
-    DataOut<dim> data_out;
+    DataOut<dim, mesh_q> data_out;
     data_out.attach_dof_handler(dof_handler_);
     data_out.set_cycle(cycle);
     data_out.set_time(time);
@@ -231,9 +231,9 @@ public:
   }
 
   const unsigned int degree_;
-  const DoFHandler<dim, RealType>& dof_handler_;
+  const DoFHandler<dim, mesh_q, RealType>& dof_handler_;
   FEValues<dim, RealType>& fe_values_;
-  FEFaceValues<dim, RealType>& fe_face_values_;
+  FEFaceValues<dim, mesh_q, RealType>& fe_face_values_;
 
   FreestreamState<dim, RealType> freestream_;
 
@@ -355,7 +355,7 @@ public:
     n_boundary_faces_ = 0;
 
     for (auto cell : dof_handler_.active_cell_range()) {
-      for (unsigned int lf = 0; lf < SimplexTopology<dim>::faces_per_cell;
+      for (unsigned int lf = 0; lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
            ++lf) {
         auto face = cell.face(lf);
         if (face.at_boundary()) {
@@ -495,7 +495,7 @@ public:
 
     for (auto cell : dof_handler_.active_cell_range()) {
       cell.get_dof_indices(dof_indices);
-      for (unsigned int lf = 0; lf < SimplexTopology<dim>::faces_per_cell;
+      for (unsigned int lf = 0; lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
            ++lf) {
         fe_face_values_.reinit(cell, lf);
         auto face = cell.face(lf);
@@ -669,7 +669,7 @@ public:
     Kokkos::deep_copy(boundary_id_, boundary_id_h);
 
     // Create and invert the mass matrix
-    MassMatrix<dim, double> invm(fe_values_);
+    MassMatrix<dim, mesh_q, double> invm(fe_values_);
     invm.assemble(dof_handler_);
     invm.invert();
     invm.check_inverse();
@@ -1441,11 +1441,11 @@ public:
   }
 };
 
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int q, typename RealType>
 void
 interpolate_solution(
-  const DoFHandler<dim, RealType>& dof_handler_lo,
-  const DoFHandler<dim, RealType>& dof_handler_hi,
+  const DoFHandler<dim, q, RealType>& dof_handler_lo,
+  const DoFHandler<dim, q, RealType>& dof_handler_hi,
   const FE_DGLagrangeSimplex<dim, RealType>& fe_lo,
   const FE_DGLagrangeSimplex<dim, RealType>& fe_hi,
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rho_lo,
@@ -1503,10 +1503,12 @@ main(int argc, char* argv[])
   Kokkos::initialize(argc, argv);
   {
     constexpr unsigned int dim = 3;
+    constexpr unsigned int q = 1;
 
-    GriReader<dim> gri;
-    Triangulation<dim> tria;
-    gri.read_gri("../grids/Tunnel2_NACA9512_0deg_10pc.6k.gri");
+    GriReader<dim, q> gri;
+    Triangulation<dim, q> tria;
+    //gri.read_gri("../grids/Tunnel2_NACA9512_0deg_10pc.6k.gri");
+    gri.read_gri("../airfoils/cube.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1538,10 +1540,10 @@ main(int argc, char* argv[])
     FE_DGLagrangeSimplex<dim, double> fe0(degree);
     QGaussSimplex<dim, double> q0(degree + 1);
     QGaussSimplex<dim - 1, double> fq0(degree + 1);
-    DoFHandler<dim, double> dh0(tria, fe0);
+    DoFHandler<dim, q, double> dh0(tria, fe0);
     FEValues<dim, double> fev0(fe0, q0);
-    FEFaceValues<dim, double> ffev0(fe0, fq0);
-    EulerSolver<dim, double> s0(dh0, fev0, ffev0, 0);
+    FEFaceValues<dim, q, double> ffev0(fe0, fq0);
+    EulerSolver<dim, q, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
     // s0.test_freestream_preservation(1000);
     abs_tol = s0.solve_steady_state(100, 0.5, 100, false, 1.0e-5);

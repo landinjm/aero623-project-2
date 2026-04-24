@@ -11,7 +11,7 @@
  *
  * Since we have a DG scheme, each cell owns its own dofs.
  */
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int q, typename RealType>
 class DoFHandler
 {
 public:
@@ -21,7 +21,7 @@ public:
 
   struct CellAccessor
   {
-    ::CellAccessor<dim> tria_cell;
+    ::CellAccessor<dim, q> tria_cell;
     const DoFHandler* handler;
 
     CellIndexType index() const { return tria_cell.index; }
@@ -31,7 +31,7 @@ public:
 
     auto vertex(LocalIndexType v) const { return tria_cell.vertex(v); }
 
-    ::FaceAccessor<dim> face(LocalIndexType local_f) const
+    ::FaceAccessor<dim, q> face(LocalIndexType local_f) const
     {
       return tria_cell.face(local_f);
     }
@@ -65,7 +65,7 @@ public:
     {
       const auto global_f = tria_cell.face_index(local_f);
       const auto neighbor = tria_cell.neighbor(local_f);
-      for (LocalIndexType lf = 0; lf < ::SimplexTopology<dim>::faces_per_cell;
+      for (LocalIndexType lf = 0; lf < ::SimplexTopology<dim, q>::faces_per_cell;
            ++lf)
         if (neighbor.face_index(lf) == global_f)
           return lf;
@@ -105,7 +105,7 @@ public:
 
     struct Iterator
     {
-      typename Triangulation<dim>::ActiveCellRange::Iterator tria_it;
+      typename Triangulation<dim, q>::ActiveCellRange::Iterator tria_it;
       const DoFHandler* handler;
 
       CellAccessor operator*() const { return { *tria_it, handler }; }
@@ -129,7 +129,7 @@ public:
     }
   };
 
-  DoFHandler(const Triangulation<dim>& tria,
+  DoFHandler(const Triangulation<dim, q>& tria,
              const FE_DGLagrangeSimplex<dim, RealType>& fe)
     : tria_(tria)
     , fe_(fe)
@@ -180,7 +180,7 @@ public:
   size_type n_dofs() const { return n_dofs_total_; }
 
   const FE_DGLagrangeSimplex<dim, RealType>& fe() const { return fe_; }
-  const Triangulation<dim>& tria() const { return tria_; }
+  const Triangulation<dim, q>& tria() const { return tria_; }
 
   CellAccessor cell(CellIndexType k) const
   {
@@ -193,7 +193,7 @@ public:
   ActiveCellRange active_cell_range() const { return { this }; }
 
 private:
-  const Triangulation<dim>& tria_;
+  const Triangulation<dim, q>& tria_;
   const FE_DGLagrangeSimplex<dim, RealType>& fe_;
 
   size_type n_cells_;
