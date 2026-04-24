@@ -36,7 +36,7 @@ struct MeshData
   std::vector<unsigned int> node_4;
   // Higher Order Connectivity (3D q=2)
   std::vector<unsigned int> node_5;
-  std::vector<unsigned int> node_6; //up to here for 2D q=2
+  std::vector<unsigned int> node_6; // up to here for 2D q=2
   std::vector<unsigned int> node_7;
   std::vector<unsigned int> node_8;
   std::vector<unsigned int> node_9;
@@ -50,7 +50,7 @@ struct MeshData
   std::vector<unsigned int> boundary_node_1;
   std::vector<unsigned int> boundary_node_2;
   // 3D boundary triangles (3rd node)
-  std::vector<unsigned int> boundary_node_3; //up to here for 2D q=2
+  std::vector<unsigned int> boundary_node_3; // up to here for 2D q=2
   // Higher Order Connectivity (3D q=2)
   std::vector<unsigned int> boundary_node_4;
   std::vector<unsigned int> boundary_node_5;
@@ -140,7 +140,7 @@ public:
     }
   }
 
-  void transfer_to_triangulation(Triangulation<dim,q>& tria) const
+  void transfer_to_triangulation(Triangulation<dim, q>& tria) const
   {
     if constexpr (dim == 2) {
       transfer_to_triangulation_2d(tria);
@@ -158,7 +158,7 @@ public:
 private:
   MeshData data_;
 
-  void transfer_to_triangulation_2d(Triangulation<2,1>& tria) const
+  void transfer_to_triangulation_2d(Triangulation<2, 1>& tria) const
   {
     // Check that things are counter clockwise first
     check_counter_clockwise();
@@ -316,7 +316,7 @@ private:
     }
   }
 
-  void transfer_to_triangulation_3d(Triangulation<3,1>& tria) const
+  void transfer_to_triangulation_3d(Triangulation<3, 1>& tria) const
   {
     // Grab the number of cells
     const unsigned int n_cells = data_.n_elements;
@@ -527,7 +527,7 @@ private:
     }
   }
 
-  void transfer_to_triangulation_3d_q2(Triangulation<3,2>& tria) const
+  void transfer_to_triangulation_3d_q2(Triangulation<3, 2>& tria) const
   {
     // Grab the number of cells
     const unsigned int n_cells = data_.n_elements;
@@ -561,27 +561,30 @@ private:
 
     // Each tet has 4 local faces, each opposite the vertex with the same index.
     // Local face k uses the 3 vertices that are NOT vertex k.
-    // face 0: v1,v5,v2,v9,v3,v8    face 1: v0,v6,v2,v9,v3,v7 <- all go vert, mp, vert,
-    // face 2: v0,v4,v1,v8,v3,v7    face 3: v0,v4,v1,v5,v2,v6             mp, vert, mp
-    constexpr unsigned int face_verts[4][6] = {
-      { 1, 5, 2, 9, 3, 8 }, { 0, 6, 2, 9, 3, 7 }, { 0, 4, 1, 8, 3, 7 }, { 0, 4, 1, 5, 2, 6 }
-    };
+    // face 0: v1,v5,v2,v9,v3,v8    face 1: v0,v6,v2,v9,v3,v7 <- all go vert,
+    // mp, vert, face 2: v0,v4,v1,v8,v3,v7    face 3: v0,v4,v1,v5,v2,v6 mp,
+    // vert, mp
+    constexpr unsigned int face_verts[4][6] = { { 1, 5, 2, 9, 3, 8 },
+                                                { 0, 6, 2, 9, 3, 7 },
+                                                { 0, 4, 1, 8, 3, 7 },
+                                                { 0, 4, 1, 5, 2, 6 } };
 
     std::vector<std::array<FaceIndexType, 4>> cell_face_ids(n_cells);
 
     for (unsigned int c = 0; c < n_cells; ++c) {
-      const unsigned int vi[10] = {
-        data_.node_1[c], data_.node_2[c], data_.node_3[c], data_.node_4[c], data_.node_5[c],
-        data_.node_6[c], data_.node_7[c], data_.node_8[c], data_.node_9[c], data_.node_10[c]
-      };
+      const unsigned int vi[10] = { data_.node_1[c], data_.node_2[c],
+                                    data_.node_3[c], data_.node_4[c],
+                                    data_.node_5[c], data_.node_6[c],
+                                    data_.node_7[c], data_.node_8[c],
+                                    data_.node_9[c], data_.node_10[c] };
 
       for (unsigned int lf = 0; lf < 4; ++lf) {
-        unsigned int a = vi[face_verts[lf][0]];   // vert 1
-        unsigned int b = vi[face_verts[lf][2]];   // vert 2
-        unsigned int cc = vi[face_verts[lf][4]];  // vert 3
-        unsigned int dd = vi[face_verts[lf][1]];  // mp 1
-        unsigned int ee = vi[face_verts[lf][3]];  // mp 2
-        unsigned int ff = vi[face_verts[lf][5]];  // mp 3
+        unsigned int a = vi[face_verts[lf][0]];  // vert 1
+        unsigned int b = vi[face_verts[lf][2]];  // vert 2
+        unsigned int cc = vi[face_verts[lf][4]]; // vert 3
+        unsigned int dd = vi[face_verts[lf][1]]; // mp 1
+        unsigned int ee = vi[face_verts[lf][3]]; // mp 2
+        unsigned int ff = vi[face_verts[lf][5]]; // mp 3
 
         // Sort for canonical key (shouldn't need to change for q = 2)
         unsigned int s[3] = { a, b, cc };
@@ -652,7 +655,8 @@ private:
       }
     }
 
-    // Mark boundary faces using the 3-node boundary triangles (same logic for q = 1)
+    // Mark boundary faces using the 3-node boundary triangles (same logic for q
+    // = 1)
     {
       unsigned int offset = 0;
       for (unsigned int g = 0; g < data_.n_boundary_groups; ++g) {
@@ -775,7 +779,7 @@ GriReader<dim, q>::read_gri(const std::string& filename)
   data_.set_n_elements(dummy);
   in >> dummy;
 
-  ASSERT(data_.n_nodes > 0,    "Number of nodes must be greater than zero.");
+  ASSERT(data_.n_nodes > 0, "Number of nodes must be greater than zero.");
   ASSERT(data_.n_elements > 0, "Number of elements must be greater than zero.");
   ASSERT(dummy == (int)dim, "File has different dimension than mesh.");
 
@@ -790,13 +794,16 @@ GriReader<dim, q>::read_gri(const std::string& filename)
   in >> dummy;
   data_.set_n_boundary_groups(dummy);
 
+  std::cout << "n boundaries " << data_.n_boundary_groups << std::endl;
+
   for (unsigned int i = 0; i < data_.n_boundary_groups; ++i) {
     in >> data_.boundary_group_n_faces[i];
     ASSERT(data_.boundary_group_n_faces[i] > 0,
            "Boundary groups must have at least one face");
-    in >> data_.boundary_group_n_nodes[i];  // nodes per boundary face
-                                            // (dim for 2D edges, dim-1+1=dim for 3D tris)
-    ASSERT(data_.boundary_group_n_nodes[i] == (int)dim*data_.qorder,
+    in >> data_.boundary_group_n_nodes[i]; // nodes per boundary face
+                                           // (dim for 2D edges, dim-1+1=dim for
+                                           // 3D tris)
+    ASSERT(data_.boundary_group_n_nodes[i] == (int)dim * data_.qorder,
            "Boundary groups nodes must be equal to the dimension * q order");
 
     std::getline(in >> std::ws, data_.boundary_group_names[i]);
@@ -830,7 +837,8 @@ GriReader<dim, q>::read_gri(const std::string& filename)
 
   ASSERT(n_element_in_group == (int)data_.n_elements,
          "Multiple element groups are unsupported");
-  ASSERT(data_.q_order == 1 || data_.q_order == 2, "Only first & 2nd order elements are supported");
+  ASSERT(data_.q_order == 1 || data_.q_order == 2,
+         "Only first & 2nd order elements are supported");
 
   // NOTE: The files assume indexing from 1 so adjust for that
   for (unsigned int i = 0; i < data_.n_elements; ++i) {
@@ -857,12 +865,12 @@ GriReader<dim, q>::read_gri(const std::string& filename)
         in >> dummy;
         data_.node_10[i] = dummy - 1;
       } else if (data_.q_order == 2) {
-      in >> dummy;
-      data_.node_4[i] = dummy - 1;
-      in >> dummy;
-      data_.node_5[i] = dummy - 1;
-      in >> dummy;
-      data_.node_6[i] = dummy - 1;
+        in >> dummy;
+        data_.node_4[i] = dummy - 1;
+        in >> dummy;
+        data_.node_5[i] = dummy - 1;
+        in >> dummy;
+        data_.node_6[i] = dummy - 1;
       }
     }
   }
@@ -889,8 +897,10 @@ GriReader<dim, q>::read_gri(const std::string& filename)
 
     // NOTE: The files assume indexing from 1 so adjust for that
     for (unsigned int j = 0; j < data_.periodic_group_n_nodes[i]; ++j) {
-      in >> dummy; data_.periodic_node_1.emplace_back(dummy - 1);
-      in >> dummy; data_.periodic_node_2.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.periodic_node_1.emplace_back(dummy - 1);
+      in >> dummy;
+      data_.periodic_node_2.emplace_back(dummy - 1);
     }
   }
 }

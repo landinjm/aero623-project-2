@@ -355,7 +355,8 @@ public:
     n_boundary_faces_ = 0;
 
     for (auto cell : dof_handler_.active_cell_range()) {
-      for (unsigned int lf = 0; lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
+      for (unsigned int lf = 0;
+           lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
            ++lf) {
         auto face = cell.face(lf);
         if (face.at_boundary()) {
@@ -495,7 +496,8 @@ public:
 
     for (auto cell : dof_handler_.active_cell_range()) {
       cell.get_dof_indices(dof_indices);
-      for (unsigned int lf = 0; lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
+      for (unsigned int lf = 0;
+           lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
            ++lf) {
         fe_face_values_.reinit(cell, lf);
         auto face = cell.face(lf);
@@ -1507,8 +1509,7 @@ main(int argc, char* argv[])
 
     GriReader<dim, q> gri;
     Triangulation<dim, q> tria;
-    //gri.read_gri("../grids/Tunnel2_NACA9512_0deg_10pc.6k.gri");
-    gri.read_gri("../airfoils/cube.gri");
+    gri.read_gri("../airfoils/cube.500.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1520,19 +1521,22 @@ main(int argc, char* argv[])
       { 3, BoundaryId::Freestream },
       { 4, BoundaryId::Freestream },
     };
-    id_map.clear();
-    id_map = {
-      { 1, BoundaryId::InviscidWall },   { 2, BoundaryId::InviscidWall },
-      { 3, BoundaryId::InviscidWall },   { 4, BoundaryId::InviscidWall },
-      { 4, BoundaryId::SubsonicInflow }, { 6, BoundaryId::SubsonicOutflow },
-      { 7, BoundaryId::InviscidWall },
-    };
+    /*
+
+id_map.clear();
+id_map = {
+{ 1, BoundaryId::InviscidWall },   { 2, BoundaryId::InviscidWall },
+{ 3, BoundaryId::InviscidWall },   { 4, BoundaryId::InviscidWall },
+{ 4, BoundaryId::SubsonicInflow }, { 6, BoundaryId::SubsonicOutflow },
+{ 7, BoundaryId::InviscidWall },
+};
+*/
 
     tria.remap_boundary_ids(id_map);
 
     double abs_tol = 0.0;
 
-    unsigned int degree = 0;
+    unsigned int degree = 3;
 
     Timer::instance().begin_section("Degree 0");
 
@@ -1545,8 +1549,8 @@ main(int argc, char* argv[])
     FEFaceValues<dim, q, double> ffev0(fe0, fq0);
     EulerSolver<dim, q, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
-    // s0.test_freestream_preservation(1000);
-    abs_tol = s0.solve_steady_state(100, 0.5, 100, false, 1.0e-5);
+    s0.test_freestream_preservation(1);
+    // abs_tol = s0.solve_steady_state(100, 0.5, 100, false, 1.0e-5);
     s0.write_solution("solution_steady_state_p0.vtu");
 
     Timer::instance().end_section("Degree 0");
