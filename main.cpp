@@ -1507,7 +1507,8 @@ main(int argc, char* argv[])
 
     GriReader<dim, q> gri;
     Triangulation<dim, q> tria;
-    gri.read_gri("../grids/Tunnel2_NACA9512_0deg_10pc.6k.gri");
+    //gri.read_gri("../grids/Tunnel2_NACA9512_0deg_10pc.6k.gri");
+    gri.read_gri("../airfoils/cube.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
