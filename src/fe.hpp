@@ -341,7 +341,7 @@ private:
   }
 };
 
-template<unsigned int dim, typename RealType>
+template<unsigned int dim, unsigned int mesh_q, typename RealType>
 class FEValues
 {
 public:
@@ -509,7 +509,7 @@ public:
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell, unsigned int face)
   {
-    ASSERT(face < SimplexTopology<dim>::faces_per_cell,
+    ASSERT((face < SimplexTopology<dim, mesh_q>::faces_per_cell),
            "Local face number must be less than the number of faces per cell");
 
     // Sort the face vertices with some global ordering to preserve quad point

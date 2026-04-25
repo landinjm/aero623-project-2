@@ -75,7 +75,7 @@ public:
   using VecHost = Vector<RealType, HostMemSpace>;
 
   EulerSolver(const DoFHandler<dim, mesh_q, RealType>& dof_handler,
-              FEValues<dim, RealType>& fe_values,
+              FEValues<dim, mesh_q, RealType>& fe_values,
               FEFaceValues<dim, mesh_q, RealType>& fe_face_values,
               unsigned int degree)
     : dof_handler_(dof_handler)
@@ -232,7 +232,7 @@ public:
 
   const unsigned int degree_;
   const DoFHandler<dim, mesh_q, RealType>& dof_handler_;
-  FEValues<dim, RealType>& fe_values_;
+  FEValues<dim, mesh_q, RealType>& fe_values_;
   FEFaceValues<dim, mesh_q, RealType>& fe_face_values_;
 
   FreestreamState<dim, RealType> freestream_;
@@ -1541,7 +1541,7 @@ main(int argc, char* argv[])
     QGaussSimplex<dim, double> q0(degree + 1);
     QGaussSimplex<dim - 1, double> fq0(degree + 1);
     DoFHandler<dim, q, double> dh0(tria, fe0);
-    FEValues<dim, double> fev0(fe0, q0);
+    FEValues<dim, q, double> fev0(fe0, q0);
     FEFaceValues<dim, q, double> ffev0(fe0, fq0);
     EulerSolver<dim, q, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
