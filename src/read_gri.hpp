@@ -792,7 +792,7 @@ GriReader<dim, q>::read_gri(const std::string& filename)
 
   for (unsigned int i = 0; i < data_.n_boundary_groups; ++i) {
     in >> data_.boundary_group_n_faces[i];
-    std::cout << "Number of boundary group faces: " << std::to_string(data_.boundary_group_n_faces[i]) << std::endl;
+    //std::cout << "Number of boundary group faces: " << std::to_string(data_.boundary_group_n_faces[i]) << std::endl;
     ASSERT(data_.boundary_group_n_faces[i] > 0,
            "Boundary groups must have at least one face");
     in >> data_.boundary_group_n_nodes[i];  // nodes per boundary face

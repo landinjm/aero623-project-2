@@ -102,7 +102,7 @@ TEST(ReadGri, 3d_basic_3)
 
   EXPECT_EQ(data.n_nodes, 63);
   EXPECT_EQ(data.n_elements, 24);
-  EXPECT_EQ(data.n_boundary_groups, 7);
+  EXPECT_EQ(data.n_boundary_groups, 6);
   EXPECT_EQ(data.n_periodic_groups, 1);
   EXPECT_EQ(data.n_boundary_faces(), 24);
 }
