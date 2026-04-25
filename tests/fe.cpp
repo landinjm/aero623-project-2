@@ -635,3 +635,221 @@ TEST(FEFaceValues, 3D)
     }
   }
 }
+
+TEST(FEValues, 3D_Q2)
+{
+  constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 2;
+
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
+  gri.read_gri("../airfoils/cube.gri");
+  gri.transfer_to_triangulation(tria);
+
+  for (unsigned int order = 0; order <= max_order; ++order) {
+    FE_DGLagrangeSimplex<dim, RealType> fe(order);
+    QGaussSimplex<dim, RealType> quad(order + 1);
+    FEValues<dim, mesh_q, RealType> fe_values(fe, quad);
+
+    for (const auto& cell : tria.active_cell_range()) {
+      fe_values.reinit(cell);
+
+      const unsigned int n_q   = fe_values.n_q_points();
+      const unsigned int n_dof = fe_values.n_dofs();
+
+      // ------------------------------------------------------------------
+      // Same sanity checks as Q1 — these must hold regardless of mesh_q
+      // ------------------------------------------------------------------
+      for (unsigned int q = 0; q < n_q; ++q) {
+
+        // Quad points are finite
+        for (unsigned int d = 0; d < dim; ++d)
+          EXPECT_TRUE(std::isfinite(fe_values.q_point(q)(d)));
+
+        // Partition of unity: sum of shape values == 1
+        RealType phi_sum = 0.0;
+        for (unsigned int i = 0; i < n_dof; ++i)
+          phi_sum += fe_values.shape_value(i, q);
+        EXPECT_NEAR(phi_sum, 1.0, tol);
+
+        // Gradients are finite
+        for (unsigned int i = 0; i < n_dof; ++i)
+          for (unsigned int d = 0; d < dim; ++d)
+            EXPECT_TRUE(std::isfinite(fe_values.shape_gradient(i, q)(d)));
+      }
+
+      // Sum of shape gradients == 0 at every quad point
+      for (unsigned int q = 0; q < n_q; ++q) {
+        for (unsigned int d = 0; d < dim; ++d) {
+          RealType grad_sum = 0.0;
+          for (unsigned int i = 0; i < n_dof; ++i)
+            grad_sum += fe_values.shape_gradient(i, q)(d);
+          EXPECT_NEAR(grad_sum, 0.0, tol);
+        }
+      }
+
+      // Gradient consistency — uses only corner vertices (0..dim), which
+      // exist identically in Q2, so this check is still valid.
+      if (order == 1) {
+        for (unsigned int i = 0; i < n_dof; ++i) {
+          for (unsigned int j = 1; j <= dim; ++j) {
+            RealType dot = 0.0;
+            for (unsigned int d = 0; d < dim; ++d)
+              dot += fe_values.shape_gradient(i, 0)(d) *
+                     (cell.vertex(j)(d) - cell.vertex(0)(d));
+            const RealType expected = (i == j) ? 1.0 : (i == 0 ? -1.0 : 0.0);
+            EXPECT_NEAR(dot, expected, tol);
+          }
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Q2-specific: JxW sum == cell volume.
+      // For a unit cube split into 24 tets the individual cell volumes
+      // vary, so we compare against cell.measure() which is computed
+      // directly from the geometry and is independent of FEValues.
+      // ------------------------------------------------------------------
+      RealType jxw_sum = 0.0;
+      for (unsigned int q = 0; q < n_q; ++q)
+        jxw_sum += fe_values.JxW(q);
+      EXPECT_NEAR(jxw_sum, cell.measure(), tol);
+    }
+  }
+}
+
+TEST(FEFaceValues, 3D_Q2)
+{
+  constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 2;
+
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
+  gri.read_gri("../airfoils/cube.gri");
+  gri.transfer_to_triangulation(tria);
+
+  for (unsigned int order = 0; order <= max_order; ++order) {
+    FE_DGLagrangeSimplex<dim, RealType> fe(order);
+    QGaussSimplex<dim - 1, RealType> quad(order + 1);
+    FEFaceValues<dim, mesh_q, RealType> fe_face_values(fe, quad);
+
+    for (const auto& cell : tria.active_cell_range()) {
+      for (unsigned int f = 0;
+           f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
+        fe_face_values.reinit(cell, f);
+
+        const unsigned int n_q   = fe_face_values.n_q_points();
+        const unsigned int n_dof = fe_face_values.n_dofs();
+
+        // ----------------------------------------------------------------
+        // Same sanity checks as Q1
+        // ----------------------------------------------------------------
+        for (unsigned int q = 0; q < n_q; ++q) {
+
+          // Quad points are finite
+          for (unsigned int d = 0; d < dim; ++d)
+            EXPECT_TRUE(std::isfinite(fe_face_values.q_point(q)(d)));
+
+          // Normal is finite
+          for (unsigned int d = 0; d < dim; ++d)
+            EXPECT_TRUE(std::isfinite(fe_face_values.normal(q)(d)));
+
+          // Normal is unit length
+          EXPECT_NEAR(fe_face_values.normal(q).norm(), 1.0, tol);
+
+          // Partition of unity
+          RealType phi_sum = 0.0;
+          for (unsigned int i = 0; i < n_dof; ++i)
+            phi_sum += fe_face_values.shape_value(i, q);
+          EXPECT_NEAR(phi_sum, 1.0, tol);
+
+          // Gradients are finite
+          for (unsigned int i = 0; i < n_dof; ++i)
+            for (unsigned int d = 0; d < dim; ++d)
+              EXPECT_TRUE(
+                std::isfinite(fe_face_values.shape_gradient(i, q)(d)));
+        }
+
+        // Sum of shape gradients == 0 at every quad point
+        for (unsigned int q = 0; q < n_q; ++q) {
+          for (unsigned int d = 0; d < dim; ++d) {
+            RealType grad_sum = 0.0;
+            for (unsigned int i = 0; i < n_dof; ++i)
+              grad_sum += fe_face_values.shape_gradient(i, q)(d);
+            EXPECT_NEAR(grad_sum, 0.0, tol);
+          }
+        }
+
+        // ----------------------------------------------------------------
+        // NOTE: The Q1 test checks that the normal is constant across all
+        // quad points on a face. This is intentionally omitted here —
+        // for Q2 curved faces the normal genuinely varies per point and
+        // a constant normal would indicate a bug, not correctness.
+        // ----------------------------------------------------------------
+
+        // ----------------------------------------------------------------
+        // NOTE: The Q1 test checks quad points lie on the affine plane
+        // spanned by the three corner vertices. This is also intentionally
+        // omitted — for curved Q2 faces the quad points follow the curved
+        // geometry and will not lie on that plane.
+        //
+        // Instead we check that quad points lie within the bounding box of
+        // the cell's corner vertices, which is a necessary (though not
+        // sufficient) condition for correctness and is geometry-independent.
+        // ----------------------------------------------------------------
+        {
+          // Compute bounding box from the dim+1 corner vertices only
+          RealType lo[dim], hi[dim];
+          for (unsigned int d = 0; d < dim; ++d) {
+            lo[d] = cell.vertex(0)(d);
+            hi[d] = cell.vertex(0)(d);
+          }
+          // Corner nodes are always vertices 0..dim for a simplex
+          for (unsigned int v = 1; v <= dim; ++v) {
+            for (unsigned int d = 0; d < dim; ++d) {
+              lo[d] = std::min(lo[d], cell.vertex(v)(d));
+              hi[d] = std::max(hi[d], cell.vertex(v)(d));
+            }
+          }
+          // Relax by a small factor to allow for curved protrusion
+          constexpr RealType bbox_tol = 1.0e-6;
+          for (unsigned int q = 0; q < n_q; ++q) {
+            for (unsigned int d = 0; d < dim; ++d) {
+              EXPECT_GE(fe_face_values.q_point(q)(d), lo[d] - bbox_tol);
+              EXPECT_LE(fe_face_values.q_point(q)(d), hi[d] + bbox_tol);
+            }
+          }
+        }
+
+        // ----------------------------------------------------------------
+        // Q2-specific: JxW sum == face measure.
+        // cell.face(f).measure() computes the area of the planar triangle
+        // from corner vertices. For a nearly-flat Q2 face this should
+        // match the integrated JxW to within a small tolerance.
+        // This is a weaker check than the divergence theorem below but
+        // catches gross errors in face_jac scaling.
+        // ----------------------------------------------------------------
+        RealType jxw_sum = 0.0;
+        for (unsigned int q = 0; q < n_q; ++q)
+          jxw_sum += fe_face_values.JxW(q);
+        EXPECT_NEAR(jxw_sum, cell.face(f).measure(), 1.0e-6);
+      }
+
+      // ----------------------------------------------------------------
+      // Divergence theorem — the most important Q2 correctness check.
+      // For any cell, sum over all faces of (n · e_d) * JxW must be 0
+      // for each Cartesian direction d. This holds for any geometry,
+      // curved or not, and exercises both the per-point normal and JxW.
+      // ----------------------------------------------------------------
+      for (unsigned int d = 0; d < dim; ++d) {
+        RealType flux = 0.0;
+        for (unsigned int f = 0;
+             f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
+          fe_face_values.reinit(cell, f);
+          for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q)
+            flux += fe_face_values.normal(q)(d) * fe_face_values.JxW(q);
+        }
+        EXPECT_NEAR(flux, 0.0, tol);
+      }
+    }
+  }
+}
