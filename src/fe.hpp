@@ -349,6 +349,7 @@ public:
            const QGaussSimplex<dim, RealType>& quad)
     : fe_(fe)
     , quad_(quad)
+    , mesh_fe_(mesh_q) 
     , n_dofs_(fe.n_dofs())
     , n_q_(quad.n_points())
   {
@@ -368,56 +369,76 @@ public:
   template<typename CellAccessor>
   void reinit(const CellAccessor& cell)
   {
-    // Build a Jacobian from the vertices of the cell.
-    RealType J[dim][dim];
-    RealType x0[dim];
+    // Number of geometry nodes: 3 (Q1) or 6 (Q2) in 2D,
+    //                           4 (Q1) or 10 (Q2) in 3D
+    constexpr unsigned int n_mesh_nodes =
+      FE_DGLagrangeSimplex<dim, RealType>::n_dofs_per_cell(mesh_q);
 
-    for (unsigned int d = 0; d < dim; ++d) {
-      x0[d] = cell.vertex(0)(d);
-    }
-
-    // J columns are edge vectors from vertex 0
-    for (unsigned int i = 0; i < dim; ++i) {
-      for (unsigned int j = 0; j < dim; ++j) {
-        J[i][j] = cell.vertex(j + 1)(i) - cell.vertex(0)(i);
-      }
-    }
-
-    // Take the inverse and determinant
-    RealType det_J;
-    RealType J_inv[dim][dim];
-    if constexpr (dim == 2) {
-      det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
-
-      J_inv[0][0] = J[1][1] / det_J;
-      J_inv[0][1] = -J[0][1] / det_J;
-      J_inv[1][0] = -J[1][0] / det_J;
-      J_inv[1][1] = J[0][0] / det_J;
-    } else if constexpr (dim == 3) {
-      det_J = J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) -
-              J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
-              J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
-
-      J_inv[0][0] = (J[1][1] * J[2][2] - J[1][2] * J[2][1]) / det_J;
-      J_inv[0][1] = (J[0][2] * J[2][1] - J[0][1] * J[2][2]) / det_J;
-      J_inv[0][2] = (J[0][1] * J[1][2] - J[0][2] * J[1][1]) / det_J;
-
-      J_inv[1][0] = (J[1][2] * J[2][0] - J[1][0] * J[2][2]) / det_J;
-      J_inv[1][1] = (J[0][0] * J[2][2] - J[0][2] * J[2][0]) / det_J;
-      J_inv[1][2] = (J[0][2] * J[1][0] - J[0][0] * J[1][2]) / det_J;
-
-      J_inv[2][0] = (J[1][0] * J[2][1] - J[1][1] * J[2][0]) / det_J;
-      J_inv[2][1] = (J[0][1] * J[2][0] - J[0][0] * J[2][1]) / det_J;
-      J_inv[2][2] = (J[0][0] * J[1][1] - J[0][1] * J[1][0]) / det_J;
-    } else {
-      static_assert(dim == 2 || dim == 3,
-                    "Only dim = 2 and dim = 3 are supported");
-    }
+    // Collect physical coordinates of all geometry nodes on this cell.
+    // cell.vertex(I) works for both corner and midpoint nodes because
+    // they are all stored contiguously in tria->cell_vertices.
+    RealType mesh_coords[n_mesh_nodes][dim];
+    for (unsigned int I = 0; I < n_mesh_nodes; ++I)
+      for (unsigned int d = 0; d < dim; ++d)
+        mesh_coords[I][d] = cell.vertex(I)(d);
 
     for (unsigned int q = 0; q < n_q_; ++q) {
-      JxW_(q) = std::abs(det_J) * quad_.weight(q);
-
       const auto xi = quad_.point(q);
+
+      // ----------------------------------------------------------------
+      // Build J(xi) = sum_I  x_I ⊗ ∇N_I(xi)
+      // For mesh_q=1 this is constant and identical to the old
+      // vertex-differencing formula. For mesh_q=2 it varies per point.
+      // ----------------------------------------------------------------
+      RealType J[dim][dim] = {};
+      for (unsigned int I = 0; I < n_mesh_nodes; ++I) {
+        const auto dN = mesh_fe_.shape_gradient(I, xi);
+        for (unsigned int i = 0; i < dim; ++i)
+          for (unsigned int j = 0; j < dim; ++j)
+            J[i][j] += mesh_coords[I][i] * dN(j);
+      }
+
+      // ----------------------------------------------------------------
+      // Invert J and compute det(J) — same arithmetic as before,
+      // now inside the loop so it is re-evaluated at each quad point.
+      // ----------------------------------------------------------------
+      RealType det_J;
+      RealType J_inv[dim][dim];
+
+      if constexpr (dim == 2) {
+        det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+
+        J_inv[0][0] =  J[1][1] / det_J;
+        J_inv[0][1] = -J[0][1] / det_J;
+        J_inv[1][0] = -J[1][0] / det_J;
+        J_inv[1][1] =  J[0][0] / det_J;
+
+      } else if constexpr (dim == 3) {
+        det_J = J[0][0] * (J[1][1]*J[2][2] - J[1][2]*J[2][1])
+              - J[0][1] * (J[1][0]*J[2][2] - J[1][2]*J[2][0])
+              + J[0][2] * (J[1][0]*J[2][1] - J[1][1]*J[2][0]);
+
+        J_inv[0][0] = (J[1][1]*J[2][2] - J[1][2]*J[2][1]) / det_J;
+        J_inv[0][1] = (J[0][2]*J[2][1] - J[0][1]*J[2][2]) / det_J;
+        J_inv[0][2] = (J[0][1]*J[1][2] - J[0][2]*J[1][1]) / det_J;
+
+        J_inv[1][0] = (J[1][2]*J[2][0] - J[1][0]*J[2][2]) / det_J;
+        J_inv[1][1] = (J[0][0]*J[2][2] - J[0][2]*J[2][0]) / det_J;
+        J_inv[1][2] = (J[0][2]*J[1][0] - J[0][0]*J[1][2]) / det_J;
+
+        J_inv[2][0] = (J[1][0]*J[2][1] - J[1][1]*J[2][0]) / det_J;
+        J_inv[2][1] = (J[0][1]*J[2][0] - J[0][0]*J[2][1]) / det_J;
+        J_inv[2][2] = (J[0][0]*J[1][1] - J[0][1]*J[1][0]) / det_J;
+
+      } else {
+        static_assert(dim == 2 || dim == 3,
+                      "Only dim = 2 and dim = 3 are supported");
+      }
+
+      // ----------------------------------------------------------------
+      // JxW, shape values, physical gradients — unchanged in form
+      // ----------------------------------------------------------------
+      JxW_(q) = std::abs(det_J) * quad_.weight(q);
 
       for (unsigned int i = 0; i < n_dofs_; ++i) {
         phi_(i, q) = fe_.shape_value(i, xi);
@@ -425,18 +446,21 @@ public:
         const auto tmp = fe_.shape_gradient(i, xi);
         for (unsigned int d = 0; d < dim; ++d) {
           RealType g = 0.0;
-          for (unsigned int k = 0; k < dim; ++k) {
+          for (unsigned int k = 0; k < dim; ++k)
             g += J_inv[k][d] * tmp(k);
-          }
           grad_phi_(i, q, d) = g;
         }
       }
 
+      // ----------------------------------------------------------------
+      // Physical quad point: x(xi) = sum_I N_I(xi) * x_I
+      // Replaces the old affine  x0 + J*xi  expression.
+      // For mesh_q=1 these are identical.
+      // ----------------------------------------------------------------
       for (unsigned int d = 0; d < dim; ++d) {
-        RealType xq = x0[d];
-        for (unsigned int k = 0; k < dim; ++k) {
-          xq += J[d][k] * xi(k);
-        }
+        RealType xq = 0.0;
+        for (unsigned int I = 0; I < n_mesh_nodes; ++I)
+          xq += mesh_fe_.shape_value(I, xi) * mesh_coords[I][d];
         q_point_(q, d) = xq;
       }
     }
@@ -468,8 +492,9 @@ public:
   }
 
 private:
-  const FE_DGLagrangeSimplex<dim, RealType>& fe_;
+  const FE_DGLagrangeSimplex<dim, RealType>& fe_; // solution FE (degree = fe.degree())
   const QGaussSimplex<dim, RealType>& quad_;
+  FE_DGLagrangeSimplex<dim, RealType> mesh_fe_; // geometry FE (degree = mesh_q)
 
   unsigned int n_dofs_;
   unsigned int n_q_;
