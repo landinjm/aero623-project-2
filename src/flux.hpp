@@ -116,7 +116,7 @@ public:
     F_rho = rho * v;
     for (unsigned int i = 0; i < dim; ++i)
       for (unsigned int j = 0; j < dim; ++j)
-        F_rho_v[i][j] = rho * v[i] * v[j] + (i == j ? p : RealType(0));
+        F_rho_v(i, j) = rho * v[i] * v[j] + (i == j ? p : RealType(0));
     F_rho_E = (rho_E + p) * v;
   }
 
