@@ -16,11 +16,16 @@ class FE_DGLagrangeSimplex
 public:
   static constexpr unsigned int n_dofs_per_cell(unsigned int p)
   {
-    unsigned int result = 1;
-    for (unsigned int i = 0; i < dim; ++i) {
-      result = result * (p + 1 + i) / (i + 1);
+    if constexpr (dim == 1) {
+      return p + 1;
     }
-    return result;
+    if constexpr (dim == 2) {
+      return (p + 1) * (p + 2) / 2;
+    }
+    if constexpr (dim == 3) {
+      return (p + 1) * (p + 2) * (p + 3) / 6;
+    }
+    return 0;
   }
 
   explicit FE_DGLagrangeSimplex(unsigned int p)
@@ -66,263 +71,682 @@ private:
 
   std::vector<std::array<RealType, dim>> nodes_;
 
-  /**
-   * Initialize the equally spaced nodes on the reference simplex
-   */
+  static RealType fixed_pow(RealType x, int n)
+  {
+    RealType r = RealType(1);
+    for (int i = 0; i < n; ++i)
+      r *= x;
+    return r;
+  }
+
   void init_nodes()
   {
-    // Special case p = 0 has one node at the centroid
-    if (p_ == 0) {
-      for (unsigned int d = 0; d < dim; ++d) {
-        nodes_[0][d] = RealType(1) / RealType(dim + 1);
-      }
-      return;
-    }
-
-    unsigned int idx = 0;
-
-    // For dim = 1 evenly place nodes
     if constexpr (dim == 1) {
-      for (unsigned int i0 = 0; i0 <= p_; ++i0) {
-        nodes_[idx][0] = RealType(i0) / p_;
-        ++idx;
+      for (unsigned int i = 0; i <= p_; ++i)
+        nodes_[i][0] =
+          (p_ == 0) ? RealType(0.5) : static_cast<RealType>(i) / p_;
+    }
+    if constexpr (dim == 2) {
+      switch (p_) {
+        case 0:
+          nodes_[0][0] = 1.0 / 3.0;
+          nodes_[0][1] = 1.0 / 3.0;
+          break;
+        case 1:
+          nodes_[0][0] = 0.0;
+          nodes_[0][1] = 0.0;
+          nodes_[1][0] = 1.0;
+          nodes_[1][1] = 0.0;
+          nodes_[2][0] = 0.0;
+          nodes_[2][1] = 1.0;
+          break;
+        case 2:
+          nodes_[0][0] = 0.0;
+          nodes_[0][1] = 0.0;
+          nodes_[1][0] = 1.0;
+          nodes_[1][1] = 0.0;
+          nodes_[2][0] = 0.0;
+          nodes_[2][1] = 1.0;
+          nodes_[3][0] = 0.5;
+          nodes_[3][1] = 0.5;
+          nodes_[4][0] = 0.0;
+          nodes_[4][1] = 0.5;
+          nodes_[5][0] = 0.5;
+          nodes_[5][1] = 0.0;
+          break;
+        case 3:
+          nodes_[0][0] = 0.0;
+          nodes_[0][1] = 0.0;
+          nodes_[1][0] = 1.0;
+          nodes_[1][1] = 0.0;
+          nodes_[2][0] = 0.0;
+          nodes_[2][1] = 1.0;
+          nodes_[3][0] = 2.0 / 3.0;
+          nodes_[3][1] = 1.0 / 3.0;
+          nodes_[4][0] = 1.0 / 3.0;
+          nodes_[4][1] = 2.0 / 3.0;
+          nodes_[5][0] = 0.0;
+          nodes_[5][1] = 2.0 / 3.0;
+          nodes_[6][0] = 0.0;
+          nodes_[6][1] = 1.0 / 3.0;
+          nodes_[7][0] = 1.0 / 3.0;
+          nodes_[7][1] = 0.0;
+          nodes_[8][0] = 2.0 / 3.0;
+          nodes_[8][1] = 0.0;
+          nodes_[9][0] = 1.0 / 3.0;
+          nodes_[9][1] = 1.0 / 3.0;
+          break;
       }
     }
-    // For dim = 2 evenly place nodes in barycentric coords
-    else if constexpr (dim == 2) {
-      for (unsigned int i1 = 0; i1 <= p_; ++i1) {
-        for (unsigned int i0 = 0; i0 <= p_ - i1; ++i0) {
-          nodes_[idx][0] = RealType(i0) / p_;
-          nodes_[idx][1] = RealType(i1) / p_;
-          ++idx;
-        }
+    if constexpr (dim == 3) {
+      // Reference tet: v0=(0,0,0), v1=(1,0,0), v2=(0,1,0), v3=(0,0,1)
+      switch (p_) {
+        case 0:
+          nodes_[0][0] = 0.25;
+          nodes_[0][1] = 0.25;
+          nodes_[0][2] = 0.25;
+          break;
+        case 1:
+          nodes_[0][0] = 0.0;
+          nodes_[0][1] = 0.0;
+          nodes_[0][2] = 0.0;
+          nodes_[1][0] = 1.0;
+          nodes_[1][1] = 0.0;
+          nodes_[1][2] = 0.0;
+          nodes_[2][0] = 0.0;
+          nodes_[2][1] = 1.0;
+          nodes_[2][2] = 0.0;
+          nodes_[3][0] = 0.0;
+          nodes_[3][1] = 0.0;
+          nodes_[3][2] = 1.0;
+          break;
+        case 2:
+          // 4 vertices + 6 edge midpoints = 10 nodes
+          nodes_[0][0] = 0.0;
+          nodes_[0][1] = 0.0;
+          nodes_[0][2] = 0.0;
+          nodes_[1][0] = 1.0;
+          nodes_[1][1] = 0.0;
+          nodes_[1][2] = 0.0;
+          nodes_[2][0] = 0.0;
+          nodes_[2][1] = 1.0;
+          nodes_[2][2] = 0.0;
+          nodes_[3][0] = 0.0;
+          nodes_[3][1] = 0.0;
+          nodes_[3][2] = 1.0;
+          nodes_[4][0] = 0.5;
+          nodes_[4][1] = 0.5;
+          nodes_[4][2] = 0.0; // mid v1-v2
+          nodes_[5][0] = 0.0;
+          nodes_[5][1] = 0.5;
+          nodes_[5][2] = 0.0; // mid v0-v2
+          nodes_[6][0] = 0.5;
+          nodes_[6][1] = 0.0;
+          nodes_[6][2] = 0.0; // mid v0-v1
+          nodes_[7][0] = 0.5;
+          nodes_[7][1] = 0.0;
+          nodes_[7][2] = 0.5; // mid v1-v3
+          nodes_[8][0] = 0.0;
+          nodes_[8][1] = 0.5;
+          nodes_[8][2] = 0.5; // mid v2-v3
+          nodes_[9][0] = 0.0;
+          nodes_[9][1] = 0.0;
+          nodes_[9][2] = 0.5; // mid v0-v3
+          break;
+        case 3:
+          // 4 vertices + 12 edge-third points + 4 face points = 20 nodes
+          nodes_[0][0] = 0.0;
+          nodes_[0][1] = 0.0;
+          nodes_[0][2] = 0.0;
+          nodes_[1][0] = 1.0;
+          nodes_[1][1] = 0.0;
+          nodes_[1][2] = 0.0;
+          nodes_[2][0] = 0.0;
+          nodes_[2][1] = 1.0;
+          nodes_[2][2] = 0.0;
+          nodes_[3][0] = 0.0;
+          nodes_[3][1] = 0.0;
+          nodes_[3][2] = 1.0;
+          // edge v0-v1 thirds
+          nodes_[4][0] = 1.0 / 3.0;
+          nodes_[4][1] = 0.0;
+          nodes_[4][2] = 0.0;
+          nodes_[5][0] = 2.0 / 3.0;
+          nodes_[5][1] = 0.0;
+          nodes_[5][2] = 0.0;
+          // edge v0-v2 thirds
+          nodes_[6][0] = 0.0;
+          nodes_[6][1] = 1.0 / 3.0;
+          nodes_[6][2] = 0.0;
+          nodes_[7][0] = 0.0;
+          nodes_[7][1] = 2.0 / 3.0;
+          nodes_[7][2] = 0.0;
+          // edge v0-v3 thirds
+          nodes_[8][0] = 0.0;
+          nodes_[8][1] = 0.0;
+          nodes_[8][2] = 1.0 / 3.0;
+          nodes_[9][0] = 0.0;
+          nodes_[9][1] = 0.0;
+          nodes_[9][2] = 2.0 / 3.0;
+          // edge v1-v2 thirds
+          nodes_[10][0] = 2.0 / 3.0;
+          nodes_[10][1] = 1.0 / 3.0;
+          nodes_[10][2] = 0.0;
+          nodes_[11][0] = 1.0 / 3.0;
+          nodes_[11][1] = 2.0 / 3.0;
+          nodes_[11][2] = 0.0;
+          // edge v1-v3 thirds
+          nodes_[12][0] = 2.0 / 3.0;
+          nodes_[12][1] = 0.0;
+          nodes_[12][2] = 1.0 / 3.0;
+          nodes_[13][0] = 1.0 / 3.0;
+          nodes_[13][1] = 0.0;
+          nodes_[13][2] = 2.0 / 3.0;
+          // edge v2-v3 thirds
+          nodes_[14][0] = 0.0;
+          nodes_[14][1] = 2.0 / 3.0;
+          nodes_[14][2] = 1.0 / 3.0;
+          nodes_[15][0] = 0.0;
+          nodes_[15][1] = 1.0 / 3.0;
+          nodes_[15][2] = 2.0 / 3.0;
+          // face centroids
+          nodes_[16][0] = 1.0 / 3.0;
+          nodes_[16][1] = 1.0 / 3.0;
+          nodes_[16][2] = 0.0;
+          nodes_[17][0] = 1.0 / 3.0;
+          nodes_[17][1] = 0.0;
+          nodes_[17][2] = 1.0 / 3.0;
+          nodes_[18][0] = 0.0;
+          nodes_[18][1] = 1.0 / 3.0;
+          nodes_[18][2] = 1.0 / 3.0;
+          nodes_[19][0] = 1.0 / 3.0;
+          nodes_[19][1] = 1.0 / 3.0;
+          nodes_[19][2] = 1.0 / 3.0;
+          break;
       }
     }
-    // For dim = 3 evenly placec nodes in barycentric coords
-    else if constexpr (dim == 3) {
-      for (unsigned int i2 = 0; i2 <= p_; ++i2) {
-        for (unsigned int i1 = 0; i1 <= p_ - i2; ++i1) {
-          for (unsigned int i0 = 0; i0 <= p_ - i1 - i2; ++i0) {
-            nodes_[idx][0] = RealType(i0) / p_;
-            nodes_[idx][1] = RealType(i1) / p_;
-            nodes_[idx][2] = RealType(i2) / p_;
-            ++idx;
-          }
-        }
-      }
-    }
+    check_basis();
   }
 
-  /**
-   * @brief 1-D Lagrange basis polynomial
-   */
-  RealType lagrange_1d(unsigned int a, unsigned int deg, RealType t) const
+  RealType eval(unsigned int i, const Tensor<1, dim, RealType>& point) const
   {
-    RealType result = RealType(1);
-    for (unsigned int j = 0; j <= deg; ++j) {
-      if (j == a) {
-        continue;
-      }
-      result *= (RealType(deg) * t - RealType(j)) / (RealType(a) - RealType(j));
-    }
-    return result;
-  }
-
-  /**
-   * @brief 1-D gradient of Lagrange basis polynomial
-   */
-  RealType lagrange_1d_deriv(unsigned int a, unsigned int deg, RealType t) const
-  {
-    RealType deriv = RealType(0);
-    for (unsigned int m = 0; m <= deg; ++m) {
-      if (m == a) {
-        continue;
-      }
-      RealType term = RealType(deg) / (RealType(a) - RealType(m));
-      for (unsigned int j = 0; j <= deg; ++j) {
-        if (j == a || j == m) {
+    if constexpr (dim == 1) {
+      const RealType x = point(0);
+      RealType result = RealType(1);
+      for (unsigned int j = 0; j <= p_; ++j) {
+        if (j == i)
           continue;
-        }
-        term *= (RealType(deg) * t - RealType(j)) / (RealType(a) - RealType(j));
+        const RealType xj =
+          (p_ == 0) ? RealType(0.5) : static_cast<RealType>(j) / p_;
+        const RealType xi =
+          (p_ == 0) ? RealType(0.5) : static_cast<RealType>(i) / p_;
+        result *= (x - xj) / (xi - xj);
       }
-      deriv += term;
+      return result;
     }
-    return deriv;
-  }
-
-  /**
-   * Given an index return the three indices that where used to generate the
-   * evenly spaced nodes.
-   *
-   * These correspond to i0, i1, and i2 above.
-   */
-  std::array<unsigned int, dim> multi_index(unsigned int i) const
-  {
-    std::array<unsigned int, dim> a{};
-    // dim = 1 is a flat index
-    if constexpr (dim == 1) {
-      a[0] = i;
-    }
-    // dim = 2 is barycentric
-    else if constexpr (dim == 2) {
-      unsigned int idx = 0;
-      for (unsigned int i1 = 0; i1 <= p_; ++i1) {
-        for (unsigned int i0 = 0; i0 <= p_ - i1; ++i0, ++idx) {
-          if (idx == i) {
-            a[0] = i0;
-            a[1] = i1;
-            return a;
+    if constexpr (dim == 2) {
+      const RealType x = point(0);
+      const RealType y = point(1);
+      switch (p_) {
+        case 0:
+          return RealType(1);
+        case 1:
+          switch (i) {
+            case 0:
+              return 1.0 - x - y;
+            case 1:
+              return x;
+            case 2:
+              return y;
           }
-        }
-      }
-    }
-    // dim = 3 is barycentric
-    else if constexpr (dim == 3) {
-      unsigned int idx = 0;
-      for (unsigned int i2 = 0; i2 <= p_; ++i2) {
-        for (unsigned int i1 = 0; i1 <= p_ - i2; ++i1) {
-          for (unsigned int i0 = 0; i0 <= p_ - i1 - i2; ++i0, ++idx) {
-            if (idx == i) {
-              a[0] = i0;
-              a[1] = i1;
-              a[2] = i2;
-              return a;
-            }
+          break;
+        case 2:
+          switch (i) {
+            case 0:
+              return 1.0 - 3.0 * x - 3.0 * y + 2.0 * x * x + 4.0 * x * y +
+                     2.0 * y * y;
+            case 1:
+              return -x + 2.0 * x * x;
+            case 2:
+              return -y + 2.0 * y * y;
+            case 3:
+              return 4.0 * x * y;
+            case 4:
+              return 4.0 * y - 4.0 * x * y - 4.0 * y * y;
+            case 5:
+              return 4.0 * x - 4.0 * x * x - 4.0 * x * y;
           }
-        }
+          break;
+        case 3:
+          switch (i) {
+            case 0:
+              return 1.0 - 11.0 / 2.0 * x - 11.0 / 2.0 * y + 9.0 * x * x +
+                     18.0 * x * y + 9.0 * y * y - 9.0 / 2.0 * x * x * x -
+                     27.0 / 2.0 * x * x * y - 27.0 / 2.0 * x * y * y -
+                     9.0 / 2.0 * y * y * y;
+            case 1:
+              return x - 9.0 / 2.0 * x * x + 9.0 / 2.0 * x * x * x;
+            case 2:
+              return y - 9.0 / 2.0 * y * y + 9.0 / 2.0 * y * y * y;
+            case 3:
+              return -9.0 / 2.0 * x * y + 27.0 / 2.0 * x * x * y;
+            case 4:
+              return -9.0 / 2.0 * x * y + 27.0 / 2.0 * x * y * y;
+            case 5:
+              return -9.0 / 2.0 * y + 9.0 / 2.0 * x * y + 18.0 * y * y -
+                     27.0 / 2.0 * x * y * y - 27.0 / 2.0 * y * y * y;
+            case 6:
+              return 9.0 * y - 45.0 / 2.0 * x * y - 45.0 / 2.0 * y * y +
+                     27.0 / 2.0 * x * x * y + 27.0 * x * y * y +
+                     27.0 / 2.0 * y * y * y;
+            case 7:
+              return 9.0 * x - 45.0 / 2.0 * x * x - 45.0 / 2.0 * x * y +
+                     27.0 / 2.0 * x * x * x + 27.0 * x * x * y +
+                     27.0 / 2.0 * x * y * y;
+            case 8:
+              return -9.0 / 2.0 * x + 18.0 * x * x + 9.0 / 2.0 * x * y -
+                     27.0 / 2.0 * x * x * x - 27.0 / 2.0 * x * x * y;
+            case 9:
+              return 27.0 * x * y - 27.0 * x * x * y - 27.0 * x * y * y;
+          }
+          break;
       }
     }
-    return a;
-  }
-
-  /**
-   * Take a point in cartesian space and map it to barycentric space
-   */
-  std::array<RealType, dim + 1> barycentric(
-    const Tensor<1, dim, RealType>& pt) const
-  {
-    std::array<RealType, dim + 1> lam{};
-    RealType sum = RealType(0);
-    for (unsigned int d = 0; d < dim; ++d) {
-      lam[d] = pt(d);
-      sum += pt(d);
-    }
-    lam[dim] = RealType(1) - sum;
-    return lam;
-  }
-
-  RealType eval(unsigned int i, const Tensor<1, dim, RealType>& pt) const
-  {
-    // Special case p = 0
-    if (p_ == 0) {
-      return RealType(1);
-    }
-
-    auto a = multi_index(i);
-    auto lam = barycentric(pt);
-
-    RealType result = RealType(1);
-    unsigned int used = 0;
-    RealType remaining = RealType(1);
-
-    for (unsigned int k = 0; k < dim; ++k) {
-      const unsigned int deg = p_ - used;
-
-      if (remaining < RealType(1e-14)) {
-        if (a[k] != 0) {
-          return RealType(0);
-        }
-      } else {
-        const RealType t = lam[k] / remaining;
-        result *= lagrange_1d(a[k], deg, t);
+    if constexpr (dim == 3) {
+      const RealType x = point(0);
+      const RealType y = point(1);
+      const RealType z = point(2);
+      const RealType l0 = 1.0 - x - y - z;
+      const RealType l1 = x, l2 = y, l3 = z;
+      switch (p_) {
+        case 0:
+          return RealType(1);
+        case 1:
+          switch (i) {
+            case 0:
+              return l0;
+            case 1:
+              return l1;
+            case 2:
+              return l2;
+            case 3:
+              return l3;
+          }
+          break;
+        case 2:
+          switch (i) {
+            case 0:
+              return l0 * (2.0 * l0 - 1.0);
+            case 1:
+              return l1 * (2.0 * l1 - 1.0);
+            case 2:
+              return l2 * (2.0 * l2 - 1.0);
+            case 3:
+              return l3 * (2.0 * l3 - 1.0);
+            case 4:
+              return 4.0 * l1 * l2;
+            case 5:
+              return 4.0 * l0 * l2;
+            case 6:
+              return 4.0 * l0 * l1;
+            case 7:
+              return 4.0 * l1 * l3;
+            case 8:
+              return 4.0 * l2 * l3;
+            case 9:
+              return 4.0 * l0 * l3;
+          }
+          break;
+        case 3:
+          switch (i) {
+            case 0:
+              return 0.5 * l0 * (3.0 * l0 - 1.0) * (3.0 * l0 - 2.0);
+            case 1:
+              return 0.5 * l1 * (3.0 * l1 - 1.0) * (3.0 * l1 - 2.0);
+            case 2:
+              return 0.5 * l2 * (3.0 * l2 - 1.0) * (3.0 * l2 - 2.0);
+            case 3:
+              return 0.5 * l3 * (3.0 * l3 - 1.0) * (3.0 * l3 - 2.0);
+            case 4:
+              return 4.5 * l0 * l1 * (3.0 * l0 - 1.0);
+            case 5:
+              return 4.5 * l0 * l1 * (3.0 * l1 - 1.0);
+            case 6:
+              return 4.5 * l0 * l2 * (3.0 * l0 - 1.0);
+            case 7:
+              return 4.5 * l0 * l2 * (3.0 * l2 - 1.0);
+            case 8:
+              return 4.5 * l0 * l3 * (3.0 * l0 - 1.0);
+            case 9:
+              return 4.5 * l0 * l3 * (3.0 * l3 - 1.0);
+            case 10:
+              return 4.5 * l1 * l2 * (3.0 * l1 - 1.0);
+            case 11:
+              return 4.5 * l1 * l2 * (3.0 * l2 - 1.0);
+            case 12:
+              return 4.5 * l1 * l3 * (3.0 * l1 - 1.0);
+            case 13:
+              return 4.5 * l1 * l3 * (3.0 * l3 - 1.0);
+            case 14:
+              return 4.5 * l2 * l3 * (3.0 * l2 - 1.0);
+            case 15:
+              return 4.5 * l2 * l3 * (3.0 * l3 - 1.0);
+            case 16:
+              return 27.0 * l0 * l1 * l2;
+            case 17:
+              return 27.0 * l0 * l1 * l3;
+            case 18:
+              return 27.0 * l0 * l2 * l3;
+            case 19:
+              return 27.0 * l1 * l2 * l3;
+          }
+          break;
       }
-
-      remaining -= lam[k];
-      used += a[k];
     }
-
-    return result;
+    return RealType(0);
   }
 
   Tensor<1, dim, RealType> eval_gradient(
     unsigned int i,
-    const Tensor<1, dim, RealType>& pt) const
+    const Tensor<1, dim, RealType>& point) const
   {
-    // Special case p = 0
     Tensor<1, dim, RealType> grad;
-    if (p_ == 0) {
+    if constexpr (dim == 1) {
+      const RealType x = point(0);
+      RealType result = RealType(0);
+      for (unsigned int k = 0; k <= p_; ++k) {
+        if (k == i)
+          continue;
+        RealType term = RealType(1);
+        for (unsigned int j = 0; j <= p_; ++j) {
+          if (j == i || j == k)
+            continue;
+          const RealType xj = static_cast<RealType>(j) / p_;
+          const RealType xi = static_cast<RealType>(i) / p_;
+          term *= (x - xj) / (xi - xj);
+        }
+        const RealType xk = static_cast<RealType>(k) / p_;
+        const RealType xi = static_cast<RealType>(i) / p_;
+        result += term / (xi - xk);
+      }
+      grad(0) = result;
       return grad;
     }
+    if constexpr (dim == 2) {
+      const RealType x = point(0);
+      const RealType y = point(1);
 
-    auto a = multi_index(i);
-    auto lam = barycentric(pt);
-
-    struct FactorInfo
-    {
-      RealType t;
-      RealType R;
-      RealType L;
-      RealType Ld;
-      unsigned int deg;
-      unsigned int used_before;
-    };
-
-    std::array<FactorInfo, dim> finfo{};
-    unsigned int used = 0;
-    RealType remaining = RealType(1);
-
-    for (unsigned int k = 0; k < dim; ++k) {
-      finfo[k].R = remaining;
-      finfo[k].used_before = used;
-      finfo[k].deg = p_ - used;
-
-      if (remaining < RealType(1e-14)) {
-        finfo[k].t = RealType(0);
-        finfo[k].L = (a[k] == 0) ? RealType(1) : RealType(0);
-        finfo[k].Ld = RealType(0);
-      } else {
-        finfo[k].t = lam[k] / remaining;
-        finfo[k].L = lagrange_1d(a[k], finfo[k].deg, finfo[k].t);
-        finfo[k].Ld = lagrange_1d_deriv(a[k], finfo[k].deg, finfo[k].t);
+      switch (p_) {
+        case 0:
+          grad(0) = 0.0;
+          grad(1) = 0.0;
+          break;
+        case 1:
+          switch (i) {
+            case 0:
+              grad(0) = -1.0;
+              grad(1) = -1.0;
+              break;
+            case 1:
+              grad(0) = 1.0;
+              grad(1) = 0.0;
+              break;
+            case 2:
+              grad(0) = 0.0;
+              grad(1) = 1.0;
+              break;
+          }
+          break;
+        case 2:
+          switch (i) {
+            case 0:
+              grad(0) = -3.0 + 4.0 * x + 4.0 * y;
+              grad(1) = -3.0 + 4.0 * x + 4.0 * y;
+              break;
+            case 1:
+              grad(0) = -1.0 + 4.0 * x;
+              grad(1) = 0.0;
+              break;
+            case 2:
+              grad(0) = 0.0;
+              grad(1) = -1.0 + 4.0 * y;
+              break;
+            case 3:
+              grad(0) = 4.0 * y;
+              grad(1) = 4.0 * x;
+              break;
+            case 4:
+              grad(0) = -4.0 * y;
+              grad(1) = 4.0 - 4.0 * x - 8.0 * y;
+              break;
+            case 5:
+              grad(0) = 4.0 - 8.0 * x - 4.0 * y;
+              grad(1) = -4.0 * x;
+              break;
+          }
+          break;
+        case 3:
+          switch (i) {
+            case 0:
+              grad(0) = -11.0 / 2.0 + 18.0 * x + 18.0 * y - 27.0 / 2.0 * x * x -
+                        27.0 * x * y - 27.0 / 2.0 * y * y;
+              grad(1) = -11.0 / 2.0 + 18.0 * x + 18.0 * y - 27.0 / 2.0 * x * x -
+                        27.0 * x * y - 27.0 / 2.0 * y * y;
+              break;
+            case 1:
+              grad(0) = 1.0 - 9.0 * x + 27.0 / 2.0 * x * x;
+              grad(1) = 0.0;
+              break;
+            case 2:
+              grad(0) = 0.0;
+              grad(1) = 1.0 - 9.0 * y + 27.0 / 2.0 * y * y;
+              break;
+            case 3:
+              grad(0) = -9.0 / 2.0 * y + 27.0 * x * y;
+              grad(1) = -9.0 / 2.0 * x + 27.0 / 2.0 * x * x;
+              break;
+            case 4:
+              grad(0) = -9.0 / 2.0 * y + 27.0 / 2.0 * y * y;
+              grad(1) = -9.0 / 2.0 * x + 27.0 * x * y;
+              break;
+            case 5:
+              grad(0) = 9.0 / 2.0 * y - 27.0 / 2.0 * y * y;
+              grad(1) = -9.0 / 2.0 + 9.0 / 2.0 * x + 36.0 * y - 27.0 * x * y -
+                        81.0 / 2.0 * y * y;
+              break;
+            case 6:
+              grad(0) = -45.0 / 2.0 * y + 27.0 * x * y + 27.0 * y * y;
+              grad(1) = 9.0 - 45.0 / 2.0 * x - 45.0 * y + 27.0 / 2.0 * x * x +
+                        54.0 * x * y + 81.0 / 2.0 * y * y;
+              break;
+            case 7:
+              grad(0) = 9.0 - 45.0 * x - 45.0 / 2.0 * y + 81.0 / 2.0 * x * x +
+                        54.0 * x * y + 27.0 / 2.0 * y * y;
+              grad(1) = -45.0 / 2.0 * x + 27.0 * x * x + 27.0 * x * y;
+              break;
+            case 8:
+              grad(0) = -9.0 / 2.0 + 36.0 * x + 9.0 / 2.0 * y -
+                        81.0 / 2.0 * x * x - 27.0 * x * y;
+              grad(1) = 9.0 / 2.0 * x - 27.0 / 2.0 * x * x;
+              break;
+            case 9:
+              grad(0) = 27.0 * y - 54.0 * x * y - 27.0 * y * y;
+              grad(1) = 27.0 * x - 27.0 * x * x - 54.0 * x * y;
+              break;
+          }
+          break;
       }
-
-      remaining -= lam[k];
-      used += a[k];
     }
+    if constexpr (dim == 3) {
+      const RealType x = point(0);
+      const RealType y = point(1);
+      const RealType z = point(2);
+      const RealType l0 = 1.0 - x - y - z;
+      const RealType l1 = x, l2 = y, l3 = z;
 
-    std::array<RealType, dim + 1> prefix{}, suffix{};
-    prefix[0] = RealType(1);
-    for (unsigned int k = 0; k < dim; ++k) {
-      prefix[k + 1] = prefix[k] * finfo[k].L;
-    }
+      // dl_n/d(coord d): dl0/d* = -1, dl1/dx=1, dl2/dy=1, dl3/dz=1
+      auto dL = [](int n, int d) -> RealType {
+        if (n == 0)
+          return RealType(-1);
+        return (d == n - 1) ? RealType(1) : RealType(0);
+      };
+      auto Lv = [&](int n) -> RealType {
+        return (n == 0 ? l0 : n == 1 ? l1 : n == 2 ? l2 : l3);
+      };
 
-    suffix[dim] = RealType(1);
-    for (int k = int(dim) - 1; k >= 0; --k) {
-      suffix[k] = suffix[k + 1] * finfo[k].L;
-    }
-
-    for (unsigned int d = 0; d < dim; ++d) {
-      RealType g = RealType(0);
-
-      for (unsigned int k = 0; k < dim; ++k) {
-        if (finfo[k].R < RealType(1e-14)) {
-          continue;
+      switch (p_) {
+        case 0:
+          grad(0) = 0.0;
+          grad(1) = 0.0;
+          grad(2) = 0.0;
+          break;
+        case 1:
+          for (int d = 0; d < 3; ++d)
+            grad(d) = dL(i, d);
+          break;
+        case 2: {
+          // vertex: l*(2l-1), d/d* = (4l-1)*dL
+          // edge:   4*la*lb,  d/d* = 4*(la*dLb + lb*dLa)
+          auto dVtx = [&](int n) {
+            for (int d = 0; d < 3; d++)
+              grad(d) = (4.0 * Lv(n) - 1.0) * dL(n, d);
+          };
+          auto dEdg = [&](int a, int b) {
+            for (int d = 0; d < 3; d++)
+              grad(d) = 4.0 * (Lv(a) * dL(b, d) + Lv(b) * dL(a, d));
+          };
+          switch (i) {
+            case 0:
+              dVtx(0);
+              break;
+            case 1:
+              dVtx(1);
+              break;
+            case 2:
+              dVtx(2);
+              break;
+            case 3:
+              dVtx(3);
+              break;
+            case 4:
+              dEdg(1, 2);
+              break;
+            case 5:
+              dEdg(0, 2);
+              break;
+            case 6:
+              dEdg(0, 1);
+              break;
+            case 7:
+              dEdg(1, 3);
+              break;
+            case 8:
+              dEdg(2, 3);
+              break;
+            case 9:
+              dEdg(0, 3);
+              break;
+          }
+          break;
         }
-
-        RealType dtk_dxd = RealType(0);
-        if (d == k) {
-          dtk_dxd += RealType(1) / finfo[k].R;
+        case 3: {
+          // vertex: 0.5*l*(3l-1)*(3l-2), d/d* = 0.5*(27l^2-18l+2)*dL
+          auto dVtx3 = [&](int n) {
+            const RealType l = Lv(n);
+            const RealType df = 0.5 * (27.0 * l * l - 18.0 * l + 2.0);
+            for (int d = 0; d < 3; d++)
+              grad(d) = df * dL(n, d);
+          };
+          // edge type 1: 4.5*la*lb*(3*la-1)
+          // d/d* = 4.5*[(3la-1)*lb*dLa + la*lb*3*dLa + la*(3la-1)*dLb]
+          //      = 4.5*[lb*(3la-1+3la)*dLa + la*(3la-1)*dLb]
+          //      = 4.5*[lb*(6la-1)*dLa + la*(3la-1)*dLb]
+          auto dE1 = [&](int a, int b) {
+            const RealType la = Lv(a), lb = Lv(b);
+            for (int d = 0; d < 3; d++)
+              grad(d) = 4.5 * (lb * (6.0 * la - 1.0) * dL(a, d) +
+                               la * (3.0 * la - 1.0) * dL(b, d));
+          };
+          // edge type 2: 4.5*la*lb*(3*lb-1)
+          auto dE2 = [&](int a, int b) {
+            const RealType la = Lv(a), lb = Lv(b);
+            for (int d = 0; d < 3; d++)
+              grad(d) = 4.5 * (lb * (3.0 * lb - 1.0) * dL(a, d) +
+                               la * (6.0 * lb - 1.0) * dL(b, d));
+          };
+          // face: 27*la*lb*lc
+          auto dFace = [&](int a, int b, int c) {
+            const RealType la = Lv(a), lb = Lv(b), lc = Lv(c);
+            for (int d = 0; d < 3; d++)
+              grad(d) = 27.0 * (lb * lc * dL(a, d) + la * lc * dL(b, d) +
+                                la * lb * dL(c, d));
+          };
+          switch (i) {
+            case 0:
+              dVtx3(0);
+              break;
+            case 1:
+              dVtx3(1);
+              break;
+            case 2:
+              dVtx3(2);
+              break;
+            case 3:
+              dVtx3(3);
+              break;
+            case 4:
+              dE1(0, 1);
+              break;
+            case 5:
+              dE2(0, 1);
+              break;
+            case 6:
+              dE1(0, 2);
+              break;
+            case 7:
+              dE2(0, 2);
+              break;
+            case 8:
+              dE1(0, 3);
+              break;
+            case 9:
+              dE2(0, 3);
+              break;
+            case 10:
+              dE1(1, 2);
+              break;
+            case 11:
+              dE2(1, 2);
+              break;
+            case 12:
+              dE1(1, 3);
+              break;
+            case 13:
+              dE2(1, 3);
+              break;
+            case 14:
+              dE1(2, 3);
+              break;
+            case 15:
+              dE2(2, 3);
+              break;
+            case 16:
+              dFace(0, 1, 2);
+              break;
+            case 17:
+              dFace(0, 1, 3);
+              break;
+            case 18:
+              dFace(0, 2, 3);
+              break;
+            case 19:
+              dFace(1, 2, 3);
+              break;
+          }
+          break;
         }
-        if (d < k) {
-          dtk_dxd += lam[k] / (finfo[k].R * finfo[k].R);
-        }
-        RealType dphidk = prefix[k] * finfo[k].Ld * dtk_dxd * suffix[k + 1];
-        g += dphidk;
       }
-
-      grad(d) = g;
     }
-
     return grad;
   }
 
@@ -607,106 +1031,43 @@ public:
     RealType ref_tangent[dim - 1][dim];
     RealType ref_normal[dim];
 
-    if constexpr (dim == 2) {
-      switch (face) {
-        case 0: {
-          // Face 0 -> v1=(1,0) and v2=(0,1)
-          ref_origin[0] = 1.0;
-          ref_origin[1] = 0.0;
-          ref_tangent[0][0] = -1.0;
-          ref_tangent[0][1] = 1.0;
-          ref_normal[0] = 1.0;
-          ref_normal[1] = 1.0;
-          break;
-        }
-        case 1: {
-          // Face 1 -> v2=(0,1) and v0=(0,0)
-          ref_origin[0] = 0.0;
-          ref_origin[1] = 1.0;
-          ref_tangent[0][0] = 0.0;
-          ref_tangent[0][1] = -1.0;
-          ref_normal[0] = -1.0;
-          ref_normal[1] = 0.0;
-          break;
-        }
-        case 2: {
-          // Face 2 -> v0=(0,0) and v1=(1,0)
-          ref_origin[0] = 0.0;
-          ref_origin[1] = 0.0;
-          ref_tangent[0][0] = 1.0;
-          ref_tangent[0][1] = 0.0;
-          ref_normal[0] = 0.0;
-          ref_normal[1] = -1.0;
-          break;
-        }
+    // Get reference coordinates of face vertices directly from J_inv
+    RealType xi_fv[dim][dim]; // xi_fv[v][d]
+    for (unsigned int v = 0; v < dim; ++v) {
+      for (unsigned int d = 0; d < dim; ++d) {
+        xi_fv[v][d] = 0;
+        for (unsigned int k = 0; k < dim; ++k)
+          xi_fv[v][d] += J_inv[d][k] * (cell.face(face).vertex(v)(k) - x0[k]);
       }
-    } else if constexpr (dim == 3) {
-      switch (face) {
-        case 0: {
-          // Face 0 -> v1=(1,0,0), v2=(0,1,0), and v3=(0,0,1)
-          ref_origin[0] = 1.0;
-          ref_origin[1] = 0.0;
-          ref_origin[2] = 0.0;
-          ref_tangent[0][0] = -1.0;
-          ref_tangent[0][1] = 1.0;
-          ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = -1.0;
-          ref_tangent[1][1] = 0.0;
-          ref_tangent[1][2] = 1.0;
-          ref_normal[0] = 1.0;
-          ref_normal[1] = 1.0;
-          ref_normal[2] = 1.0;
-          break;
-        }
-        case 1: {
-          // Face 1 -> v0=(0,0,0), v2=(0,1,0), and v3=(0,0,1)
-          ref_origin[0] = 0.0;
-          ref_origin[1] = 0.0;
-          ref_origin[2] = 0.0;
-          ref_tangent[0][0] = 0.0;
-          ref_tangent[0][1] = 1.0;
-          ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = 0.0;
-          ref_tangent[1][1] = 0.0;
-          ref_tangent[1][2] = 1.0;
-          ref_normal[0] = -1.0;
-          ref_normal[1] = 0.0;
-          ref_normal[2] = 0.0;
-          break;
-        }
-        case 2: {
-          // Face 2 -> v0=(0,0,0), v1=(1,0,0), and v3=(0,0,1)
-          ref_origin[0] = 0.0;
-          ref_origin[1] = 0.0;
-          ref_origin[2] = 0.0;
-          ref_tangent[0][0] = 1.0;
-          ref_tangent[0][1] = 0.0;
-          ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = 0.0;
-          ref_tangent[1][1] = 0.0;
-          ref_tangent[1][2] = 1.0;
-          ref_normal[0] = 0.0;
-          ref_normal[1] = -1.0;
-          ref_normal[2] = 0.0;
-          break;
-        }
-        case 3: {
-          // Face 3 -> v0=(0,0,0), v1=(1,0,0), and v2=(0,1,0)
-          ref_origin[0] = 0.0;
-          ref_origin[1] = 0.0;
-          ref_origin[2] = 0.0;
-          ref_tangent[0][0] = 1.0;
-          ref_tangent[0][1] = 0.0;
-          ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = 0.0;
-          ref_tangent[1][1] = 1.0;
-          ref_tangent[1][2] = 0.0;
-          ref_normal[0] = 0.0;
-          ref_normal[1] = 0.0;
-          ref_normal[2] = -1.0;
-          break;
-        }
-      }
+    }
+
+    // ref_origin = first face vertex in reference space
+    for (unsigned int d = 0; d < dim; ++d)
+      ref_origin[d] = xi_fv[0][d];
+
+    // ref_tangents from edges of face in reference space
+    for (unsigned int s = 0; s < dim - 1; ++s)
+      for (unsigned int d = 0; d < dim; ++d)
+        ref_tangent[s][d] = xi_fv[s + 1][d] - xi_fv[0][d];
+
+    // ref_normal = cross product of ref_tangents (3D), pointing outward
+    if constexpr (dim == 3) {
+      ref_normal[0] = ref_tangent[0][1] * ref_tangent[1][2] -
+                      ref_tangent[0][2] * ref_tangent[1][1];
+      ref_normal[1] = ref_tangent[0][2] * ref_tangent[1][0] -
+                      ref_tangent[0][0] * ref_tangent[1][2];
+      ref_normal[2] = ref_tangent[0][0] * ref_tangent[1][1] -
+                      ref_tangent[0][1] * ref_tangent[1][0];
+      // Ensure outward: dot with (origin - centroid) should be positive
+      RealType centroid[dim] = {};
+      for (unsigned int d = 0; d < dim; ++d)
+        centroid[d] = 0.25; // ref tet centroid
+      RealType dot = 0;
+      for (unsigned int d = 0; d < dim; ++d)
+        dot += ref_normal[d] * (ref_origin[d] - centroid[d]);
+      if (dot < 0)
+        for (unsigned int d = 0; d < dim; ++d)
+          ref_normal[d] = -ref_normal[d];
     }
 
     // Now grab the physical normal and tangent
@@ -752,20 +1113,20 @@ public:
       // Grab the dim - 1 quad points
       const auto xi_face = quad_.point(q);
 
-      // Physical quad point via canonical face parameterization
-      RealType x_phys[dim];
-      for (unsigned int d = 0; d < dim; ++d) {
-        x_phys[d] = fv[0][d];
-        for (unsigned int s = 0; s < dim - 1; ++s)
-          x_phys[d] += xi_face(s) * t_canon[s][d];
-      }
-
-      // Map x_phys back to reference cell coords via J_inv
+      // Map dim - 1 to dim in reference space
       RealType xi_ref[dim];
       for (unsigned int d = 0; d < dim; ++d) {
-        xi_ref[d] = 0.0;
+        xi_ref[d] = ref_origin[d];
+        for (unsigned int s = 0; s < dim - 1; ++s)
+          xi_ref[d] += xi_face(s) * ref_tangent[s][d];
+      }
+
+      // Map to physical space
+      RealType x_phys[dim];
+      for (unsigned int d = 0; d < dim; ++d) {
+        x_phys[d] = x0[d];
         for (unsigned int k = 0; k < dim; ++k)
-          xi_ref[d] += J_inv[d][k] * (x_phys[k] - x0[k]);
+          x_phys[d] += J[d][k] * xi_ref[k];
       }
 
       // Wrap in a Tensor
@@ -774,7 +1135,7 @@ public:
         xi(d) = xi_ref[d];
       }
 
-      JxW_(q) = face_jac * quad_.weight(q);
+      JxW_(q) = std::abs(face_jac) * quad_.weight(q);
 
       for (unsigned int d = 0; d < dim; ++d) {
         q_point_(q, d) = x0[d];

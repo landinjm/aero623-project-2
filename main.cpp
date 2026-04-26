@@ -973,53 +973,33 @@ public:
           Flux<dim, RealType>::conservative_to_primitive(
             rho, rho_v, rho_E, v, p);
 
-          // x-direction flux
-          Tensor<1, dim, RealType> Fx_rho_v, nx;
-          RealType Fx_rho = 0, Fx_rho_E = 0;
-
-          nx(0) = RealType(1);
-
+          // Flux
+          Tensor<1, dim, RealType> F_rho, F_rho_E;
+          Tensor<2, dim, RealType> F_rho_v;
           Flux<dim, RealType>::euler_flux(
-            rho, v, p, rho_E, nx, Fx_rho, Fx_rho_v, Fx_rho_E);
-
-          // y-direction flux
-          Tensor<1, dim, RealType> Fy_rho_v, ny;
-          RealType Fy_rho = 0, Fy_rho_E = 0;
-
-          ny(1) = RealType(1);
-
-          Flux<dim, RealType>::euler_flux(
-            rho, v, p, rho_E, ny, Fy_rho, Fy_rho_v, Fy_rho_E);
-
-          // z-direction flux
-          Tensor<1, dim, RealType> Fz_rho_v, nz;
-          RealType Fz_rho = 0, Fz_rho_E = 0;
-
-          nz(2) = RealType(1);
-
-          Flux<dim, RealType>::euler_flux(
-            rho, v, p, rho_E, nz, Fz_rho, Fz_rho_v, Fz_rho_E);
+            rho, v, p, rho_E, F_rho, F_rho_v, F_rho_E);
 
           // Accumulate
           const RealType jxw = JxW(k, q);
-          const RealType dphi_dx = grad_phi(k, i, q, 0);
-          const RealType dphi_dy = grad_phi(k, i, q, 1);
-          const RealType dphi_dz = grad_phi(k, i, q, 2);
+          Tensor<1, dim, RealType> grad_phi_i;
+          grad_phi_i[0] = grad_phi(k, i, q, 0);
+          grad_phi_i[1] = grad_phi(k, i, q, 1);
+          grad_phi_i[2] = grad_phi(k, i, q, 2);
 
-          local_res_rho -=
-            (dphi_dx * Fx_rho + dphi_dy * Fy_rho + dphi_dz * Fz_rho) * jxw;
-          local_res_rho_u -= (dphi_dx * Fx_rho_v(0) + dphi_dy * Fy_rho_v(0) +
-                              dphi_dz * Fz_rho_v(0)) *
-                             jxw;
-          local_res_rho_v -= (dphi_dx * Fx_rho_v(1) + dphi_dy * Fy_rho_v(1) +
-                              dphi_dz * Fz_rho_v(1)) *
-                             jxw;
-          local_res_rho_w -= (dphi_dx * Fx_rho_v(2) + dphi_dy * Fy_rho_v(2) +
-                              dphi_dz * Fz_rho_v(2)) *
-                             jxw;
-          local_res_rho_E -=
-            (dphi_dx * Fx_rho_E + dphi_dy * Fy_rho_E + dphi_dz * Fz_rho_E) *
+          local_res_rho -= dot(grad_phi_i, F_rho) * jxw;
+          local_res_rho_u -=
+            (F_rho_v(0, 0) * grad_phi_i[0] + F_rho_v(0, 1) * grad_phi_i[1] +
+             F_rho_v(0, 2) * grad_phi_i[2]) *
             jxw;
+          local_res_rho_v -=
+            (F_rho_v(1, 0) * grad_phi_i[0] + F_rho_v(1, 1) * grad_phi_i[1] +
+             F_rho_v(1, 2) * grad_phi_i[2]) *
+            jxw;
+          local_res_rho_w -=
+            (F_rho_v(2, 0) * grad_phi_i[0] + F_rho_v(2, 1) * grad_phi_i[1] +
+             F_rho_v(2, 2) * grad_phi_i[2]) *
+            jxw;
+          local_res_rho_E -= dot(grad_phi_i, F_rho_E) * jxw;
         }
 
         // Scatter to global residual
@@ -1536,20 +1516,20 @@ id_map = {
 
     double abs_tol = 0.0;
 
-    unsigned int degree = 3;
+    unsigned int degree = 2;
 
     Timer::instance().begin_section("Degree 0");
 
     // --- Degree 0 ---
     FE_DGLagrangeSimplex<dim, double> fe0(degree);
-    QGaussSimplex<dim, double> q0(degree + 1);
-    QGaussSimplex<dim - 1, double> fq0(degree + 1);
+    QGaussSimplex<dim, double> q0(degree);
+    QGaussSimplex<dim - 1, double> fq0(degree);
     DoFHandler<dim, q, double> dh0(tria, fe0);
     FEValues<dim, double> fev0(fe0, q0);
     FEFaceValues<dim, q, double> ffev0(fe0, fq0);
     EulerSolver<dim, q, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
-    s0.test_freestream_preservation(1);
+    s0.test_freestream_preservation(100);
     // abs_tol = s0.solve_steady_state(100, 0.5, 100, false, 1.0e-5);
     s0.write_solution("solution_steady_state_p0.vtu");
 
