@@ -63,6 +63,11 @@ struct Parameters
       n(0) = n_x_0();
       n(1) = n_y_0();
     }
+    if constexpr (dim == 3) {
+      n(0) = n_x_0();
+      n(1) = n_y_0();
+      n(2) = RealType(0);
+    }
 
     return n;
   }
@@ -75,7 +80,7 @@ struct Parameters
   /**
    * @brief Maximum CFL number to use when calculating optimal timestep.
    */
-  static constexpr RealType cfl_max = RealType{ 0.8 };
+  static constexpr RealType cfl_max = RealType{ 0.1 };
 
   /**
    * @brief Convergence tolerance.
