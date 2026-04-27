@@ -53,7 +53,7 @@ fd_gradient(const FE_DGLagrangeSimplex<dim, RealType>& fe,
   }
   return grad;
 }
-/*
+
 TEST(FE_DGLagrangeSimplex, 1D_DoF_counts)
 {
   for (unsigned int order = 0; order <= max_order; ++order) {
@@ -692,7 +692,7 @@ TEST(FEValues, 3D_q2)
     }
   }
 }
-*/
+
 TEST(FEFaceValues, 3D_q2)
 {
   constexpr unsigned int dim = 3;
@@ -708,8 +708,7 @@ TEST(FEFaceValues, 3D_q2)
     QGaussSimplex<dim - 1, RealType> quad(order + 1);
     FEFaceValues<dim, mesh_q, RealType> fe_face_values(fe, quad);
 
-    for (const auto& cell : tria.active_cell_range()) {
-      /*
+    for (const auto& cell : tria.active_cell_range()) {    
       for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
         fe_face_values.reinit(cell, f);
 
@@ -757,8 +756,8 @@ TEST(FEFaceValues, 3D_q2)
             EXPECT_NEAR(grad_sum, 0.0, tol);
           }
         }
-      }*/
-      
+      }
+      /*
       // After reiniting the triangulation, grab cell 0 only
       //auto cell = tria.get_cell(0);
       std::cout << "Cell 0 vertices:\n";
@@ -796,7 +795,7 @@ TEST(FEFaceValues, 3D_q2)
         std::cout << "  Integrated normal: (" << nx << ", " << ny << ", " << nz << ")\n";
         std::cout << "  Integrated area: " << area << "\n";
       }
-      break; 
+      break; */
 
       //Divergence theorem
       for (unsigned int d = 0; d < dim; ++d) {

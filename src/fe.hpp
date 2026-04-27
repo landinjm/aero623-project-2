@@ -528,81 +528,182 @@ public:
   void reinit(const CellAccessor& cell, unsigned int face)
   {
     ASSERT((face < SimplexTopology<dim, mesh_q>::faces_per_cell),
-          "Local face number must be less than the number of faces per cell");
+           "Local face number must be less than the number of faces per cell");
 
-    constexpr unsigned int n_mesh_nodes =
-      FE_DGLagrangeSimplex<dim, RealType>::n_dofs_per_cell(mesh_q);
+    // We only sort the 'dim' corner vertices to find the canonical orientation.
+    // This perfectly supports both q=1 and q=2 (where there are extra midpoint nodes).
+    std::array<unsigned int, dim> global_ids;
+    for (unsigned int v = 0; v < dim; ++v) {
+      global_ids[v] = cell.face(face).vertex_index(v);
+    }
 
-    // Collect physical coordinates of all geometry nodes
-    RealType mesh_coords[n_mesh_nodes][dim];
-    for (unsigned int I = 0; I < n_mesh_nodes; ++I)
-      for (unsigned int d = 0; d < dim; ++d)
-        mesh_coords[I][d] = cell.vertex(I)(d);
+    // Canonical = sorted ascending
+    std::array<unsigned int, dim> sorted_ids = global_ids;
+    std::sort(sorted_ids.begin(), sorted_ids.end());
 
-    // Reference face geometry: origin, tangents, and outward normal hint
+    // Compute the permutation: where does each sorted vertex appear in local order?
+    std::array<unsigned int, dim> perm;
+    for (unsigned int v = 0; v < dim; ++v) {
+      perm[v] = std::find(global_ids.begin(), global_ids.end(), sorted_ids[v]) -
+                global_ids.begin();
+    }
+
+    // Physical positions of face corners in canonical order
+    RealType fv[dim][dim]; // fv[v][coord]
+    for (unsigned int v = 0; v < dim; ++v) {
+      // perm[v] gives the local face-vertex index corresponding to canonical v
+      for (unsigned int d = 0; d < dim; ++d) {
+        fv[v][d] = cell.face(face).vertex(perm[v])(d);
+      }
+    }
+
+    // Build a Jacobian from the vertices of the cell.
+    RealType J[dim][dim];
+    RealType x0[dim];
+
+    for (unsigned int d = 0; d < dim; ++d) {
+      x0[d] = cell.vertex(0)(d);
+    }
+
+    // J columns are edge vectors from vertex 0
+    for (unsigned int i = 0; i < dim; ++i) {
+      for (unsigned int j = 0; j < dim; ++j) {
+        J[i][j] = cell.vertex(j + 1)(i) - cell.vertex(0)(i);
+      }
+    }
+
+    // Take the inverse and determinant
+    RealType det_J;
+    RealType J_inv[dim][dim];
+    if constexpr (dim == 2) {
+      det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+
+      J_inv[0][0] =  J[1][1] / det_J;
+      J_inv[0][1] = -J[0][1] / det_J;
+      J_inv[1][0] = -J[1][0] / det_J;
+      J_inv[1][1] =  J[0][0] / det_J;
+    } else if constexpr (dim == 3) {
+      det_J = J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) -
+              J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
+              J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
+
+      J_inv[0][0] = (J[1][1] * J[2][2] - J[1][2] * J[2][1]) / det_J;
+      J_inv[0][1] = (J[0][2] * J[2][1] - J[0][1] * J[2][2]) / det_J;
+      J_inv[0][2] = (J[0][1] * J[1][2] - J[0][2] * J[1][1]) / det_J;
+
+      J_inv[1][0] = (J[1][2] * J[2][0] - J[1][0] * J[2][2]) / det_J;
+      J_inv[1][1] = (J[0][0] * J[2][2] - J[0][2] * J[2][0]) / det_J;
+      J_inv[1][2] = (J[0][2] * J[1][0] - J[0][0] * J[1][2]) / det_J;
+
+      J_inv[2][0] = (J[1][0] * J[2][1] - J[1][1] * J[2][0]) / det_J;
+      J_inv[2][1] = (J[0][1] * J[2][0] - J[0][0] * J[2][1]) / det_J;
+      J_inv[2][2] = (J[0][0] * J[1][1] - J[0][1] * J[1][0]) / det_J;
+    }
+
     RealType ref_origin[dim];
     RealType ref_tangent[dim - 1][dim];
+    RealType ref_normal[dim];
 
+    // Get reference coordinates of canonical face vertices directly from J_inv. 
+    // We must use 'fv[v]' here to respect the permutation mapping backwards!
+    RealType xi_fv[dim][dim]; 
+    for (unsigned int v = 0; v < dim; ++v) {
+      for (unsigned int d = 0; d < dim; ++d) {
+        xi_fv[v][d] = 0;
+        for (unsigned int k = 0; k < dim; ++k)
+          xi_fv[v][d] += J_inv[d][k] * (fv[v][k] - x0[k]);
+      }
+    }
+
+    // ref_origin = first face vertex in reference space
+    for (unsigned int d = 0; d < dim; ++d)
+      ref_origin[d] = xi_fv[0][d];
+
+    // ref_tangents from edges of face in reference space
+    for (unsigned int s = 0; s < dim - 1; ++s)
+      for (unsigned int d = 0; d < dim; ++d)
+        ref_tangent[s][d] = xi_fv[s + 1][d] - xi_fv[0][d];
+
+    // Fix: Calculate normal for 2D meshes (orthogonal to the single 1D tangent segment)
     if constexpr (dim == 2) {
-      switch (face) {
-        case 0:
-          ref_origin[0] = 1.0; ref_origin[1] = 0.0;
-          ref_tangent[0][0] = -1.0; ref_tangent[0][1] = 1.0;
-          break;
-        case 1:
-          ref_origin[0] = 0.0; ref_origin[1] = 1.0;
-          ref_tangent[0][0] = 0.0; ref_tangent[0][1] = -1.0;
-          break;
-        case 2:
-          ref_origin[0] = 0.0; ref_origin[1] = 0.0;
-          ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0;
-          break;
+      ref_normal[0] = ref_tangent[0][1];
+      ref_normal[1] = -ref_tangent[0][0];
+
+      // Ensure outward pointing: dot with (origin - centroid) > 0
+      RealType centroid[dim] = {RealType(1.0) / RealType(3.0), RealType(1.0) / RealType(3.0)};
+      RealType dot = 0;
+      for (unsigned int d = 0; d < dim; ++d)
+        dot += ref_normal[d] * (ref_origin[d] - centroid[d]);
+      if (dot < 0) {
+        ref_normal[0] = -ref_normal[0];
+        ref_normal[1] = -ref_normal[1];
       }
+    } 
+    // Original 3D normal block (cross product of 2D tangents)
+    else if constexpr (dim == 3) {
+      ref_normal[0] = ref_tangent[0][1] * ref_tangent[1][2] -
+                      ref_tangent[0][2] * ref_tangent[1][1];
+      ref_normal[1] = ref_tangent[0][2] * ref_tangent[1][0] -
+                      ref_tangent[0][0] * ref_tangent[1][2];
+      ref_normal[2] = ref_tangent[0][0] * ref_tangent[1][1] -
+                      ref_tangent[0][1] * ref_tangent[1][0];
+      
+      // Ensure outward pointing
+      RealType centroid[dim] = {0.25, 0.25, 0.25};
+      RealType dot = 0;
+      for (unsigned int d = 0; d < dim; ++d)
+        dot += ref_normal[d] * (ref_origin[d] - centroid[d]);
+      if (dot < 0) {
+        for (unsigned int d = 0; d < dim; ++d)
+          ref_normal[d] = -ref_normal[d];
+      }
+    }
+
+    // Now grab the physical normal and tangent
+    RealType n_phys[dim] = {};
+    for (unsigned int d = 0; d < dim; ++d) {
+      for (unsigned int k = 0; k < dim; ++k) {
+        // Covariant transformation for normal vector
+        n_phys[d] += J_inv[k][d] * ref_normal[k];
+      }
+    }
+
+    RealType t_phys[dim - 1][dim] = {};
+    for (unsigned int s = 0; s < dim - 1; ++s) {
+      for (unsigned int d = 0; d < dim; ++d) {
+        for (unsigned int k = 0; k < dim; ++k) {
+          t_phys[s][d] += J[d][k] * ref_tangent[s][k];
+        }
+      }
+    }
+
+    RealType n_phys_norm = 0.0;
+    for (unsigned int d = 0; d < dim; ++d)
+      n_phys_norm += n_phys[d] * n_phys[d];
+    n_phys_norm = std::sqrt(n_phys_norm);
+
+    RealType face_jac = 0.0;
+    if constexpr (dim == 2) {
+      for (unsigned int d = 0; d < dim; ++d) {
+        face_jac += t_phys[0][d] * t_phys[0][d];
+      }
+      face_jac = std::sqrt(face_jac);
     } else if constexpr (dim == 3) {
-      switch (face) {
-        case 0:
-          ref_origin[0] = 1.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-          ref_tangent[0][0] = -1.0; ref_tangent[0][1] = 1.0; ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = -1.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
-          break;
-        case 1:
-          ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-          ref_tangent[0][0] = 0.0; ref_tangent[0][1] = 1.0; ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
-          break;
-        case 2:
-          ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-          ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0; ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
-          break;
-        case 3:
-          ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-          ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0; ref_tangent[0][2] = 0.0;
-          ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 1.0; ref_tangent[1][2] = 0.0;
-          break;
-      }
+      // Cross product of the two physical tangent vectors
+      const RealType cx =
+        t_phys[0][1] * t_phys[1][2] - t_phys[0][2] * t_phys[1][1];
+      const RealType cy =
+        t_phys[0][2] * t_phys[1][0] - t_phys[0][0] * t_phys[1][2];
+      const RealType cz =
+        t_phys[0][0] * t_phys[1][1] - t_phys[0][1] * t_phys[1][0];
+      face_jac = std::sqrt(cx * cx + cy * cy + cz * cz);
     }
 
-    // ----------------------------------------------------------------
-    // EXACT Topological Orientation Sign
-    // Avoid unreliable physical centroid checks for Q2 meshes. 
-    // The direction of the mapped cross product relies solely on the 
-    // chosen reference tangents. Faces 1 and 3 inherently map inward.
-    // ----------------------------------------------------------------
-    RealType orientation_sign = RealType(1);
-    if constexpr (dim == 3) {
-      if (face == 1 || face == 3) {
-        orientation_sign = RealType(-1);
-      }
-    }
-
-    // ----------------------------------------------------------------
-    // Loop over quadrature points
-    // ----------------------------------------------------------------
     for (unsigned int q = 0; q < n_q_; ++q) {
+      // Grab the dim - 1 quad points
       const auto xi_face = quad_.point(q);
 
-      // Map face quadrature point to reference volume coordinates
+      // Map dim - 1 to dim in reference space
       RealType xi_ref[dim];
       for (unsigned int d = 0; d < dim; ++d) {
         xi_ref[d] = ref_origin[d];
@@ -610,95 +711,36 @@ public:
           xi_ref[d] += xi_face(s) * ref_tangent[s][d];
       }
 
-      Tensor<1, dim, RealType> xi;
-      for (unsigned int d = 0; d < dim; ++d)
-        xi(d) = xi_ref[d];
-
-      // Build volumetric Jacobian J at this quadrature point
-      RealType J[dim][dim] = {};
-      for (unsigned int I = 0; I < n_mesh_nodes; ++I) {
-        const auto dN = mesh_fe_.shape_gradient(I, xi);
-        for (unsigned int i = 0; i < dim; ++i)
-          for (unsigned int j = 0; j < dim; ++j)
-            J[i][j] += mesh_coords[I][i] * dN(j);
-      }
-
-      // Invert J for physical gradients of solution basis functions
-      RealType det_J;
-      RealType J_inv[dim][dim];
-
-      if constexpr (dim == 2) {
-        det_J = J[0][0]*J[1][1] - J[0][1]*J[1][0];
-        J_inv[0][0] =  J[1][1] / det_J;
-        J_inv[0][1] = -J[0][1] / det_J;
-        J_inv[1][0] = -J[1][0] / det_J;
-        J_inv[1][1] =  J[0][0] / det_J;
-      } else if constexpr (dim == 3) {
-        det_J = J[0][0]*(J[1][1]*J[2][2] - J[1][2]*J[2][1])
-              - J[0][1]*(J[1][0]*J[2][2] - J[1][2]*J[2][0])
-              + J[0][2]*(J[1][0]*J[2][1] - J[1][1]*J[2][0]);
-
-        J_inv[0][0] = (J[1][1]*J[2][2] - J[1][2]*J[2][1]) / det_J;
-        J_inv[0][1] = (J[0][2]*J[2][1] - J[0][1]*J[2][2]) / det_J;
-        J_inv[0][2] = (J[0][1]*J[1][2] - J[0][2]*J[1][1]) / det_J;
-
-        J_inv[1][0] = (J[1][2]*J[2][0] - J[1][0]*J[2][2]) / det_J;
-        J_inv[1][1] = (J[0][0]*J[2][2] - J[0][2]*J[2][0]) / det_J;
-        J_inv[1][2] = (J[0][2]*J[1][0] - J[0][0]*J[1][2]) / det_J;
-
-        J_inv[2][0] = (J[1][0]*J[2][1] - J[1][1]*J[2][0]) / det_J;
-        J_inv[2][1] = (J[0][1]*J[2][0] - J[0][0]*J[2][1]) / det_J;
-        J_inv[2][2] = (J[0][0]*J[1][1] - J[0][1]*J[1][0]) / det_J;
-      }
-
-      // Push reference tangents through J to get physical tangents
-      RealType t_phys[dim - 1][dim] = {};
-      for (unsigned int s = 0; s < dim - 1; ++s)
-        for (unsigned int d = 0; d < dim; ++d)
-          for (unsigned int k = 0; k < dim; ++k)
-            t_phys[s][d] += J[d][k] * ref_tangent[s][k];
-
-      // Physical normal via cross product of physical tangents
-      RealType n_phys[dim] = {};
-      if constexpr (dim == 2) {
-        n_phys[0] =  t_phys[0][1];
-        n_phys[1] = -t_phys[0][0];
-      } else if constexpr (dim == 3) {
-        n_phys[0] = t_phys[0][1]*t_phys[1][2] - t_phys[0][2]*t_phys[1][1];
-        n_phys[1] = t_phys[0][2]*t_phys[1][0] - t_phys[0][0]*t_phys[1][2];
-        n_phys[2] = t_phys[0][0]*t_phys[1][1] - t_phys[0][1]*t_phys[1][0];
-      }
-
-      // Face Jacobian is the magnitude of the physical normal vector
-      RealType face_jac = RealType(0);
-      for (unsigned int d = 0; d < dim; ++d)
-        face_jac += n_phys[d] * n_phys[d];
-      face_jac = std::sqrt(face_jac);
-
-      // Apply the topological sign correction to guarantee an outward normal
-      for (unsigned int d = 0; d < dim; ++d)
-        normal_(q, d) = orientation_sign * n_phys[d] / face_jac;
-
-      // JxW: face jacobian times quadrature weight
-      JxW_(q) = face_jac * quad_.weight(q);
-
-      // Physical quadrature point
+      // Map to physical space
+      RealType x_phys[dim];
       for (unsigned int d = 0; d < dim; ++d) {
-        RealType xq = RealType(0);
-        for (unsigned int I = 0; I < n_mesh_nodes; ++I)
-          xq += mesh_fe_.shape_value(I, xi) * mesh_coords[I][d];
-        q_point_(q, d) = xq;
+        x_phys[d] = x0[d];
+        for (unsigned int k = 0; k < dim; ++k)
+          x_phys[d] += J[d][k] * xi_ref[k];
       }
 
-      // Solution basis function values and physical gradients
+      // Wrap in a Tensor
+      Tensor<1, dim, RealType> xi;
+      for (unsigned int d = 0; d < dim; ++d) {
+        xi(d) = xi_ref[d];
+      }
+
+      JxW_(q) = std::abs(face_jac) * quad_.weight(q);
+
+      for (unsigned int d = 0; d < dim; ++d) {
+        q_point_(q, d) = x_phys[d];
+        normal_(q, d) = n_phys[d] / n_phys_norm;
+      }
+
       for (unsigned int i = 0; i < n_dofs_; ++i) {
         phi_(i, q) = fe_.shape_value(i, xi);
 
         const auto tmp = fe_.shape_gradient(i, xi);
         for (unsigned int d = 0; d < dim; ++d) {
-          RealType g = RealType(0);
-          for (unsigned int k = 0; k < dim; ++k)
+          RealType g = 0.0;
+          for (unsigned int k = 0; k < dim; ++k) {
             g += J_inv[k][d] * tmp(k);
+          }
           grad_phi_(i, q, d) = g;
         }
       }
