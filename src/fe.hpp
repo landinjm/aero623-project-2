@@ -517,265 +517,212 @@ public:
     , n_dofs_(fe.n_dofs())
     , n_q_(quad.n_points())
   {
-    // Allocate views
     JxW_ = Kokkos::View<RealType*, Layout, HostMemSpace>("JxW", n_q_);
-    q_point_ =
-      Kokkos::View<RealType**, Layout, HostMemSpace>("q_point", n_q_, dim);
-    normal_ =
-      Kokkos::View<RealType**, Layout, HostMemSpace>("normal", n_q_, dim);
-    phi_ = Kokkos::View<RealType**, Layout, HostMemSpace>("JxW", n_dofs_, n_q_);
-    grad_phi_ = Kokkos::View<RealType***, Layout, HostMemSpace>(
-      "JxW", n_dofs_, n_q_, dim);
+    q_point_ = Kokkos::View<RealType**, Layout, HostMemSpace>("q_point", n_q_, dim);
+    normal_ = Kokkos::View<RealType**, Layout, HostMemSpace>("normal", n_q_, dim);
+    phi_ = Kokkos::View<RealType**, Layout, HostMemSpace>("phi", n_dofs_, n_q_);
+    grad_phi_ = Kokkos::View<RealType***, Layout, HostMemSpace>("grad_phi", n_dofs_, n_q_, dim);
   }
 
-  /**
-   * @brief Reinit the cell so JxW and quadrature point values reflect the
-   * real geometry.
-   */
   template<typename CellAccessor>
-void reinit(const CellAccessor& cell, unsigned int face)
-{
-  ASSERT((face < SimplexTopology<dim, mesh_q>::faces_per_cell),
-         "Local face number must be less than the number of faces per cell");
+  void reinit(const CellAccessor& cell, unsigned int face)
+  {
+    ASSERT((face < SimplexTopology<dim, mesh_q>::faces_per_cell),
+          "Local face number must be less than the number of faces per cell");
 
-  // ------------------------------------------------------------------
-  // Step 2: Collect all geometry node coordinates for this cell.
-  // cell.vertex(I) covers corners + midpoints for both mesh_q=1 and 2.
-  // ------------------------------------------------------------------
-  constexpr unsigned int n_mesh_nodes =
-    FE_DGLagrangeSimplex<dim, RealType>::n_dofs_per_cell(mesh_q);
+    constexpr unsigned int n_mesh_nodes =
+      FE_DGLagrangeSimplex<dim, RealType>::n_dofs_per_cell(mesh_q);
 
-  RealType mesh_coords[n_mesh_nodes][dim];
-  for (unsigned int I = 0; I < n_mesh_nodes; ++I)
-    for (unsigned int d = 0; d < dim; ++d)
-      mesh_coords[I][d] = cell.vertex(I)(d);
+    // Collect physical coordinates of all geometry nodes
+    RealType mesh_coords[n_mesh_nodes][dim];
+    for (unsigned int I = 0; I < n_mesh_nodes; ++I)
+      for (unsigned int d = 0; d < dim; ++d)
+        mesh_coords[I][d] = cell.vertex(I)(d);
 
-  // ------------------------------------------------------------------
-  // Step 3: Reference face embedding tables — unchanged from before.
-  // These encode reference topology, independent of mesh_q.
-  // ------------------------------------------------------------------
-  RealType ref_origin[dim];
-  RealType ref_tangent[dim - 1][dim];
-  RealType ref_normal[dim];
-
-  if constexpr (dim == 2) {
-    switch (face) {
-      case 0:
-        ref_origin[0] = 1.0; ref_origin[1] = 0.0;
-        ref_tangent[0][0] = -1.0; ref_tangent[0][1] = 1.0;
-        ref_normal[0] = 1.0; ref_normal[1] = 1.0;
-        break;
-      case 1:
-        ref_origin[0] = 0.0; ref_origin[1] = 1.0;
-        ref_tangent[0][0] = 0.0; ref_tangent[0][1] = -1.0;
-        ref_normal[0] = -1.0; ref_normal[1] = 0.0;
-        break;
-      case 2:
-        ref_origin[0] = 0.0; ref_origin[1] = 0.0;
-        ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0;
-        ref_normal[0] = 0.0; ref_normal[1] = -1.0;
-        break;
-    }
-  } else if constexpr (dim == 3) {
-    switch (face) {
-      case 0:
-        ref_origin[0] = 1.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-        ref_tangent[0][0] = -1.0; ref_tangent[0][1] = 1.0; ref_tangent[0][2] = 0.0;
-        ref_tangent[1][0] = -1.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
-        ref_normal[0] = 1.0; ref_normal[1] = 1.0; ref_normal[2] = 1.0;
-        break;
-      case 1:
-        ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-        ref_tangent[0][0] = 0.0; ref_tangent[0][1] = 1.0; ref_tangent[0][2] = 0.0;
-        ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
-        ref_normal[0] = -1.0; ref_normal[1] = 0.0; ref_normal[2] = 0.0;
-        break;
-      case 2:
-        ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-        ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0; ref_tangent[0][2] = 0.0;
-        ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
-        ref_normal[0] = 0.0; ref_normal[1] = -1.0; ref_normal[2] = 0.0;
-        break;
-      case 3:
-        ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
-        ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0; ref_tangent[0][2] = 0.0;
-        ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 1.0; ref_tangent[1][2] = 0.0;
-        ref_normal[0] = 0.0; ref_normal[1] = 0.0; ref_normal[2] = -1.0;
-        break;
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // Quadrature loop.
-  // Everything that was pre-computed before now lives here because
-  // J, face_jac, and n_phys all depend on xi_ref for mesh_q=2.
-  // ------------------------------------------------------------------
-  for (unsigned int q = 0; q < n_q_; ++q) {
-    const auto xi_face = quad_.point(q);
-
-    // ----------------------------------------------------------------
-    // Step 3: xi_ref from reference embedding — always affine,
-    // no solve needed. This replaces the old x_phys → J_inv path.
-    // ----------------------------------------------------------------
-    RealType xi_ref[dim];
-    for (unsigned int d = 0; d < dim; ++d) {
-      xi_ref[d] = ref_origin[d];
-      for (unsigned int s = 0; s < dim - 1; ++s)
-        xi_ref[d] += xi_face(s) * ref_tangent[s][d];
-    }
-
-    Tensor<1, dim, RealType> xi;
-    for (unsigned int d = 0; d < dim; ++d)
-      xi(d) = xi_ref[d];
-
-    // ----------------------------------------------------------------
-    // Step 2+4: Build J(xi_ref) via isoparametric sum.
-    // For mesh_q=1 this is constant; for mesh_q=2 it varies per point.
-    // ----------------------------------------------------------------
-    RealType J[dim][dim] = {};
-    for (unsigned int I = 0; I < n_mesh_nodes; ++I) {
-      const auto dN = mesh_fe_.shape_gradient(I, xi);
-      for (unsigned int i = 0; i < dim; ++i)
-        for (unsigned int j = 0; j < dim; ++j)
-          J[i][j] += mesh_coords[I][i] * dN(j);
-    }
-
-    // Step 4: Invert J and compute det_J — same arithmetic, now per point
-    RealType det_J;
-    RealType J_inv[dim][dim];
+    // Reference face geometry: origin, tangents, and outward normal hint
+    RealType ref_origin[dim];
+    RealType ref_tangent[dim - 1][dim];
 
     if constexpr (dim == 2) {
-      det_J = J[0][0]*J[1][1] - J[0][1]*J[1][0];
-      J_inv[0][0] =  J[1][1] / det_J;
-      J_inv[0][1] = -J[0][1] / det_J;
-      J_inv[1][0] = -J[1][0] / det_J;
-      J_inv[1][1] =  J[0][0] / det_J;
+      switch (face) {
+        case 0:
+          ref_origin[0] = 1.0; ref_origin[1] = 0.0;
+          ref_tangent[0][0] = -1.0; ref_tangent[0][1] = 1.0;
+          break;
+        case 1:
+          ref_origin[0] = 0.0; ref_origin[1] = 1.0;
+          ref_tangent[0][0] = 0.0; ref_tangent[0][1] = -1.0;
+          break;
+        case 2:
+          ref_origin[0] = 0.0; ref_origin[1] = 0.0;
+          ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0;
+          break;
+      }
     } else if constexpr (dim == 3) {
-      det_J = J[0][0]*(J[1][1]*J[2][2] - J[1][2]*J[2][1])
-            - J[0][1]*(J[1][0]*J[2][2] - J[1][2]*J[2][0])
-            + J[0][2]*(J[1][0]*J[2][1] - J[1][1]*J[2][0]);
-
-      J_inv[0][0] = (J[1][1]*J[2][2] - J[1][2]*J[2][1]) / det_J;
-      J_inv[0][1] = (J[0][2]*J[2][1] - J[0][1]*J[2][2]) / det_J;
-      J_inv[0][2] = (J[0][1]*J[1][2] - J[0][2]*J[1][1]) / det_J;
-
-      J_inv[1][0] = (J[1][2]*J[2][0] - J[1][0]*J[2][2]) / det_J;
-      J_inv[1][1] = (J[0][0]*J[2][2] - J[0][2]*J[2][0]) / det_J;
-      J_inv[1][2] = (J[0][2]*J[1][0] - J[0][0]*J[1][2]) / det_J;
-
-      J_inv[2][0] = (J[1][0]*J[2][1] - J[1][1]*J[2][0]) / det_J;
-      J_inv[2][1] = (J[0][1]*J[2][0] - J[0][0]*J[2][1]) / det_J;
-      J_inv[2][2] = (J[0][0]*J[1][1] - J[0][1]*J[1][0]) / det_J;
-    } else {
-      static_assert(dim == 2 || dim == 3,
-                    "Only dim = 2 and dim = 3 are supported");
+      switch (face) {
+        case 0:
+          ref_origin[0] = 1.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
+          ref_tangent[0][0] = -1.0; ref_tangent[0][1] = 1.0; ref_tangent[0][2] = 0.0;
+          ref_tangent[1][0] = -1.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
+          break;
+        case 1:
+          ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
+          ref_tangent[0][0] = 0.0; ref_tangent[0][1] = 1.0; ref_tangent[0][2] = 0.0;
+          ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
+          break;
+        case 2:
+          ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
+          ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0; ref_tangent[0][2] = 0.0;
+          ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 0.0; ref_tangent[1][2] = 1.0;
+          break;
+        case 3:
+          ref_origin[0] = 0.0; ref_origin[1] = 0.0; ref_origin[2] = 0.0;
+          ref_tangent[0][0] = 1.0; ref_tangent[0][1] = 0.0; ref_tangent[0][2] = 0.0;
+          ref_tangent[1][0] = 0.0; ref_tangent[1][1] = 1.0; ref_tangent[1][2] = 0.0;
+          break;
+      }
     }
 
     // ----------------------------------------------------------------
-    // Step 4+6: Physical tangents from J * ref_tangent[s].
-    // Physical normal from tangents. Both are now per quad point.
+    // EXACT Topological Orientation Sign
+    // Avoid unreliable physical centroid checks for Q2 meshes. 
+    // The direction of the mapped cross product relies solely on the 
+    // chosen reference tangents. Faces 1 and 3 inherently map inward.
     // ----------------------------------------------------------------
-    RealType t_phys[dim - 1][dim] = {};
-    for (unsigned int s = 0; s < dim - 1; ++s)
-      for (unsigned int d = 0; d < dim; ++d)
-        for (unsigned int k = 0; k < dim; ++k)
-          t_phys[s][d] += J[d][k] * ref_tangent[s][k];
-
-    RealType n_phys[dim] = {};
-    if constexpr (dim == 2) {
-      // 90-degree rotation of the single tangent
-      n_phys[0] =  t_phys[0][1];
-      n_phys[1] = -t_phys[0][0];
-    } else if constexpr (dim == 3) {
-      // Cross product of the two physical tangents
-      n_phys[0] = t_phys[0][1]*t_phys[1][2] - t_phys[0][2]*t_phys[1][1];
-      n_phys[1] = t_phys[0][2]*t_phys[1][0] - t_phys[0][0]*t_phys[1][2];
-      n_phys[2] = t_phys[0][0]*t_phys[1][1] - t_phys[0][1]*t_phys[1][0];
-    }
-
-    // face_jac = |n_phys| before normalization — this is the surface
-    // area element (length in 2D, area in 3D) per unit reference measure
-    RealType face_jac = 0.0;
-    for (unsigned int d = 0; d < dim; ++d)
-      face_jac += n_phys[d] * n_phys[d];
-    face_jac = std::sqrt(face_jac);
-
-    // ----------------------------------------------------------------
-    // Step 4: ref_normal → physical normal via J^{-T},
-    // used only for orientation check (same as before)
-    // ----------------------------------------------------------------
-    RealType n_phys_check[dim] = {};
-    for (unsigned int d = 0; d < dim; ++d)
-      for (unsigned int k = 0; k < dim; ++k)
-        n_phys_check[d] += J_inv[k][d] * ref_normal[k];
-
-    RealType dot = 0.0;
-    for (unsigned int d = 0; d < dim; ++d)
-      dot += n_phys_check[d] * n_phys[d];
-
-    // Flip if cross product came out pointing inward
-    if (dot < 0.0)
-      for (unsigned int d = 0; d < dim; ++d)
-        n_phys[d] = -n_phys[d];
-
-    // ----------------------------------------------------------------
-    // Step 6: Write normalized normal per quad point
-    // ----------------------------------------------------------------
-    for (unsigned int d = 0; d < dim; ++d)
-      normal_(q, d) = n_phys[d] / face_jac;
-
-    // ----------------------------------------------------------------
-    // Step 4: JxW uses per-point face_jac
-    // ----------------------------------------------------------------
-    JxW_(q) = face_jac * quad_.weight(q);
-
-    // ----------------------------------------------------------------
-    // Step 5: Physical quad point via isoparametric forward map
-    // ----------------------------------------------------------------
-    for (unsigned int d = 0; d < dim; ++d) {
-      RealType xq = 0.0;
-      for (unsigned int I = 0; I < n_mesh_nodes; ++I)
-        xq += mesh_fe_.shape_value(I, xi) * mesh_coords[I][d];
-      q_point_(q, d) = xq;
+    RealType orientation_sign = RealType(1);
+    if constexpr (dim == 3) {
+      if (face == 1 || face == 3) {
+        orientation_sign = RealType(-1);
+      }
     }
 
     // ----------------------------------------------------------------
-    // phi and grad_phi — unchanged in form, use per-point J_inv
+    // Loop over quadrature points
     // ----------------------------------------------------------------
-    for (unsigned int i = 0; i < n_dofs_; ++i) {
-      phi_(i, q) = fe_.shape_value(i, xi);
+    for (unsigned int q = 0; q < n_q_; ++q) {
+      const auto xi_face = quad_.point(q);
 
-      const auto tmp = fe_.shape_gradient(i, xi);
+      // Map face quadrature point to reference volume coordinates
+      RealType xi_ref[dim];
       for (unsigned int d = 0; d < dim; ++d) {
-        RealType g = 0.0;
-        for (unsigned int k = 0; k < dim; ++k)
-          g += J_inv[k][d] * tmp(k);
-        grad_phi_(i, q, d) = g;
+        xi_ref[d] = ref_origin[d];
+        for (unsigned int s = 0; s < dim - 1; ++s)
+          xi_ref[d] += xi_face(s) * ref_tangent[s][d];
+      }
+
+      Tensor<1, dim, RealType> xi;
+      for (unsigned int d = 0; d < dim; ++d)
+        xi(d) = xi_ref[d];
+
+      // Build volumetric Jacobian J at this quadrature point
+      RealType J[dim][dim] = {};
+      for (unsigned int I = 0; I < n_mesh_nodes; ++I) {
+        const auto dN = mesh_fe_.shape_gradient(I, xi);
+        for (unsigned int i = 0; i < dim; ++i)
+          for (unsigned int j = 0; j < dim; ++j)
+            J[i][j] += mesh_coords[I][i] * dN(j);
+      }
+
+      // Invert J for physical gradients of solution basis functions
+      RealType det_J;
+      RealType J_inv[dim][dim];
+
+      if constexpr (dim == 2) {
+        det_J = J[0][0]*J[1][1] - J[0][1]*J[1][0];
+        J_inv[0][0] =  J[1][1] / det_J;
+        J_inv[0][1] = -J[0][1] / det_J;
+        J_inv[1][0] = -J[1][0] / det_J;
+        J_inv[1][1] =  J[0][0] / det_J;
+      } else if constexpr (dim == 3) {
+        det_J = J[0][0]*(J[1][1]*J[2][2] - J[1][2]*J[2][1])
+              - J[0][1]*(J[1][0]*J[2][2] - J[1][2]*J[2][0])
+              + J[0][2]*(J[1][0]*J[2][1] - J[1][1]*J[2][0]);
+
+        J_inv[0][0] = (J[1][1]*J[2][2] - J[1][2]*J[2][1]) / det_J;
+        J_inv[0][1] = (J[0][2]*J[2][1] - J[0][1]*J[2][2]) / det_J;
+        J_inv[0][2] = (J[0][1]*J[1][2] - J[0][2]*J[1][1]) / det_J;
+
+        J_inv[1][0] = (J[1][2]*J[2][0] - J[1][0]*J[2][2]) / det_J;
+        J_inv[1][1] = (J[0][0]*J[2][2] - J[0][2]*J[2][0]) / det_J;
+        J_inv[1][2] = (J[0][2]*J[1][0] - J[0][0]*J[1][2]) / det_J;
+
+        J_inv[2][0] = (J[1][0]*J[2][1] - J[1][1]*J[2][0]) / det_J;
+        J_inv[2][1] = (J[0][1]*J[2][0] - J[0][0]*J[2][1]) / det_J;
+        J_inv[2][2] = (J[0][0]*J[1][1] - J[0][1]*J[1][0]) / det_J;
+      }
+
+      // Push reference tangents through J to get physical tangents
+      RealType t_phys[dim - 1][dim] = {};
+      for (unsigned int s = 0; s < dim - 1; ++s)
+        for (unsigned int d = 0; d < dim; ++d)
+          for (unsigned int k = 0; k < dim; ++k)
+            t_phys[s][d] += J[d][k] * ref_tangent[s][k];
+
+      // Physical normal via cross product of physical tangents
+      RealType n_phys[dim] = {};
+      if constexpr (dim == 2) {
+        n_phys[0] =  t_phys[0][1];
+        n_phys[1] = -t_phys[0][0];
+      } else if constexpr (dim == 3) {
+        n_phys[0] = t_phys[0][1]*t_phys[1][2] - t_phys[0][2]*t_phys[1][1];
+        n_phys[1] = t_phys[0][2]*t_phys[1][0] - t_phys[0][0]*t_phys[1][2];
+        n_phys[2] = t_phys[0][0]*t_phys[1][1] - t_phys[0][1]*t_phys[1][0];
+      }
+
+      // Face Jacobian is the magnitude of the physical normal vector
+      RealType face_jac = RealType(0);
+      for (unsigned int d = 0; d < dim; ++d)
+        face_jac += n_phys[d] * n_phys[d];
+      face_jac = std::sqrt(face_jac);
+
+      // Apply the topological sign correction to guarantee an outward normal
+      for (unsigned int d = 0; d < dim; ++d)
+        normal_(q, d) = orientation_sign * n_phys[d] / face_jac;
+
+      // JxW: face jacobian times quadrature weight
+      JxW_(q) = face_jac * quad_.weight(q);
+
+      // Physical quadrature point
+      for (unsigned int d = 0; d < dim; ++d) {
+        RealType xq = RealType(0);
+        for (unsigned int I = 0; I < n_mesh_nodes; ++I)
+          xq += mesh_fe_.shape_value(I, xi) * mesh_coords[I][d];
+        q_point_(q, d) = xq;
+      }
+
+      // Solution basis function values and physical gradients
+      for (unsigned int i = 0; i < n_dofs_; ++i) {
+        phi_(i, q) = fe_.shape_value(i, xi);
+
+        const auto tmp = fe_.shape_gradient(i, xi);
+        for (unsigned int d = 0; d < dim; ++d) {
+          RealType g = RealType(0);
+          for (unsigned int k = 0; k < dim; ++k)
+            g += J_inv[k][d] * tmp(k);
+          grad_phi_(i, q, d) = g;
+        }
       }
     }
   }
-}
 
   unsigned int n_dofs() const { return n_dofs_; }
   unsigned int n_q_points() const { return n_q_; }
 
-  RealType JxW(unsigned int q) { return JxW_(q); };
+  RealType JxW(unsigned int q) { return JxW_(q); }
 
   Tensor<1, dim, RealType> q_point(unsigned int q)
   {
     Tensor<1, dim, RealType> p;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       p(d) = q_point_(q, d);
-    }
     return p;
   }
 
   Tensor<1, dim, RealType> normal(unsigned int q) const
   {
     Tensor<1, dim, RealType> n;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       n(d) = normal_(q, d);
-    }
     return n;
   }
 
@@ -784,23 +731,22 @@ void reinit(const CellAccessor& cell, unsigned int face)
   Tensor<1, dim, RealType> shape_gradient(unsigned int i, unsigned int q)
   {
     Tensor<1, dim, RealType> grad;
-    for (unsigned int d = 0; d < dim; ++d) {
+    for (unsigned int d = 0; d < dim; ++d)
       grad(d) = grad_phi_(i, q, d);
-    }
     return grad;
   }
 
 private:
   const FE_DGLagrangeSimplex<dim, RealType>& fe_;
   const QGaussSimplex<dim - 1, RealType>& quad_;
-  FE_DGLagrangeSimplex<dim, RealType> mesh_fe_;  // geometry FE at degree mesh_q
+  FE_DGLagrangeSimplex<dim, RealType> mesh_fe_;
 
   unsigned int n_dofs_;
   unsigned int n_q_;
 
-  Kokkos::View<RealType*, Layout, HostMemSpace> JxW_;        // [q]
-  Kokkos::View<RealType**, Layout, HostMemSpace> q_point_;   // [q, dim]
-  Kokkos::View<RealType**, Layout, HostMemSpace> normal_;    // [q, dim]
-  Kokkos::View<RealType**, Layout, HostMemSpace> phi_;       // [dof, q]
-  Kokkos::View<RealType***, Layout, HostMemSpace> grad_phi_; // [dof, q, dim]
+  Kokkos::View<RealType*, Layout, HostMemSpace> JxW_;
+  Kokkos::View<RealType**, Layout, HostMemSpace> q_point_;
+  Kokkos::View<RealType**, Layout, HostMemSpace> normal_;
+  Kokkos::View<RealType**, Layout, HostMemSpace> phi_;
+  Kokkos::View<RealType***, Layout, HostMemSpace> grad_phi_;
 };
