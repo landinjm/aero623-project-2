@@ -112,6 +112,32 @@ public:
     precompute_geometry();
   }
 
+  void copy_state_to_host(VecHost& rho_h,
+                          VecHost& rho_u_h,
+                          VecHost& rho_v_h,
+                          VecHost& rho_w_h,
+                          VecHost& rho_E_h) const
+  {
+    Kokkos::deep_copy(rho_h.view(), rho_.view());
+    Kokkos::deep_copy(rho_u_h.view(), rho_u_.view());
+    Kokkos::deep_copy(rho_v_h.view(), rho_v_.view());
+    Kokkos::deep_copy(rho_w_h.view(), rho_w_.view());
+    Kokkos::deep_copy(rho_E_h.view(), rho_E_.view());
+  }
+
+  void set_state_from_host(const VecHost& rho_h,
+                           const VecHost& rho_u_h,
+                           const VecHost& rho_v_h,
+                           const VecHost& rho_w_h,
+                           const VecHost& rho_E_h)
+  {
+    Kokkos::deep_copy(rho_.view(), rho_h.view());
+    Kokkos::deep_copy(rho_u_.view(), rho_u_h.view());
+    Kokkos::deep_copy(rho_v_.view(), rho_v_h.view());
+    Kokkos::deep_copy(rho_w_.view(), rho_w_h.view());
+    Kokkos::deep_copy(rho_E_.view(), rho_E_h.view());
+  }
+
   void write_solution(const std::string& filename,
                       unsigned int cycle = 0,
                       double time = 0.0)
@@ -355,7 +381,8 @@ public:
     n_boundary_faces_ = 0;
 
     for (auto cell : dof_handler_.active_cell_range()) {
-      for (unsigned int lf = 0; lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
+      for (unsigned int lf = 0;
+           lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
            ++lf) {
         auto face = cell.face(lf);
         if (face.at_boundary()) {
@@ -495,7 +522,8 @@ public:
 
     for (auto cell : dof_handler_.active_cell_range()) {
       cell.get_dof_indices(dof_indices);
-      for (unsigned int lf = 0; lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
+      for (unsigned int lf = 0;
+           lf < SimplexTopology<dim, mesh_q>::faces_per_cell;
            ++lf) {
         fe_face_values_.reinit(cell, lf);
         auto face = cell.face(lf);
@@ -749,59 +777,61 @@ public:
     for (unsigned int step = 0; step < n_steps; ++step) {
       ssp_rk3_step(Parameters<RealType>::cfl_max);
 
-      // Check residual is still zero after this step
-      zero_residuals();
-      compute_volume_residual();
-      compute_face_residual();
+      if (step % 100 == 0) {
+        zero_residuals();
+        compute_volume_residual();
+        compute_face_residual();
 
-      auto res_rho_h = Kokkos::create_mirror_view(res_rho_.view());
-      auto res_rho_u_h = Kokkos::create_mirror_view(res_rho_u_.view());
-      auto res_rho_v_h = Kokkos::create_mirror_view(res_rho_v_.view());
-      auto res_rho_w_h = Kokkos::create_mirror_view(res_rho_w_.view());
-      auto res_rho_E_h = Kokkos::create_mirror_view(res_rho_E_.view());
-      Kokkos::deep_copy(res_rho_h, res_rho_.view());
-      Kokkos::deep_copy(res_rho_u_h, res_rho_u_.view());
-      Kokkos::deep_copy(res_rho_v_h, res_rho_v_.view());
-      Kokkos::deep_copy(res_rho_w_h, res_rho_w_.view());
-      Kokkos::deep_copy(res_rho_E_h, res_rho_E_.view());
+        auto res_rho_h = Kokkos::create_mirror_view(res_rho_.view());
+        auto res_rho_u_h = Kokkos::create_mirror_view(res_rho_u_.view());
+        auto res_rho_v_h = Kokkos::create_mirror_view(res_rho_v_.view());
+        auto res_rho_w_h = Kokkos::create_mirror_view(res_rho_w_.view());
+        auto res_rho_E_h = Kokkos::create_mirror_view(res_rho_E_.view());
+        Kokkos::deep_copy(res_rho_h, res_rho_.view());
+        Kokkos::deep_copy(res_rho_u_h, res_rho_u_.view());
+        Kokkos::deep_copy(res_rho_v_h, res_rho_v_.view());
+        Kokkos::deep_copy(res_rho_w_h, res_rho_w_.view());
+        Kokkos::deep_copy(res_rho_E_h, res_rho_E_.view());
 
-      RealType max_res = 0;
-      for (unsigned int i = 0; i < n_dofs_; ++i) {
-        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_h(i)));
-        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_u_h(i)));
-        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_v_h(i)));
-        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_w_h(i)));
-        max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_E_h(i)));
+        RealType max_res = 0;
+        for (unsigned int i = 0; i < n_dofs_; ++i) {
+          max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_h(i)));
+          max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_u_h(i)));
+          max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_v_h(i)));
+          max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_w_h(i)));
+          max_res = Kokkos::max(max_res, Kokkos::abs(res_rho_E_h(i)));
+        }
+        std::cout << "Step " << step << " max_residual=" << max_res
+                  << std::endl;
+
+        // Also check state hasn't changed from initial
+        auto rho_h = Kokkos::create_mirror_view(rho_.view());
+        auto rho_u_h = Kokkos::create_mirror_view(rho_u_.view());
+        auto rho_v_h = Kokkos::create_mirror_view(rho_v_.view());
+        auto rho_w_h = Kokkos::create_mirror_view(rho_w_.view());
+        auto rho_E_h = Kokkos::create_mirror_view(rho_E_.view());
+        Kokkos::deep_copy(rho_h, rho_.view());
+        Kokkos::deep_copy(rho_u_h, rho_u_.view());
+        Kokkos::deep_copy(rho_v_h, rho_v_.view());
+        Kokkos::deep_copy(rho_w_h, rho_w_.view());
+        Kokkos::deep_copy(rho_E_h, rho_E_.view());
+
+        RealType max_state_change = 0;
+        for (unsigned int i = 0; i < n_dofs_; ++i) {
+          max_state_change =
+            Kokkos::max(max_state_change, Kokkos::abs(rho_h(i) - rho_init(i)));
+          max_state_change = Kokkos::max(
+            max_state_change, Kokkos::abs(rho_u_h(i) - rho_u_init(i)));
+          max_state_change = Kokkos::max(
+            max_state_change, Kokkos::abs(rho_v_h(i) - rho_v_init(i)));
+          max_state_change = Kokkos::max(
+            max_state_change, Kokkos::abs(rho_w_h(i) - rho_w_init(i)));
+          max_state_change = Kokkos::max(
+            max_state_change, Kokkos::abs(rho_E_h(i) - rho_E_init(i)));
+        }
+        std::cout << "Step " << step << " max_state_change=" << max_state_change
+                  << std::endl;
       }
-      std::cout << "Step " << step << " max_residual=" << max_res << std::endl;
-
-      // Also check state hasn't changed from initial
-      auto rho_h = Kokkos::create_mirror_view(rho_.view());
-      auto rho_u_h = Kokkos::create_mirror_view(rho_u_.view());
-      auto rho_v_h = Kokkos::create_mirror_view(rho_v_.view());
-      auto rho_w_h = Kokkos::create_mirror_view(rho_w_.view());
-      auto rho_E_h = Kokkos::create_mirror_view(rho_E_.view());
-      Kokkos::deep_copy(rho_h, rho_.view());
-      Kokkos::deep_copy(rho_u_h, rho_u_.view());
-      Kokkos::deep_copy(rho_v_h, rho_v_.view());
-      Kokkos::deep_copy(rho_w_h, rho_w_.view());
-      Kokkos::deep_copy(rho_E_h, rho_E_.view());
-
-      RealType max_state_change = 0;
-      for (unsigned int i = 0; i < n_dofs_; ++i) {
-        max_state_change =
-          Kokkos::max(max_state_change, Kokkos::abs(rho_h(i) - rho_init(i)));
-        max_state_change = Kokkos::max(max_state_change,
-                                       Kokkos::abs(rho_u_h(i) - rho_u_init(i)));
-        max_state_change = Kokkos::max(max_state_change,
-                                       Kokkos::abs(rho_v_h(i) - rho_v_init(i)));
-        max_state_change = Kokkos::max(max_state_change,
-                                       Kokkos::abs(rho_w_h(i) - rho_w_init(i)));
-        max_state_change = Kokkos::max(max_state_change,
-                                       Kokkos::abs(rho_E_h(i) - rho_E_init(i)));
-      }
-      std::cout << "Step " << step << " max_state_change=" << max_state_change
-                << std::endl;
     }
   }
 
@@ -971,53 +1001,33 @@ public:
           Flux<dim, RealType>::conservative_to_primitive(
             rho, rho_v, rho_E, v, p);
 
-          // x-direction flux
-          Tensor<1, dim, RealType> Fx_rho_v, nx;
-          RealType Fx_rho = 0, Fx_rho_E = 0;
-
-          nx(0) = RealType(1);
-
+          // Flux
+          Tensor<1, dim, RealType> F_rho, F_rho_E;
+          Tensor<2, dim, RealType> F_rho_v;
           Flux<dim, RealType>::euler_flux(
-            rho, v, p, rho_E, nx, Fx_rho, Fx_rho_v, Fx_rho_E);
-
-          // y-direction flux
-          Tensor<1, dim, RealType> Fy_rho_v, ny;
-          RealType Fy_rho = 0, Fy_rho_E = 0;
-
-          ny(1) = RealType(1);
-
-          Flux<dim, RealType>::euler_flux(
-            rho, v, p, rho_E, ny, Fy_rho, Fy_rho_v, Fy_rho_E);
-
-          // z-direction flux
-          Tensor<1, dim, RealType> Fz_rho_v, nz;
-          RealType Fz_rho = 0, Fz_rho_E = 0;
-
-          nz(2) = RealType(1);
-
-          Flux<dim, RealType>::euler_flux(
-            rho, v, p, rho_E, nz, Fz_rho, Fz_rho_v, Fz_rho_E);
+            rho, v, p, rho_E, F_rho, F_rho_v, F_rho_E);
 
           // Accumulate
           const RealType jxw = JxW(k, q);
-          const RealType dphi_dx = grad_phi(k, i, q, 0);
-          const RealType dphi_dy = grad_phi(k, i, q, 1);
-          const RealType dphi_dz = grad_phi(k, i, q, 2);
+          Tensor<1, dim, RealType> grad_phi_i;
+          grad_phi_i[0] = grad_phi(k, i, q, 0);
+          grad_phi_i[1] = grad_phi(k, i, q, 1);
+          grad_phi_i[2] = grad_phi(k, i, q, 2);
 
-          local_res_rho -=
-            (dphi_dx * Fx_rho + dphi_dy * Fy_rho + dphi_dz * Fz_rho) * jxw;
-          local_res_rho_u -= (dphi_dx * Fx_rho_v(0) + dphi_dy * Fy_rho_v(0) +
-                              dphi_dz * Fz_rho_v(0)) *
-                             jxw;
-          local_res_rho_v -= (dphi_dx * Fx_rho_v(1) + dphi_dy * Fy_rho_v(1) +
-                              dphi_dz * Fz_rho_v(1)) *
-                             jxw;
-          local_res_rho_w -= (dphi_dx * Fx_rho_v(2) + dphi_dy * Fy_rho_v(2) +
-                              dphi_dz * Fz_rho_v(2)) *
-                             jxw;
-          local_res_rho_E -=
-            (dphi_dx * Fx_rho_E + dphi_dy * Fy_rho_E + dphi_dz * Fz_rho_E) *
+          local_res_rho -= dot(grad_phi_i, F_rho) * jxw;
+          local_res_rho_u -=
+            (F_rho_v(0, 0) * grad_phi_i[0] + F_rho_v(0, 1) * grad_phi_i[1] +
+             F_rho_v(0, 2) * grad_phi_i[2]) *
             jxw;
+          local_res_rho_v -=
+            (F_rho_v(1, 0) * grad_phi_i[0] + F_rho_v(1, 1) * grad_phi_i[1] +
+             F_rho_v(1, 2) * grad_phi_i[2]) *
+            jxw;
+          local_res_rho_w -=
+            (F_rho_v(2, 0) * grad_phi_i[0] + F_rho_v(2, 1) * grad_phi_i[1] +
+             F_rho_v(2, 2) * grad_phi_i[2]) *
+            jxw;
+          local_res_rho_E -= dot(grad_phi_i, F_rho_E) * jxw;
         }
 
         // Scatter to global residual
@@ -1451,10 +1461,12 @@ interpolate_solution(
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rho_lo,
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rhou_lo,
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rhov_lo,
+  const Kokkos::View<RealType*, Layout, HostMemSpace>& rhow_lo,
   const Kokkos::View<RealType*, Layout, HostMemSpace>& rhoE_lo,
   Kokkos::View<RealType*, Layout, HostMemSpace>& rho_hi,
   Kokkos::View<RealType*, Layout, HostMemSpace>& rhou_hi,
   Kokkos::View<RealType*, Layout, HostMemSpace>& rhov_hi,
+  Kokkos::View<RealType*, Layout, HostMemSpace>& rhow_hi,
   Kokkos::View<RealType*, Layout, HostMemSpace>& rhoE_hi)
 {
   const auto n_dofs_lo = fe_lo.n_dofs();
@@ -1478,13 +1490,14 @@ interpolate_solution(
       const auto xi = fe_hi.node(i);
 
       // Evaluate low-order basis functions at this point
-      RealType rho_val = 0, rhou_val = 0, rhov_val = 0, rhoE_val = 0;
+      RealType rho_val = 0, rhou_val = 0, rhov_val = 0, rhow_val, rhoE_val = 0;
       for (unsigned int j = 0; j < n_dofs_lo; ++j) {
         const RealType phi_j = fe_lo.shape_value(j, xi);
         const uint32_t dof_j = dof_indices_lo[j];
         rho_val += rho_lo(dof_j) * phi_j;
         rhou_val += rhou_lo(dof_j) * phi_j;
         rhov_val += rhov_lo(dof_j) * phi_j;
+        rhow_val += rhow_lo(dof_j) * phi_j;
         rhoE_val += rhoE_lo(dof_j) * phi_j;
       }
 
@@ -1492,6 +1505,7 @@ interpolate_solution(
       rho_hi(dof_i) = rho_val;
       rhou_hi(dof_i) = rhou_val;
       rhov_hi(dof_i) = rhov_val;
+      rhow_hi(dof_i) = rhow_val;
       rhoE_hi(dof_i) = rhoE_val;
     }
   }
@@ -1507,8 +1521,7 @@ main(int argc, char* argv[])
 
     GriReader<dim, q> gri;
     Triangulation<dim, q> tria;
-    //gri.read_gri("../grids/Tunnel2_NACA9512_0deg_10pc.6k.gri");
-    gri.read_gri("../airfoils/cube.gri");
+    gri.read_gri("../airfoils/cube.500.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1520,36 +1533,85 @@ main(int argc, char* argv[])
       { 3, BoundaryId::Freestream },
       { 4, BoundaryId::Freestream },
     };
+
     id_map.clear();
     id_map = {
       { 1, BoundaryId::InviscidWall },   { 2, BoundaryId::InviscidWall },
-      { 3, BoundaryId::InviscidWall },   { 4, BoundaryId::InviscidWall },
-      { 4, BoundaryId::SubsonicInflow }, { 6, BoundaryId::SubsonicOutflow },
+      { 3, BoundaryId::SubsonicInflow }, { 4, BoundaryId::SubsonicOutflow },
+      { 4, BoundaryId::InviscidWall },   { 6, BoundaryId::InviscidWall },
       { 7, BoundaryId::InviscidWall },
     };
 
     tria.remap_boundary_ids(id_map);
 
-    double abs_tol = 0.0;
+    auto do_interpolate = [&](unsigned int deg_lo,
+                              unsigned int deg_hi,
+                              const Vector<double, HostMemSpace>& rho_in,
+                              const Vector<double, HostMemSpace>& rhou_in,
+                              const Vector<double, HostMemSpace>& rhov_in,
+                              const Vector<double, HostMemSpace>& rhow_in,
+                              const Vector<double, HostMemSpace>& rhoE_in,
+                              Vector<double, HostMemSpace>& rho_out,
+                              Vector<double, HostMemSpace>& rhou_out,
+                              Vector<double, HostMemSpace>& rhov_out,
+                              Vector<double, HostMemSpace>& rhow_out,
+                              Vector<double, HostMemSpace>& rhoE_out) {
+      FE_DGLagrangeSimplex<3, double> fe_l(deg_lo), fe_h(deg_hi);
+      DoFHandler<3, double> dh_l(tria, fe_l), dh_h(tria, fe_h);
+      interpolate_solution(dh_l,
+                           dh_h,
+                           fe_l,
+                           fe_h,
+                           rho_in.view(),
+                           rhou_in.view(),
+                           rhov_in.view(),
+                           rhow_in.view(),
+                           rhoE_in.view(),
+                           rho_out.view(),
+                           rhou_out.view(),
+                           rhov_out.view(),
+                           rhow_out.view(),
+                           rhoE_out.view());
+    };
 
-    unsigned int degree = 0;
+    double abs_tol = 1e-6;
+    double cfl = 0.1;
 
-    Timer::instance().begin_section("Degree 0");
+    // --- Degree 0 Solver ---
+    FE_DGLagrangeSimplex<3, double> fe0(0);
+    QGaussSimplex<3, double> q0(0);
+    QGaussSimplex<2, double> fq0(0);
+    DoFHandler<3, q, double> dh0(tria, fe0);
+    FEValues<3, double> fev0(fe0, q0);
+    FEFaceValues<3, q, double> ffev0(fe0, fq0);
 
-    // --- Degree 0 ---
-    FE_DGLagrangeSimplex<dim, double> fe0(degree);
-    QGaussSimplex<dim, double> q0(degree + 1);
-    QGaussSimplex<dim - 1, double> fq0(degree + 1);
-    DoFHandler<dim, q, double> dh0(tria, fe0);
-    FEValues<dim, q, double> fev0(fe0, q0);
-    FEFaceValues<dim, q, double> ffev0(fe0, fq0);
-    EulerSolver<dim, q, double> s0(dh0, fev0, ffev0, 0);
+    Vector<double, Kokkos::HostSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
+      rhov0(dh0.n_dofs()), rhow0(dh0.n_dofs()), rhoE0(dh0.n_dofs());
+
+    EulerSolver<3, q, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
-    // s0.test_freestream_preservation(1000);
-    abs_tol = s0.solve_steady_state(100, 0.5, 100, false, 1.0e-5);
+    s0.solve_steady_state(10000, cfl, 1000, true, abs_tol);
     s0.write_solution("solution_steady_state_p0.vtu");
+    s0.copy_state_to_host(rho0, rhou0, rhov0, rhow0, rhoE0);
 
-    Timer::instance().end_section("Degree 0");
+    // --- Degree 1 Solver ---
+    FE_DGLagrangeSimplex<3, double> fe1(1);
+    QGaussSimplex<3, double> q1(1);
+    QGaussSimplex<2, double> fq1(1);
+    DoFHandler<3, q, double> dh1(tria, fe1);
+    FEValues<3, double> fev1(fe1, q1);
+    FEFaceValues<3, q, double> ffev1(fe1, fq1);
+
+    Vector<double, Kokkos::HostSpace> rho1(dh1.n_dofs()), rhou1(dh1.n_dofs()),
+      rhov1(dh1.n_dofs()), rhow1(dh1.n_dofs()), rhoE1(dh1.n_dofs());
+    do_interpolate(
+      0, 1, rho0, rhou0, rhov0, rhow0, rhoE0, rho1, rhou1, rhov1, rhow1, rhoE1);
+
+    EulerSolver<3, q, double> s1(dh1, fev1, ffev1, 1);
+    s1.set_state_from_host(rho1, rhou1, rhov1, rhow1, rhoE1);
+    s1.solve_steady_state(10000, cfl, 1000, true, abs_tol);
+    s1.write_solution("solution_steady_state_p1.vtu");
+    s1.copy_state_to_host(rho1, rhou1, rhov1, rhow1, rhoE1);
   }
   Kokkos::finalize();
   return 0;
