@@ -16,7 +16,7 @@ nodes0 = gri.nodes;
 nodes = nodes0;
 
 % freeze every boundary node except airfoil
-fixed_names = ["Top","Bottom","InletSide","OutletSide","Front","Back"];
+fixed_names = ["Top","Bottom","InletSide","OutletSide"];
 
 fixed_nodes = [];
 
@@ -37,40 +37,89 @@ y = nodes(:,2);
 z = nodes(:,3);
 
 % twist parameters
-theta_max = deg2rad(9.5);
+theta_max = deg2rad(3);
 
-% choose twist axis/center: adjust these after checking geometry
-xc = 500;     % mid-chord if chord is 1000
-yc = -50;    % mid-height-ish
-zmin = min(z);
-zmax = max(z);
+% twist varies along y: y = 0 -> 0 deg, y = -100 -> -3 deg
+y0 = max(y);
+y1 = min(y);
+eta = (y0 - y) / (y0 - y1);
 
-% twist angle varies along z
-eta = (z - zmin) / (zmax - zmin);
-theta = theta_max * (eta - 0.5);
+theta = -theta_max * eta;
 
-fprintf("Theta stats (radians): min = %.6e, max = %.6e\n", min(theta), max(theta));
-fprintf("Theta stats (degrees): min = %.6f, max = %.6f\n", rad2deg(min(theta)), rad2deg(max(theta)));
-
-zvals = gri.nodes(:,3);
+fprintf("Theta stats (degrees): min = %.6f, max = %.6f\n", ...
+    rad2deg(min(theta)), rad2deg(max(theta)));
 
 figure;
-scatter(zvals, rad2deg(theta), 5, 'filled');
-xlabel('z');
+scatter(y, rad2deg(theta), 5, 'filled');
+xlabel('y');
 ylabel('theta (deg)');
-title('Twist distribution along span');
+title('Twist distribution along span/extrusion direction');
 grid on;
 
-% only twist interior nodes for first test
+% --- true LE-based rigid twist in x-z plane ---
+
+airfoil_id = find(strcmp({gri.boundary_groups.name}, "Airfoil"));
+airfoil_nodes = unique(gri.boundary_groups(airfoil_id).faces(:));
+
+xLE = min(nodes0(airfoil_nodes,1));
+xTE = max(nodes0(airfoil_nodes,1));
+chord = xTE - xLE;
+
+tolLE = 5;
+LE_nodes_axis = airfoil_nodes(abs(nodes0(airfoil_nodes,1) - xLE) < tolLE);
+zLE = mean(nodes0(LE_nodes_axis,3));
+
+fprintf("xLE = %.6f, xTE = %.6f, chord = %.6f, zLE = %.6f\n", ...
+    xLE, xTE, chord, zLE);
+
 idx = moving_nodes;
 
-X = x(idx) - xc;
-Y = y(idx) - yc;
-ct = cos(theta(idx));
-st = sin(theta(idx));
+dx = x - xLE;
+dz = z - zLE;
 
-nodes(idx,1) = xc + X .* ct - Y .* st;
-nodes(idx,2) = yc + X .* st + Y .* ct;
+x_rot = xLE + dx .* cos(theta) - dz .* sin(theta);
+z_rot = zLE + dx .* sin(theta) + dz .* cos(theta);
+
+% distance-based blending
+x_min = min(nodes0(:,1));
+x_max = max(nodes0(:,1));
+z_min = min(nodes0(:,3));
+z_max = max(nodes0(:,3));
+
+dist_x = min(abs(x - x_min), abs(x - x_max));
+dist_z = min(abs(z - z_min), abs(z - z_max));
+
+blend_x = dist_x / max(dist_x);
+blend_z = dist_z / max(dist_z);
+
+blend = min(blend_x, blend_z);
+blend = max(0, min(1, blend));
+
+% faster decay near farfield
+blend = blend.^4;
+
+% force airfoil to get full twist
+blend(airfoil_nodes) = 1;
+
+% apply blended deformation
+nodes(idx,1) = x(idx) + blend(idx).*(x_rot(idx) - x(idx));
+nodes(idx,3) = z(idx) + blend(idx).*(z_rot(idx) - z(idx));
+
+% y unchanged
+
+tolLE = 5;
+tolTE = 5;
+
+LE_nodes = airfoil_nodes(abs(nodes0(airfoil_nodes,1) - xLE) < tolLE);
+TE_nodes = airfoil_nodes(abs(nodes0(airfoil_nodes,1) - xTE) < tolTE);
+
+LE_motion = vecnorm(nodes(LE_nodes,:) - nodes0(LE_nodes,:), 2, 2);
+TE_motion = vecnorm(nodes(TE_nodes,:) - nodes0(TE_nodes,:), 2, 2);
+
+fprintf("Max LE motion = %.6e\n", max(LE_motion));
+fprintf("Max TE motion = %.6e\n", max(TE_motion));
+
+% y is unchanged
 
 gri.nodes = nodes;
 
@@ -86,6 +135,8 @@ fprintf("Periodic offset min/max:\n");
 disp([min(offsets); max(offsets)]);
 
 check_tet_volumes(gri)
+
+bad_elems = find_tet_volumes(gri);
 
 %% visual inspection 
 gri0 = readGri("untwisted.gri");
@@ -148,30 +199,30 @@ airfoil_nodes = unique(gri0.boundary_groups(airfoil_id).faces(:));
 p0 = gri0.nodes(airfoil_nodes,:);
 pT = griT.nodes(airfoil_nodes,:);
 
-zvals = p0(:,3);
-zmin = min(zvals);
-zmax = max(zvals);
-zmid = 0.5*(zmin + zmax);
+yvals = p0(:,2);
+ymin = min(yvals);
+ymax = max(yvals);
+ymid = 0.5*(ymin + ymax);
 
-slice_z = [zmin, zmid, zmax];
-tol = 20;
+slice_y = [ymax, ymid, ymin];
+tol = 5;
 
 figure;
 hold on;
 grid on;
 axis equal;
 
-for k = 1:length(slice_z)
-    mask = abs(zvals - slice_z(k)) < tol;
+for k = 1:length(slice_y)
+    mask = abs(yvals - slice_y(k)) < tol;
 
-    scatter(p0(mask,1), p0(mask,2), 20, 'filled');
-    scatter(pT(mask,1), pT(mask,2), 20, 'filled');
+    scatter(p0(mask,1), p0(mask,3), 20, 'filled');
+    scatter(pT(mask,1), pT(mask,3), 20, 'filled');
 end
 
 xlabel('x');
-ylabel('y');
+ylabel('z');
 legend('Untwisted','Twisted');
-title('Airfoil slices before and after twist');
+title('Airfoil x-z slices before and after LE-based twist');
 
 scale = 20;
 
@@ -347,4 +398,27 @@ function check_tet_volumes(gri)
     fprintf("Min signed volume = %.6e\n", min(vols));
     fprintf("Max signed volume = %.6e\n", max(vols));
     fprintf("Number of inverted/zero tets = %d\n", sum(vols <= 0));
+end
+
+function bad_elems = find_tet_volumes(gri)
+    nodes = gri.nodes;
+    elems = gri.elements(:,1:4);
+
+    vols = zeros(size(elems,1),1);
+
+    for i = 1:size(elems,1)
+        p1 = nodes(elems(i,1),:);
+        p2 = nodes(elems(i,2),:);
+        p3 = nodes(elems(i,3),:);
+        p4 = nodes(elems(i,4),:);
+
+        J = [p2-p1; p3-p1; p4-p1]';
+        vols(i) = det(J)/6;
+    end
+
+    bad_elems = find(vols <= 0);
+    fprintf("Bad element IDs:\n");
+    disp(bad_elems);
+    fprintf("Bad volumes:\n");
+    disp(vols(bad_elems));
 end
