@@ -141,7 +141,7 @@ public:
       const auto vtk_perm = compute_vtk_permutation(dh_->fe());
 
       QGaussSimplex<dim, double> quad(p + 1);
-      FEValues<dim, double> fe_values(dh_->fe(), quad);
+      FEValues<dim, q, double> fe_values(dh_->fe(), quad);
 
       // Grab the number of points and fill them out. Use a 0.0 placeholder for
       // the extraneous dimensions
