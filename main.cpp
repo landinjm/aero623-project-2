@@ -1557,7 +1557,7 @@ main(int argc, char* argv[])
                               Vector<double, HostMemSpace>& rhow_out,
                               Vector<double, HostMemSpace>& rhoE_out) {
       FE_DGLagrangeSimplex<3, double> fe_l(deg_lo), fe_h(deg_hi);
-      DoFHandler<3, double> dh_l(tria, fe_l), dh_h(tria, fe_h);
+      DoFHandler<3, q, double> dh_l(tria, fe_l), dh_h(tria, fe_h);
       interpolate_solution(dh_l,
                            dh_h,
                            fe_l,
@@ -1582,7 +1582,7 @@ main(int argc, char* argv[])
     QGaussSimplex<3, double> q0(0);
     QGaussSimplex<2, double> fq0(0);
     DoFHandler<3, q, double> dh0(tria, fe0);
-    FEValues<3, double> fev0(fe0, q0);
+    FEValues<3, q, double> fev0(fe0, q0);
     FEFaceValues<3, q, double> ffev0(fe0, fq0);
 
     Vector<double, Kokkos::HostSpace> rho0(dh0.n_dofs()), rhou0(dh0.n_dofs()),
@@ -1599,7 +1599,7 @@ main(int argc, char* argv[])
     QGaussSimplex<3, double> q1(1);
     QGaussSimplex<2, double> fq1(1);
     DoFHandler<3, q, double> dh1(tria, fe1);
-    FEValues<3, double> fev1(fe1, q1);
+    FEValues<3, q, double> fev1(fe1, q1);
     FEFaceValues<3, q, double> ffev1(fe1, fq1);
 
     Vector<double, Kokkos::HostSpace> rho1(dh1.n_dofs()), rhou1(dh1.n_dofs()),

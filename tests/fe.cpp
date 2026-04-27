@@ -354,7 +354,7 @@ TEST(FEValues, 3D)
   }
 }
 
-/*
+
 TEST(FEFaceValues, 2D)
 {
   constexpr unsigned int dim = 2;
@@ -477,7 +477,7 @@ TEST(FEFaceValues, 2D)
     }
   }
 }
-*/
+
 
 TEST(FEFaceValues, 3D)
 {

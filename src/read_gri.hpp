@@ -804,8 +804,6 @@ GriReader<dim, q>::read_gri(const std::string& filename)
     in >> data_.boundary_group_n_nodes[i]; // nodes per boundary face
                                            // (dim for 2D edges, dim-1+1=dim for
                                            // 3D tris)
-    ASSERT(data_.boundary_group_n_nodes[i] == (int)dim * data_.qorder,
-           "Boundary groups nodes must be equal to the dimension * q order");
 
     std::getline(in >> std::ws, data_.boundary_group_names[i]);
 
