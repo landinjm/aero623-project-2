@@ -620,9 +620,13 @@ public:
     return sizeof(*this) + data.size() * sizeof(RealType);
   }
 
-private:
+public:
   template<typename RealType2, typename MemorySpace2>
   friend class Vector;
+  
+  RealType* raw_data() { return data.data(); }
+  const RealType* raw_data() const { return data.data(); }
 
+private:
   ViewType data;
 };

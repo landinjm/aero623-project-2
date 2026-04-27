@@ -14,6 +14,7 @@
 #include <timer.hpp>
 #include <triangulation.hpp>
 #include <vector.hpp>
+#include "limiters.hpp"
 
 #include "quad.hpp"
 
@@ -106,10 +107,11 @@ public:
     dt_ = VecDevice(n_dofs_);
 
     // Freestream
-    freestream_ = make_freestream<dim>(RealType(0.5));
+    freestream_ = make_freestream<dim>(RealType(0.1));
 
     // Precompute geometries
     precompute_geometry();
+    
   }
 
   void copy_state_to_host(VecHost& rho_h,
@@ -704,60 +706,58 @@ public:
     invm_ = invm.device_inverse();
   }
 
-  double solve_steady_state(unsigned int max_iter = 100000,
-                            RealType cfl = Parameters<RealType>::cfl_max,
-                            unsigned int write_interval = 1000,
-                            bool use_abs_tol = false,
-                            double abs_tol = 1e-5)
+  double solve_steady_state(unsigned int max_iter = 10000,
+                          RealType cfl = 0.1, // Start lower for p=1
+                          unsigned int write_interval = 1000,
+                          bool use_abs_tol = false,
+                          double abs_tol = 1e-5) 
   {
-    const std::string deg_str = "p" + std::to_string(degree_);
+      const std::string deg_str = "p" + std::to_string(degree_);
+      std::cout << "Starting steady-state solve (SSP-RK3 + Limiter) with " << max_iter << " iterations" << std::endl;
 
-    std::cout << "Starting steady-state solve with " << max_iter
-              << " iterations" << std::endl;
+      // Initial residual for normalization
+      this->zero_residuals();
+      this->compute_volume_residual();
+      this->compute_face_residual();
+      const RealType res0 = residual_norm();
+      std::cout << "Initial residual: " << res0 << std::endl;
 
-    // Compute initial residual norm for normalization
-    zero_residuals();
-    compute_volume_residual();
-    compute_face_residual();
+      for (unsigned int iter = 0; iter < max_iter; ++iter) {
+          
+          // The RK3 step now includes compute_residual, state update, and apply_limiter
+          this->ssp_rk3_step(cfl);
 
-    const RealType res0 = residual_norm();
-    std::cout << "Initial residual: " << res0 << std::endl;
+          // Compute residual of the new state for convergence monitoring
+          this->zero_residuals();
+          this->compute_volume_residual();
+          this->compute_face_residual();
+          
+          const RealType res = residual_norm();
+          const RealType rel_res = (res0 > 0) ? res / res0 : res;
 
-    for (unsigned int iter = 0; iter < max_iter; ++iter) {
-      ssp_rk3_step(cfl);
+          // Check for NaN/divergence
+          if (std::isnan(res) || std::isinf(res)) {
+              std::cerr << "Solution diverged (NaN/Inf) at iteration " << iter << std::endl;
+              return res;
+          }
 
-      // Always compute residual for convergence check
-      zero_residuals();
-      compute_volume_residual();
-      compute_face_residual();
-      const RealType res = residual_norm();
-      const RealType rel_res = (res0 > RealType(0)) ? res / res0 : res;
+          // Convergence Check
+          if ((use_abs_tol && res < abs_tol) || rel_res < Parameters<RealType>::convergence_tol) {
+              std::cout << "Converged at iter " << iter << " rel_res=" << rel_res << std::endl;
+              this->write_solution("solution_final_" + deg_str + ".vtu", iter);
+              return res;
+          }
 
-      // Check for NaN/divergence every step
-      if (std::isnan(res) || std::isinf(res)) {
-        std::cout << "Solution diverged at iter " << iter << std::endl;
-        break;
+          // Logging
+          if (iter % write_interval == 0 || iter == max_iter - 1) {
+              std::cout << "Iter " << std::setw(6) << iter 
+                        << "  abs_res=" << std::scientific << std::setprecision(6) << res 
+                        << "  rel_res=" << rel_res << std::endl;
+          }
       }
 
-      // Convergence check every step
-      if ((use_abs_tol && res < abs_tol) ||
-          rel_res < Parameters<RealType>::convergence_tol) {
-        std::cout << "converged at iter " << iter << " rel_res=" << rel_res
-                  << std::endl;
-        write_solution("solution_final_" + deg_str + ".vtu", iter);
-        return res;
-      }
-
-      // Only print and write at intervals
-      if (iter % write_interval == 0 || iter == max_iter - 1) {
-        std::cout << "Iter " << std::setw(6) << iter
-                  << "  abs_res=" << std::scientific << std::setprecision(6)
-                  << res << "  rel_res=" << rel_res << std::endl;
-      }
-    }
-
-    write_solution("solution_final_" + deg_str + ".vtu", max_iter);
-    return 0.0;
+      this->write_solution("solution_final_" + deg_str + ".vtu", max_iter);
+      return 0.0;
   }
 
   void test_freestream_preservation(unsigned int n_steps = 10)
@@ -835,33 +835,103 @@ public:
     }
   }
 
-  void ssp_rk3_step(RealType cfl)
-  {
-    Kokkos::deep_copy(rho_old_.view(), rho_.view());
-    Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
-    Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
-    Kokkos::deep_copy(rho_w_old_.view(), rho_w_.view());
-    Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
+  void update_state(RealType alpha, RealType beta, RealType dt_coeff, RealType cfl) {
+      // First compute the local timesteps
+      this->compute_local_dt(cfl);
 
-    compute_local_dt(cfl);
+      auto r     = this->rho_.view();
+      auto ru    = this->rho_u_.view();
+      auto rv    = this->rho_v_.view();
+      auto rw    = this->rho_w_.view();
+      auto re    = this->rho_E_.view();
 
-    // Stage 1
-    zero_residuals();
-    compute_volume_residual();
-    compute_face_residual();
-    update(RealType(0.0), RealType(1.0));
+      auto r_old  = this->rho_old_.view();
+      auto ru_old = this->rho_u_old_.view();
+      auto rv_old = this->rho_v_old_.view();
+      auto rw_old = this->rho_w_old_.view();
+      auto re_old = this->rho_E_old_.view();
 
-    // Stage 2
-    zero_residuals();
-    compute_volume_residual();
-    compute_face_residual();
-    update(RealType(0.75), RealType(0.25));
+      auto res_r  = this->res_rho_.view();
+      auto res_ru = this->res_rho_u_.view();
+      auto res_rv = this->res_rho_v_.view();
+      auto res_rw = this->res_rho_w_.view();
+      auto res_re = this->res_rho_E_.view();
 
-    // Stage 3
-    zero_residuals();
-    compute_volume_residual();
-    compute_face_residual();
-    update(RealType(1.0 / 3.0), RealType(2.0 / 3.0));
+      auto d_dt = this->dt_.view();
+
+      const unsigned int n_cells         = dof_handler_.n_cells();
+      const unsigned int n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
+
+      Kokkos::parallel_for("UpdateState", n_cells * n_dofs_per_cell,
+          KOKKOS_LAMBDA(const int idx) {
+              const RealType dt = dt_coeff * d_dt(idx);
+              r(idx)  = alpha * r_old(idx)  + beta * (r(idx)  - dt * res_r(idx));
+              ru(idx) = alpha * ru_old(idx) + beta * (ru(idx) - dt * res_ru(idx));
+              rv(idx) = alpha * rv_old(idx) + beta * (rv(idx) - dt * res_rv(idx));
+              rw(idx) = alpha * rw_old(idx) + beta * (rw(idx) - dt * res_rw(idx));
+              re(idx) = alpha * re_old(idx) + beta * (re(idx) - dt * res_re(idx));
+          });
+  }
+
+  void apply_limiter() {
+      auto local_rho  = this->rho_;
+      auto local_rhou = this->rho_u_;
+      auto local_rhov = this->rho_v_;
+      auto local_rhow = this->rho_w_;
+      auto local_rhoE = this->rho_E_;
+      auto basis_values = this->phi_;
+
+      const unsigned int n_cells        = dof_handler_.n_cells();
+      const unsigned int n_dofs_per_cell = dof_handler_.n_dofs_per_cell();
+      const unsigned int n_q             = fe_values_.n_q_points();
+
+      Kokkos::parallel_for("LimitCells", n_cells, KOKKOS_LAMBDA(const int c) {
+          const unsigned int start_idx = c * n_dofs_per_cell;
+
+          RealType* c_rho  = const_cast<RealType*>(local_rho.raw_data())  + start_idx;
+          RealType* c_rhou = const_cast<RealType*>(local_rhou.raw_data()) + start_idx;
+          RealType* c_rhov = const_cast<RealType*>(local_rhov.raw_data()) + start_idx;
+          RealType* c_rhow = const_cast<RealType*>(local_rhow.raw_data()) + start_idx;
+          RealType* c_rhoE = const_cast<RealType*>(local_rhoE.raw_data()) + start_idx;
+
+          auto cell_basis = Kokkos::subview(basis_values, c, Kokkos::ALL(), Kokkos::ALL());
+
+          PositivityLimiter<dim, RealType>::apply(
+              n_dofs_per_cell, n_q,
+              cell_basis,
+              c_rho, c_rhou, c_rhov, c_rhow, c_rhoE
+          );
+      });
+  }
+
+  void ssp_rk3_step(RealType cfl) {
+      // Save U^n before any stages
+      Kokkos::deep_copy(rho_old_.view(),   rho_.view());
+      Kokkos::deep_copy(rho_u_old_.view(), rho_u_.view());
+      Kokkos::deep_copy(rho_v_old_.view(), rho_v_.view());
+      Kokkos::deep_copy(rho_w_old_.view(), rho_w_.view());
+      Kokkos::deep_copy(rho_E_old_.view(), rho_E_.view());
+
+      // Stage 1: U(1) = U^n - dt * L(U^n)
+      this->zero_residuals();
+      this->compute_volume_residual();
+      this->compute_face_residual();
+      this->update_state(1.0, 0.0, 1.0, cfl);
+      this->apply_limiter();
+
+      // Stage 2: U(2) = 3/4 * U^n + 1/4 * (U(1) - dt * L(U(1)))
+      this->zero_residuals();
+      this->compute_volume_residual();
+      this->compute_face_residual();
+      this->update_state(0.75, 0.25, 0.25, cfl);
+      this->apply_limiter();
+
+      // Stage 3: U^{n+1} = 1/3 * U^n + 2/3 * (U(2) - dt * L(U(2)))
+      this->zero_residuals();
+      this->compute_volume_residual();
+      this->compute_face_residual();
+      this->update_state(1.0/3.0, 2.0/3.0, 2.0/3.0, cfl);
+      this->apply_limiter();
   }
 
   void compute_local_dt(const RealType cfl)
@@ -1040,71 +1110,6 @@ public:
       });
   }
 
-  void update(RealType alpha, RealType beta)
-  {
-    const auto ndpc = dof_handler_.n_dofs_per_cell();
-
-    auto d_rho = rho_.view();
-    auto d_rho_u = rho_u_.view();
-    auto d_rho_v = rho_v_.view();
-    auto d_rho_w = rho_w_.view();
-    auto d_rho_E = rho_E_.view();
-    auto d_rho_old = rho_old_.view();
-    auto d_rho_u_old = rho_u_old_.view();
-    auto d_rho_v_old = rho_v_old_.view();
-    auto d_rho_w_old = rho_w_old_.view();
-    auto d_rho_E_old = rho_E_old_.view();
-    auto d_res_rho = res_rho_.view();
-    auto d_res_rho_u = res_rho_u_.view();
-    auto d_res_rho_v = res_rho_v_.view();
-    auto d_res_rho_w = res_rho_w_.view();
-    auto d_res_rho_E = res_rho_E_.view();
-    auto d_dt = dt_.view();
-    auto indices = cell_dofs_;
-    auto invm = invm_;
-
-    // Parallel loop over data where k is the cell index and i is a local dof
-    // index
-    Kokkos::parallel_for(
-      "update_rk_stage",
-      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({ 0, 0 },
-                                             { (int)n_cells_, (int)ndpc }),
-      KOKKOS_LAMBDA(int k, int i) {
-        // Grab the global dof and local timestep we're working with
-        const uint32_t dof_i = indices(k, i);
-        const RealType dt = d_dt(dof_i);
-
-        // Apply inverted mass matrix
-        RealType Minv_R_rho = 0;
-        RealType Minv_R_rho_u = 0;
-        RealType Minv_R_rho_v = 0;
-        RealType Minv_R_rho_w = 0;
-        RealType Minv_R_rho_E = 0;
-        for (unsigned int j = 0; j < ndpc; ++j) {
-          const RealType Minv_ij = invm(k, i, j);
-          const uint32_t dof_j = indices(k, j);
-          Minv_R_rho += Minv_ij * d_res_rho(dof_j);
-          Minv_R_rho_u += Minv_ij * d_res_rho_u(dof_j);
-          Minv_R_rho_v += Minv_ij * d_res_rho_v(dof_j);
-          Minv_R_rho_w += Minv_ij * d_res_rho_w(dof_j);
-          Minv_R_rho_E += Minv_ij * d_res_rho_E(dof_j);
-        }
-
-        // Add residual and old state based on the some SSP-RK3 stage with its
-        // respective butcher table coefficients.
-        d_rho(dof_i) =
-          alpha * d_rho_old(dof_i) + beta * (d_rho(dof_i) - dt * Minv_R_rho);
-        d_rho_u(dof_i) = alpha * d_rho_u_old(dof_i) +
-                         beta * (d_rho_u(dof_i) - dt * Minv_R_rho_u);
-        d_rho_v(dof_i) = alpha * d_rho_v_old(dof_i) +
-                         beta * (d_rho_v(dof_i) - dt * Minv_R_rho_v);
-        d_rho_w(dof_i) = alpha * d_rho_w_old(dof_i) +
-                         beta * (d_rho_w(dof_i) - dt * Minv_R_rho_w);
-        d_rho_E(dof_i) = alpha * d_rho_E_old(dof_i) +
-                         beta * (d_rho_E(dof_i) - dt * Minv_R_rho_E);
-      });
-  }
-
   void compute_face_residual(RealType t = RealType(0))
   {
     compute_interior_face_residual();
@@ -1171,7 +1176,14 @@ public:
             rho_E_R += d_rho_E(dof_j) * phi_j;
           }
 
-          // Numerical flux
+          // Guard reconstructed densities: for p>0 the solution can be
+          // positive at all nodes yet negative at face quad points.
+          // Clamp to a small positive floor before the Roe flux.
+          constexpr RealType rho_floor = RealType(1e-12);
+          rho_L = Kokkos::max(rho_L, rho_floor);
+          rho_R = Kokkos::max(rho_R, rho_floor);
+
+          // Numerical flux (interior faces)
           Tensor<1, dim, RealType> flux_rho_v;
           RealType flux_rho, flux_rho_E, smag;
 
@@ -1205,6 +1217,102 @@ public:
             Kokkos::atomic_add(&d_res_rho_v(dof_i_R), -phi_i_R * flux_rho_v(1));
             Kokkos::atomic_add(&d_res_rho_w(dof_i_R), -phi_i_R * flux_rho_v(2));
             Kokkos::atomic_add(&d_res_rho_E(dof_i_R), -phi_i_R * flux_rho_E);
+          }
+        }
+      });
+  }
+
+  void enforce_positivity()
+  {
+    const auto ndpc  = dof_handler_.n_dofs_per_cell();
+    const RealType gamma = Parameters<RealType>::gamma;
+    const RealType eps   = RealType(1e-12);
+
+    auto d_rho   = rho_.view();
+    auto d_rho_u = rho_u_.view();
+    auto d_rho_v = rho_v_.view();
+    auto d_rho_w = rho_w_.view();
+    auto d_rho_E = rho_E_.view();
+
+    const auto indices = cell_dofs_;
+    const auto n_cells = n_cells_;
+
+    Kokkos::parallel_for(
+      "enforce_positivity", n_cells, KOKKOS_LAMBDA(int k) {
+
+        // ---- Step 1: cell-average (mean of nodal DoF values) ----
+        RealType rho_avg = 0, rhou_avg = 0, rhov_avg = 0,
+                rhow_avg = 0, rhoE_avg = 0;
+        for (unsigned int i = 0; i < ndpc; ++i) {
+          const uint32_t idx = indices(k, i);
+          rho_avg  += d_rho(idx);
+          rhou_avg += d_rho_u(idx);
+          rhov_avg += d_rho_v(idx);
+          rhow_avg += d_rho_w(idx);
+          rhoE_avg += d_rho_E(idx);
+        }
+        const RealType inv_n = RealType(1) / RealType(ndpc);
+        rho_avg  *= inv_n;
+        rhou_avg *= inv_n;
+        rhov_avg *= inv_n;
+        rhow_avg *= inv_n;
+        rhoE_avg *= inv_n;
+
+        // Check cell average is physical
+        const RealType ua = rhou_avg / rho_avg;
+        const RealType va = rhov_avg / rho_avg;
+        const RealType wa = rhow_avg / rho_avg;
+        const RealType pa = (gamma - RealType(1)) *
+          (rhoE_avg - RealType(0.5) * rho_avg * (ua*ua + va*va + wa*wa));
+        if (rho_avg <= eps || pa <= eps) return;
+
+        // ---- Step 2: check each nodal DoF value directly ----
+        // For DG-Lagrange, DoF i holds the solution value at node i.
+        // A linear polynomial's min/max over the whole tet is at a vertex,
+        // so this catches every face quad point too.
+        RealType theta = RealType(1);
+
+        for (unsigned int i = 0; i < ndpc; ++i) {
+          const uint32_t idx = indices(k, i);
+          const RealType rho_i  = d_rho(idx);
+          const RealType rhou_i = d_rho_u(idx);
+          const RealType rhov_i = d_rho_v(idx);
+          const RealType rhow_i = d_rho_w(idx);
+          const RealType rhoE_i = d_rho_E(idx);
+
+          // --- density ---
+          if (rho_i < eps) {
+            const RealType denom = rho_avg - rho_i;
+            if (denom > RealType(0))
+              theta = Kokkos::min(theta, (rho_avg - eps) / denom);
+            else
+              theta = RealType(0);
+          }
+
+          // --- pressure ---
+          const RealType ui = rhou_i / Kokkos::max(rho_i, eps);
+          const RealType vi = rhov_i / Kokkos::max(rho_i, eps);
+          const RealType wi = rhow_i / Kokkos::max(rho_i, eps);
+          const RealType pi = (gamma - RealType(1)) *
+            (rhoE_i - RealType(0.5) * rho_i * (ui*ui + vi*vi + wi*wi));
+          if (pi < eps) {
+            const RealType denom = pa - pi;
+            if (denom > RealType(0))
+              theta = Kokkos::min(theta, (pa - eps) / denom);
+            else
+              theta = RealType(0);
+          }
+        }
+
+        // ---- Step 3: apply scaling toward cell average ----
+        if (theta < RealType(1)) {
+          for (unsigned int i = 0; i < ndpc; ++i) {
+            const uint32_t idx = indices(k, i);
+            d_rho(idx)   = rho_avg  + theta * (d_rho(idx)   - rho_avg);
+            d_rho_u(idx) = rhou_avg + theta * (d_rho_u(idx) - rhou_avg);
+            d_rho_v(idx) = rhov_avg + theta * (d_rho_v(idx) - rhov_avg);
+            d_rho_w(idx) = rhow_avg + theta * (d_rho_w(idx) - rhow_avg);
+            d_rho_E(idx) = rhoE_avg + theta * (d_rho_E(idx) - rhoE_avg);
           }
         }
       });
@@ -1269,6 +1377,11 @@ public:
             rho_v_R(2) += d_rho_w(dof_j) * phi_j;
             rho_E_R += d_rho_E(dof_j) * phi_j;
           }
+
+          // Guard reconstructed densities (periodic faces, same reason as interior).
+          constexpr RealType rho_floor_p = RealType(1e-12);
+          rho_L = Kokkos::max(rho_L, rho_floor_p);
+          rho_R = Kokkos::max(rho_R, rho_floor_p);
 
           // Numerical flux
           Tensor<1, dim, RealType> flux_rho_v;
@@ -1359,7 +1472,11 @@ public:
             rho_E_L += d_rho_E(dof_j) * phi_j;
           }
 
-          // Numerical flux
+          // Guard reconstructed density at boundary face quad points.
+          constexpr RealType rho_floor_b = RealType(1e-12);
+          rho_L = Kokkos::max(rho_L, rho_floor_b);
+
+          // Numerical flux (boundary faces)
           Tensor<1, dim, RealType> flux_rho_v;
           RealType flux_rho, flux_rho_E, smag;
 
@@ -1490,7 +1607,7 @@ interpolate_solution(
       const auto xi = fe_hi.node(i);
 
       // Evaluate low-order basis functions at this point
-      RealType rho_val = 0, rhou_val = 0, rhov_val = 0, rhow_val, rhoE_val = 0;
+      RealType rho_val = 0, rhou_val = 0, rhov_val = 0, rhow_val = 0, rhoE_val = 0;
       for (unsigned int j = 0; j < n_dofs_lo; ++j) {
         const RealType phi_j = fe_lo.shape_value(j, xi);
         const uint32_t dof_j = dof_indices_lo[j];
@@ -1517,11 +1634,11 @@ main(int argc, char* argv[])
   Kokkos::initialize(argc, argv);
   {
     constexpr unsigned int dim = 3;
-    constexpr unsigned int q = 1;
+    constexpr unsigned int q = 2;
 
     GriReader<dim, q> gri;
     Triangulation<dim, q> tria;
-    gri.read_gri("../airfoils/cube.500.gri");
+    gri.read_gri("../airfoils/cube.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1532,14 +1649,16 @@ main(int argc, char* argv[])
       { 2, BoundaryId::Freestream },
       { 3, BoundaryId::Freestream },
       { 4, BoundaryId::Freestream },
+      { 5, BoundaryId::Freestream },
+      { 6, BoundaryId::Freestream },
     };
 
     id_map.clear();
     id_map = {
       { 1, BoundaryId::InviscidWall },   { 2, BoundaryId::InviscidWall },
-      { 3, BoundaryId::SubsonicInflow }, { 4, BoundaryId::SubsonicOutflow },
+      { 3, BoundaryId::SubsonicInflow }, { 5, BoundaryId::SubsonicOutflow },
       { 4, BoundaryId::InviscidWall },   { 6, BoundaryId::InviscidWall },
-      { 7, BoundaryId::InviscidWall },
+      // { 7, BoundaryId::InviscidWall },
     };
 
     tria.remap_boundary_ids(id_map);
@@ -1596,8 +1715,8 @@ main(int argc, char* argv[])
 
     // --- Degree 1 Solver ---
     FE_DGLagrangeSimplex<3, double> fe1(1);
-    QGaussSimplex<3, double> q1(1);
-    QGaussSimplex<2, double> fq1(1);
+    QGaussSimplex<3, double> q1(3);
+    QGaussSimplex<2, double> fq1(3);
     DoFHandler<3, q, double> dh1(tria, fe1);
     FEValues<3, q, double> fev1(fe1, q1);
     FEFaceValues<3, q, double> ffev1(fe1, fq1);
@@ -1608,8 +1727,12 @@ main(int argc, char* argv[])
       0, 1, rho0, rhou0, rhov0, rhow0, rhoE0, rho1, rhou1, rhov1, rhow1, rhoE1);
 
     EulerSolver<3, q, double> s1(dh1, fev1, ffev1, 1);
+    // Load the interpolated p0 solution as a warm start (do NOT call
+    // set_initial_condition here — that would discard the interpolated state).
     s1.set_state_from_host(rho1, rhou1, rhov1, rhow1, rhoE1);
-    s1.solve_steady_state(10000, cfl, 1000, true, abs_tol);
+    s1.test_freestream_preservation(1);
+    s1.solve_steady_state(10000, 0.001, 1000, true, abs_tol);
+    // s1.solve_steady_state(10000, cfl, 1000, true, abs_tol);
     s1.write_solution("solution_steady_state_p1.vtu");
     s1.copy_state_to_host(rho1, rhou1, rhov1, rhow1, rhoE1);
   }
