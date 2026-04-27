@@ -1490,7 +1490,7 @@ interpolate_solution(
       const auto xi = fe_hi.node(i);
 
       // Evaluate low-order basis functions at this point
-      RealType rho_val = 0, rhou_val = 0, rhov_val = 0, rhow_val, rhoE_val = 0;
+      RealType rho_val = 0, rhou_val = 0, rhov_val = 0, rhow_val = 0, rhoE_val = 0;
       for (unsigned int j = 0; j < n_dofs_lo; ++j) {
         const RealType phi_j = fe_lo.shape_value(j, xi);
         const uint32_t dof_j = dof_indices_lo[j];
@@ -1609,7 +1609,7 @@ main(int argc, char* argv[])
 
     EulerSolver<3, q, double> s1(dh1, fev1, ffev1, 1);
     s1.set_state_from_host(rho1, rhou1, rhov1, rhow1, rhoE1);
-    s1.solve_steady_state(10000, cfl/3, 1000, true, abs_tol);
+    s1.solve_steady_state(10000, cfl/100, 1, true, abs_tol);
     s1.write_solution("solution_steady_state_p1.vtu");
     s1.copy_state_to_host(rho1, rhou1, rhov1, rhow1, rhoE1);
   }

@@ -759,7 +759,7 @@ TEST(FEFaceValues, 3D_q2)
           }
         }
       }
-      /*
+      
       // After reiniting the triangulation, grab cell 0 only
       //auto cell = tria.get_cell(0);
       std::cout << "Cell 0 vertices:\n";
@@ -797,7 +797,6 @@ TEST(FEFaceValues, 3D_q2)
         std::cout << "  Integrated normal: (" << nx << ", " << ny << ", " << nz << ")\n";
         std::cout << "  Integrated area: " << area << "\n";
       }
-      break; */
 
       //Divergence theorem
       for (unsigned int d = 0; d < dim; ++d) {
@@ -810,6 +809,143 @@ TEST(FEFaceValues, 3D_q2)
           }
         }
         EXPECT_NEAR(flux, 0.0, tol);
+      }
+    }
+  }
+}
+
+TEST(FEValues, PartitionOfUnity_3D_q2)
+{
+  constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 2; // Testing on a q=2 mesh
+  constexpr unsigned int fe_degree = 2;
+
+  Triangulation<dim, mesh_q> tria;
+  // Make sure this points to a valid .gri file for your project
+  read_gri(tria, "../airfoils/cube.gri"); 
+
+  FE_DGLagrangeSimplex<dim, double> fe(fe_degree);
+  QGaussSimplex<dim, double> quad(3); 
+  DoFHandler<dim, mesh_q, double> dh(tria, fe);
+  FEValues<dim, mesh_q, double> fe_values(fe, quad);
+
+  for (auto cell : dh.active_cell_range()) {
+    fe_values.reinit(cell);
+
+    for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
+      double sum_phi = 0.0;
+      Tensor<1, dim, double> sum_grad;
+      for (unsigned int d = 0; d < dim; ++d) sum_grad(d) = 0.0;
+
+      for (unsigned int i = 0; i < fe.n_dofs(); ++i) {
+        sum_phi += fe_values.shape_value(i, q);
+        auto grad = fe_values.shape_gradient(i, q);
+        for (unsigned int d = 0; d < dim; ++d) {
+          sum_grad(d) += grad(d);
+        }
+      }
+
+      EXPECT_NEAR(sum_phi, 1.0, 1e-12) << "Shape functions do not sum to 1!";
+      for (unsigned int d = 0; d < dim; ++d) {
+        EXPECT_NEAR(sum_grad(d), 0.0, 1e-12) << "Shape gradients do not sum to 0!";
+      }
+    }
+  }
+}
+
+TEST(FEFaceValues, GeometricConservation_3D_q2)
+{
+  constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 2;
+  
+  Triangulation<dim, mesh_q> tria;
+  read_gri(tria, "../airfoils/cube.gri");
+
+  FE_DGLagrangeSimplex<dim, double> fe(2);
+  QGaussSimplex<dim - 1, double> face_quad(3); 
+  DoFHandler<dim, mesh_q, double> dh(tria, fe);
+  FEFaceValues<dim, mesh_q, double> fe_face_values(fe, face_quad);
+
+  for (auto cell : dh.active_cell_range()) {
+    Tensor<1, dim, double> closed_surface_integral;
+    for (unsigned int d = 0; d < dim; ++d) closed_surface_integral(d) = 0.0;
+
+    for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
+      fe_face_values.reinit(cell, f);
+      
+      for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+        double JxW = fe_face_values.JxW(q);
+        auto n = fe_face_values.normal(q);
+        
+        for (unsigned int d = 0; d < dim; ++d) {
+          closed_surface_integral(d) += n(d) * JxW;
+        }
+      }
+    }
+
+    for (unsigned int d = 0; d < dim; ++d) {
+      EXPECT_NEAR(closed_surface_integral(d), 0.0, 1e-10) 
+        << "Cell is not closed! Mass will leak from dimension " << d;
+    }
+  }
+}
+
+TEST(FEValues, DivergenceTheorem_3D_q2)
+{
+  constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 2;
+  constexpr unsigned int fe_degree = 2;
+
+  Triangulation<dim, mesh_q> tria;
+  read_gri(tria, "../airfoils/cube.gri");
+
+  FE_DGLagrangeSimplex<dim, double> fe(fe_degree);
+  QGaussSimplex<dim, double> quad(4); 
+  QGaussSimplex<dim - 1, double> face_quad(4);
+  DoFHandler<dim, mesh_q, double> dh(tria, fe);
+  
+  FEValues<dim, mesh_q, double> fe_values(fe, quad);
+  FEFaceValues<dim, mesh_q, double> fe_face_values(fe, face_quad);
+
+  for (auto cell : dh.active_cell_range()) {
+    fe_values.reinit(cell);
+
+    for (unsigned int i = 0; i < fe.n_dofs(); ++i) {
+      
+      // 1. Calculate Volume Integral: \int \nabla \phi_i dV
+      Tensor<1, dim, double> vol_integral;
+      for (unsigned int d = 0; d < dim; ++d) vol_integral(d) = 0.0;
+      
+      for (unsigned int q = 0; q < fe_values.n_q_points(); ++q) {
+        auto grad = fe_values.shape_gradient(i, q);
+        double JxW = fe_values.JxW(q);
+        for (unsigned int d = 0; d < dim; ++d) {
+          vol_integral(d) += grad(d) * JxW;
+        }
+      }
+
+      // 2. Calculate Surface Integral: \oint \phi_i \hat{n} dS
+      Tensor<1, dim, double> surf_integral;
+      for (unsigned int d = 0; d < dim; ++d) surf_integral(d) = 0.0;
+      
+      for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
+        fe_face_values.reinit(cell, f);
+        for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+          double phi = fe_face_values.shape_value(i, q);
+          auto n = fe_face_values.normal(q);
+          double JxW = fe_face_values.JxW(q);
+          
+          for (unsigned int d = 0; d < dim; ++d) {
+            surf_integral(d) += phi * n(d) * JxW;
+          }
+        }
+      }
+
+      // 3. Compare them
+      for (unsigned int d = 0; d < dim; ++d) {
+        EXPECT_NEAR(vol_integral(d), surf_integral(d), 1e-10) 
+            << "Divergence Theorem FAILED on DoF " << i << ", dim " << d << ". "
+            << "Vol: " << vol_integral(d) << " != Surf: " << surf_integral(d);
       }
     }
   }
