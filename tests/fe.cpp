@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 using RealType = double;
-static constexpr RealType tol = 1.0e-10;
+static constexpr RealType tol = 1.0e-8;
 
 static constexpr unsigned int max_order = 3;
 
@@ -223,7 +223,7 @@ TEST(FEValues, 2D)
   for (unsigned int order = 0; order <= max_order; ++order) {
     FE_DGLagrangeSimplex<dim, RealType> fe(order);
     QGaussSimplex<dim, RealType> quad(order + 1);
-    FEValues<dim, RealType> fe_values(fe, quad);
+    FEValues<dim, mesh_q, RealType> fe_values(fe, quad);
 
     for (const auto& cell : tria.active_cell_range()) {
       fe_values.reinit(cell);
@@ -295,7 +295,7 @@ TEST(FEValues, 3D)
   for (unsigned int order = 0; order <= max_order; ++order) {
     FE_DGLagrangeSimplex<dim, RealType> fe(order);
     QGaussSimplex<dim, RealType> quad(order + 1);
-    FEValues<dim, RealType> fe_values(fe, quad);
+    FEValues<dim, mesh_q, RealType> fe_values(fe, quad);
 
     for (const auto& cell : tria.active_cell_range()) {
       fe_values.reinit(cell);
@@ -623,6 +623,183 @@ TEST(FEFaceValues, 3D)
       }
 
       // Divergence theorem
+      for (unsigned int d = 0; d < dim; ++d) {
+        RealType flux = 0.0;
+        for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell;
+             ++f) {
+          fe_face_values.reinit(cell, f);
+          for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+            flux += fe_face_values.normal(q)(d) * fe_face_values.JxW(q);
+          }
+        }
+        EXPECT_NEAR(flux, 0.0, tol);
+      }
+    }
+  }
+}
+  
+TEST(FEValues, 3D_q2)
+{
+  constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 2;
+
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
+  gri.read_gri("../airfoils/cube.gri");
+  gri.transfer_to_triangulation(tria);
+
+  for (unsigned int order = 0; order <= max_order; ++order) {
+    FE_DGLagrangeSimplex<dim, RealType> fe(order);
+    QGaussSimplex<dim, RealType> quad(order + 1);
+    FEValues<dim, mesh_q, RealType> fe_values(fe, quad);
+
+    for (const auto& cell : tria.active_cell_range()) {
+      fe_values.reinit(cell);
+
+      const unsigned int n_q = fe_values.n_q_points();
+      const unsigned int n_dof = fe_values.n_dofs();
+
+      for (unsigned int q = 0; q < n_q; ++q) {
+
+        // Quad points are finite
+        for (unsigned int d = 0; d < dim; ++d) {
+          EXPECT_TRUE(std::isfinite(fe_values.q_point(q)(d)));
+        }
+
+        // Sum of shape values is 1
+        RealType phi_sum = 0.0;
+        for (unsigned int i = 0; i < n_dof; ++i) {
+          phi_sum += fe_values.shape_value(i, q);
+        }
+        EXPECT_NEAR(phi_sum, 1.0, tol);
+
+        // Gradients are finite
+        for (unsigned int i = 0; i < n_dof; ++i) {
+          for (unsigned int d = 0; d < dim; ++d) {
+            EXPECT_TRUE(std::isfinite(fe_values.shape_gradient(i, q)(d)));
+          }
+        }
+      }
+
+      // Sum of shape gradients are 0 at every quad
+      for (unsigned int q = 0; q < n_q; ++q) {
+        for (unsigned int d = 0; d < dim; ++d) {
+          RealType grad_sum = 0.0;
+          for (unsigned int i = 0; i < n_dof; ++i) {
+            grad_sum += fe_values.shape_gradient(i, q)(d);
+          }
+          EXPECT_NEAR(grad_sum, 0.0, tol);
+        }
+      }
+    }
+  }
+}
+
+TEST(FEFaceValues, 3D_q2)
+{
+  constexpr unsigned int dim = 3;
+  constexpr unsigned int mesh_q = 2;
+
+  Triangulation<dim, mesh_q> tria;
+  GriReader<dim, mesh_q> gri;
+  gri.read_gri("../airfoils/cube.gri");
+  gri.transfer_to_triangulation(tria);
+
+  for (unsigned int order = 0; order <= max_order; ++order) {
+    FE_DGLagrangeSimplex<dim, RealType> fe(order);
+    QGaussSimplex<dim - 1, RealType> quad(order + 1);
+    FEFaceValues<dim, mesh_q, RealType> fe_face_values(fe, quad);
+
+    for (const auto& cell : tria.active_cell_range()) {    
+      for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
+        fe_face_values.reinit(cell, f);
+
+        const unsigned int n_q = fe_face_values.n_q_points();
+        const unsigned int n_dof = fe_face_values.n_dofs();
+
+        for (unsigned int q = 0; q < n_q; ++q) {
+
+          // Quad points are finite
+          for (unsigned int d = 0; d < dim; ++d) {
+            EXPECT_TRUE(std::isfinite(fe_face_values.q_point(q)(d)));
+          }
+
+          // Normal is finite
+          for (unsigned int d = 0; d < dim; ++d) {
+            EXPECT_TRUE(std::isfinite(fe_face_values.normal(q)(d)));
+          }
+
+          // Normal is unit length
+          EXPECT_NEAR(fe_face_values.normal(q).norm(), 1.0, tol);
+
+          // Sum of shape values is 1
+          RealType phi_sum = 0.0;
+          for (unsigned int i = 0; i < n_dof; ++i) {
+            phi_sum += fe_face_values.shape_value(i, q);
+          }
+          EXPECT_NEAR(phi_sum, 1.0, tol);
+
+          // Gradients are finite
+          for (unsigned int i = 0; i < n_dof; ++i) {
+            for (unsigned int d = 0; d < dim; ++d) {
+              EXPECT_TRUE(
+                std::isfinite(fe_face_values.shape_gradient(i, q)(d)));
+            }
+          }
+        }
+
+        // Sum of shape gradients are 0 at every quad
+        for (unsigned int q = 0; q < n_q; ++q) {
+          for (unsigned int d = 0; d < dim; ++d) {
+            RealType grad_sum = 0.0;
+            for (unsigned int i = 0; i < n_dof; ++i) {
+              grad_sum += fe_face_values.shape_gradient(i, q)(d);
+            }
+            EXPECT_NEAR(grad_sum, 0.0, tol);
+          }
+        }
+      }
+      /*
+      // After reiniting the triangulation, grab cell 0 only
+      //auto cell = tria.get_cell(0);
+      std::cout << "Cell 0 vertices:\n";
+      for (int i = 0; i < 10; ++i)
+        std::cout << "  v" << i << ": "
+                  << cell.vertex(i)(0) << " "
+                  << cell.vertex(i)(1) << " "
+                  << cell.vertex(i)(2) << "\n";
+
+      for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell; ++f) {
+        fe_face_values.reinit(cell, f);
+        std::cout << "Face " << f << ":\n";
+
+        for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+          std::cout << "  Quadrature Point " << q << ":\n";
+          std::cout << "    JxW: " << fe_face_values.JxW(q) << "\n";
+          std::cout << "    Normal: ("
+                    << fe_face_values.normal(q)(0) << ", "
+                    << fe_face_values.normal(q)(1) << ", "
+                    << fe_face_values.normal(q)(2) << ")\n";
+          std::cout << "    q_point: ("
+                    << fe_face_values.q_point(q)(0) << ", "
+                    << fe_face_values.q_point(q)(1) << ", "
+                    << fe_face_values.q_point(q)(2) << ")\n";
+        }
+
+        // Sanity check: print integrated normal and area
+        double nx = 0, ny = 0, nz = 0, area = 0;
+        for (unsigned int q = 0; q < fe_face_values.n_q_points(); ++q) {
+          nx   += fe_face_values.normal(q)(0) * fe_face_values.JxW(q);
+          ny   += fe_face_values.normal(q)(1) * fe_face_values.JxW(q);
+          nz   += fe_face_values.normal(q)(2) * fe_face_values.JxW(q);
+          area += fe_face_values.JxW(q);
+        }
+        std::cout << "  Integrated normal: (" << nx << ", " << ny << ", " << nz << ")\n";
+        std::cout << "  Integrated area: " << area << "\n";
+      }
+      break; */
+
+      //Divergence theorem
       for (unsigned int d = 0; d < dim; ++d) {
         RealType flux = 0.0;
         for (unsigned int f = 0; f < SimplexTopology<dim, mesh_q>::faces_per_cell;

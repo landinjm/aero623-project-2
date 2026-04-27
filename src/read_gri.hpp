@@ -798,6 +798,7 @@ GriReader<dim, q>::read_gri(const std::string& filename)
 
   for (unsigned int i = 0; i < data_.n_boundary_groups; ++i) {
     in >> data_.boundary_group_n_faces[i];
+    //std::cout << "Number of boundary group faces: " << std::to_string(data_.boundary_group_n_faces[i]) << std::endl;
     ASSERT(data_.boundary_group_n_faces[i] > 0,
            "Boundary groups must have at least one face");
     in >> data_.boundary_group_n_nodes[i]; // nodes per boundary face
@@ -842,35 +843,25 @@ GriReader<dim, q>::read_gri(const std::string& filename)
 
   // NOTE: The files assume indexing from 1 so adjust for that
   for (unsigned int i = 0; i < data_.n_elements; ++i) {
-    in >> dummy;
-    data_.node_1[i] = dummy - 1;
-    in >> dummy;
-    data_.node_2[i] = dummy - 1;
-    in >> dummy;
-    data_.node_3[i] = dummy - 1;
+    in >> dummy; data_.node_1[i] = dummy - 1;
+    in >> dummy; data_.node_2[i] = dummy - 1;
+    in >> dummy; data_.node_3[i] = dummy - 1;
+
     if constexpr (dim == 3) {
-      in >> dummy;
-      data_.node_4[i] = dummy - 1;
+      in >> dummy; data_.node_4[i] = dummy - 1;
       if (data_.q_order == 2) {
-        in >> dummy;
-        data_.node_5[i] = dummy - 1;
-        in >> dummy;
-        data_.node_6[i] = dummy - 1;
-        in >> dummy;
-        data_.node_7[i] = dummy - 1;
-        in >> dummy;
-        data_.node_8[i] = dummy - 1;
-        in >> dummy;
-        data_.node_9[i] = dummy - 1;
-        in >> dummy;
-        data_.node_10[i] = dummy - 1;
-      } else if (data_.q_order == 2) {
-        in >> dummy;
-        data_.node_4[i] = dummy - 1;
-        in >> dummy;
-        data_.node_5[i] = dummy - 1;
-        in >> dummy;
-        data_.node_6[i] = dummy - 1;
+        in >> dummy; data_.node_5[i] = dummy - 1;
+        in >> dummy; data_.node_6[i] = dummy - 1;
+        in >> dummy; data_.node_7[i] = dummy - 1;
+        in >> dummy; data_.node_8[i] = dummy - 1;
+        in >> dummy; data_.node_9[i] = dummy - 1;
+        in >> dummy; data_.node_10[i] = dummy - 1;
+      }
+    } else if constexpr (dim == 2) {  // <-- separate branch, not nested
+      if (data_.q_order == 2) {
+        in >> dummy; data_.node_4[i] = dummy - 1;
+        in >> dummy; data_.node_5[i] = dummy - 1;
+        in >> dummy; data_.node_6[i] = dummy - 1;
       }
     }
   }

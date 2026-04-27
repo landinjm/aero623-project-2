@@ -75,7 +75,7 @@ public:
   using VecHost = Vector<RealType, HostMemSpace>;
 
   EulerSolver(const DoFHandler<dim, mesh_q, RealType>& dof_handler,
-              FEValues<dim, RealType>& fe_values,
+              FEValues<dim, mesh_q, RealType>& fe_values,
               FEFaceValues<dim, mesh_q, RealType>& fe_face_values,
               unsigned int degree)
     : dof_handler_(dof_handler)
@@ -258,7 +258,7 @@ public:
 
   const unsigned int degree_;
   const DoFHandler<dim, mesh_q, RealType>& dof_handler_;
-  FEValues<dim, RealType>& fe_values_;
+  FEValues<dim, mesh_q, RealType>& fe_values_;
   FEFaceValues<dim, mesh_q, RealType>& fe_face_values_;
 
   FreestreamState<dim, RealType> freestream_;

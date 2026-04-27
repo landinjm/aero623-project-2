@@ -11,7 +11,7 @@ template<unsigned int dim, unsigned int mesh_q, typename RealType>
 class MassMatrix
 {
 public:
-  MassMatrix(FEValues<dim, RealType>& fe_values)
+  MassMatrix(FEValues<dim, mesh_q, RealType>& fe_values)
     : fe_values_(fe_values) {};
 
   void assemble(const DoFHandler<dim, mesh_q, RealType>& dof_handler)
@@ -194,7 +194,7 @@ public:
   }
 
 private:
-  FEValues<dim, RealType>& fe_values_;
+  FEValues<dim, mesh_q, RealType>& fe_values_;
 
   Kokkos::View<RealType***, Layout, DeviceMemSpace>
     mm_; // [n_cells, n_dofs_per_cell, n_dofs_per_cell]
