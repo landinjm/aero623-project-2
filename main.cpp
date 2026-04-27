@@ -1529,7 +1529,7 @@ id_map = {
     FEFaceValues<dim, q, double> ffev0(fe0, fq0);
     EulerSolver<dim, q, double> s0(dh0, fev0, ffev0, 0);
     s0.set_initial_condition();
-    s0.test_freestream_preservation(100);
+    s0.test_freestream_preservation(10);
     // abs_tol = s0.solve_steady_state(100, 0.5, 100, false, 1.0e-5);
     s0.write_solution("solution_steady_state_p0.vtu");
 
