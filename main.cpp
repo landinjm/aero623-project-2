@@ -1517,11 +1517,11 @@ main(int argc, char* argv[])
   Kokkos::initialize(argc, argv);
   {
     constexpr unsigned int dim = 3;
-    constexpr unsigned int q = 1;
+    constexpr unsigned int q = 2;
 
     GriReader<dim, q> gri;
     Triangulation<dim, q> tria;
-    gri.read_gri("../airfoils/cube.500.gri");
+    gri.read_gri("../airfoils/cube.gri");
     gri.transfer_to_triangulation(tria);
     if (!tria.verify_mesh()) {
       std::runtime_error("Verify mesh failed");
@@ -1609,7 +1609,7 @@ main(int argc, char* argv[])
 
     EulerSolver<3, q, double> s1(dh1, fev1, ffev1, 1);
     s1.set_state_from_host(rho1, rhou1, rhov1, rhow1, rhoE1);
-    s1.solve_steady_state(10000, cfl, 1000, true, abs_tol);
+    s1.solve_steady_state(10000, cfl/3, 1000, true, abs_tol);
     s1.write_solution("solution_steady_state_p1.vtu");
     s1.copy_state_to_host(rho1, rhou1, rhov1, rhow1, rhoE1);
   }
